@@ -1,74 +1,27 @@
 { config, pkgs, ... }:
 
 {
-  # Home Manager sürümü
+  # ========================================================================
+  # HOME MANAGER BASE
+  # ========================================================================
+  
   home.stateVersion = "25.11";
-
-  # User bilgileri
   home.username = "zixar";
   home.homeDirectory = "/home/zixar";
 
-  # Git configuration
+  # ========================================================================
+  # GIT
+  # ========================================================================
+  
   programs.git = {
     enable = true;
-    userName = "zixar";
-    userEmail = "halilbatuhanyilmaz@proton.me";  # DEĞİŞTİR!
-    extraConfig = {
+    
+    settings = {
+      user.name = "zixar";
+      user.email = "halilbatuhanyilmaz@proton.me";
       init.defaultBranch = "main";
       pull.rebase = false;
     };
-  };
-
-  # Bash configuration
-  programs.bash = {
-    enable = true;
-    
-    shellAliases = {
-      ll = "ls -la";
-      rebuild = "sudo nixos-rebuild switch --flake /etc/nixos#nixos";
-      update = "cd /etc/nixos && sudo nix flake update && sudo nixos-rebuild switch --flake .#nixos";
-      cleanup = "sudo nix-collect-garbage -d && sudo nix-store --optimize";
-    };
-    
-    bashrcExtra = ''
-      # Custom prompt
-      PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
-    '';
-  };
-
-  # GTK theme (GNOME için)
-  gtk = {
-  enable = true;
-  theme = {
-    name = "Adwaita-dark";
-    package = pkgs.gnome-themes-extra;
-  };
-  iconTheme = {
-    name = "Adwaita";
-    package = pkgs.adwaita-icon-theme;
-  };
-  
-  # Force overwrite - mevcut dosyaların üzerine yaz
-  gtk2.configLocation = "${config.home.homeDirectory}/.gtkrc-2.0";
-  gtk2.extraConfig = "";
-  gtk3.extraConfig = {
-    gtk-application-prefer-dark-theme = true;
-  };
-  gtk4.extraConfig = {
-    gtk-application-prefer-dark-theme = true;
-  };
-};
-  # ========================================================================
-  # HYPRLAND CONFIGURATION
-  # ========================================================================
-  
-  wayland.windowManager.hyprland = {
-    enable = true;
-    
-    # Config'leri ~/.config/hyprland/'a link et
-    extraConfig = ''
-      source = ~/.config/hyprland/hyprland.conf
-    '';
   };
 
   # ========================================================================
@@ -86,7 +39,7 @@
       rebuild = "sudo nixos-rebuild switch --flake /etc/nixos#nixos";
       update = "cd /etc/nixos && sudo nix flake update && rebuild";
       cleanup = "sudo nix-collect-garbage -d && sudo nix-store --optimize";
-      lm = "lmstudio";  # LM Studio shortcut
+      lm = "lmstudio";
     };
     
     # Auto fastfetch on terminal start
@@ -129,9 +82,9 @@
       
       git_status = {
         style = "bold #e88388";
-        ahead = "⇡$\{count\}";
-        behind = "⇣$\{count\}";
-        diverged = "⇕⇡$\{ahead_count\}⇣$\{behind_count\}";
+        ahead = "⇡\${count}";
+        behind = "⇣\${count}";
+        diverged = "⇕⇡\${ahead_count}⇣\${behind_count}";
       };
     };
   };
@@ -213,9 +166,7 @@
     settings = {
       logo = {
         type = "kitty-direct";
-        # USER WILL SET: source = "/path/to/princess/image.png";
-        # Leave blank for now
-        source = ".config/fastfetch/nixos-logo.jpg";
+        source = "~/.config/fastfetch/nixos-logo.png";
         width = 30;
         height = 15;
       };
@@ -277,12 +228,10 @@
   
   programs.rofi = {
     enable = true;
-    package = pkgs.rofi-wayland;
+    package = pkgs.rofi;
+    terminal = "\${pkgs.kitty}/bin/kitty";
     
-    terminal = "${pkgs.kitty}/bin/kitty";
-    
-    # Princess theme
-    theme = "~/.config/hyprland/rofi/launcher.rasi";
+    # Theme will be set manually at ~/.config/hyprland/rofi/
     
     extraConfig = {
       modi = "drun,emoji,window";
@@ -297,6 +246,45 @@
   };
 
   # ========================================================================
+  # GTK THEME
+  # ========================================================================
+  
+  gtk = {
+    enable = true;
+    
+    theme = {
+      name = "Adwaita-dark";
+      package = pkgs.gnome-themes-extra;
+    };
+    
+    iconTheme = {
+      name = "Adwaita";
+      package = pkgs.adwaita-icon-theme;
+    };
+    
+    gtk3.extraConfig = {
+      gtk-application-prefer-dark-theme = true;
+    };
+    
+    gtk4.extraConfig = {
+      gtk-application-prefer-dark-theme = true;
+    };
+  };
+
+  # ========================================================================
+  # HYPRLAND
+  # ========================================================================
+  
+  wayland.windowManager.hyprland = {
+    enable = true;
+    
+    # Config will be at ~/.config/hypr/hyprland.conf (manual)
+    extraConfig = ''
+      source = ~/.config/hypr/hyprland.conf
+    '';
+  };
+
+  # ========================================================================
   # PACKAGES
   # ========================================================================
   
@@ -306,40 +294,20 @@
     grim
     slurp
     swappy
-    
-    # Screenshot tool
     grimblast
     
     # Wallpaper
     swww
     
-    # Emoji picker support
+    # Emoji picker
     rofimoji
     
-    # Fonts
-    (nerdfonts.override { fonts = [ "JetBrainsMono" ]; })
+    # Fonts - FIXED SYNTAX
+    jetbrains-mono
+    nerd-fonts.jetbrains-mono
     font-awesome
+    
+    # Icon theme
+    papirus-icon-theme
   ];
-
-  # ========================================================================
-  # FILE MANAGEMENT
-  # ========================================================================
-  
-  # Create config directories
-  home.file = {
-    # Hyprland configs
-  #  ".config/hyprland/hyprland.conf".source = ./hyprland/hyprland.conf;
-   # ".config/hyprland/keybinds.conf".source = ./hyprland/keybinds.conf;
-   # ".config/hyprland/windowrules.conf".source = ./hyprland/windowrules.conf;
-   # ".config/hyprland/autostart.conf".source = ./hyprland/autostart.conf;
-   # ".config/hyprland/themes/princess.conf".source = ./hyprland/themes/princess.conf;
-    
-    # Waybar
-   # ".config/hyprland/waybar/config.jsonc".source = ./hyprland/waybar/config.jsonc;
-   # ".config/hyprland/waybar/style.css".source = ./hyprland/waybar/style.css;
-    
-    # Rofi
-  #  ".config/hyprland/rofi/launcher.rasi".source = ./hyprland/rofi/launcher.rasi;
- #   ".config/hyprland/rofi/emoji.rasi".source = ./hyprland/rofi/emoji.rasi;
-  };
 }
