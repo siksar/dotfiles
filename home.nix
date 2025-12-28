@@ -12,7 +12,6 @@
   # ========================================================================
   # GIT
   # ========================================================================
-  home-manager.backupFileExtension = "backup";
   programs.git = {
     enable = true;
     
@@ -267,7 +266,9 @@
     enableCompletion = true;
     autosuggestion.enable = true;
     syntaxHighlighting.enable = true;
-    
+   home.sessionVariables = {
+    SHELL = "${pkgs.zsh}/bin/zsh";
+  };   
     shellAliases = {
       ll = "ls -la";
       rebuild = "sudo nixos-rebuild switch --flake /etc/nixos#nixos";
@@ -395,66 +396,103 @@
   # ========================================================================
   
   programs.fastfetch = {
-    enable = true;
-    
-    settings = {
-      logo = {
-        type = "kitty-direct";
-        source = "~/.config/fastfetch/nixos-logo.png";
-        width = 30;
-        height = 15;
+  enable = true;
+  
+  settings = {
+    logo = {
+      type = "kitty-direct";
+      source = "~/.config/fastfetch/nixos-logo.jpg";  # PNG kullan!
+      width = 25;
+      height = 12;
+      padding = {
+        top = 1;
       };
-      
-      display = {
-        separator = " 🌹 ";
-        color = {
-          keys = "#e88388";
-          title = "#f5a97f";
-        };
-      };
-      
-      modules = [
-        {
-          type = "title";
-          format = "{user-name}@{host-name}";
-        }
-        "separator"
-        {
-          type = "os";
-          key = "OS";
-        }
-        {
-          type = "kernel";
-          key = "Kernel";
-        }
-        {
-          type = "packages";
-          key = "Packages";
-        }
-        {
-          type = "wm";
-          key = "WM";
-        }
-        {
-          type = "terminal";
-          key = "Terminal";
-        }
-        {
-          type = "shell";
-          key = "Shell";
-        }
-        "separator"
-        {
-          type = "uptime";
-          key = "Uptime";
-        }
-        {
-          type = "memory";
-          key = "Memory";
-        }
-      ];
     };
+    
+    display = {
+      separator = " 🌹 ";
+      color = {
+        keys = "#e88388";
+        title = "#f5a97f";
+      };
+    };
+    
+    modules = [
+      {
+        type = "title";
+        format = "{user-name}@{host-name}";
+      }
+      "separator"
+      {
+        type = "os";
+        key = "OS";
+      }
+      {
+        type = "host";
+        key = "Host";
+      }
+      {
+        type = "kernel";
+        key = "Kernel";
+      }
+      {
+        type = "uptime";
+        key = "Uptime";
+      }
+      {
+        type = "packages";
+        key = "Packages";
+      }
+      {
+        type = "shell";
+        key = "Shell";
+      }
+      "separator"
+      {
+        type = "display";
+        key = "Display";
+      }
+      {
+        type = "wm";
+        key = "WM";
+      }
+      {
+        type = "terminal";
+        key = "Terminal";
+      }
+      {
+        type = "terminalfont";
+        key = "Font";
+      }
+      "separator"
+      {
+        type = "cpu";
+        key = "CPU";
+      }
+      {
+        type = "gpu";
+        key = "GPU";
+      }
+      {
+        type = "memory";
+        key = "Memory";
+      }
+      {
+        type = "disk";
+        key = "Disk (/)";
+      }
+      {
+        type = "localip";
+        key = "Local IP";
+      }
+      "separator"
+      {
+        type = "locale";
+        key = "Locale";
+      }
+    ];
   };
+};
 
   # ========================================================================
   # ROFI

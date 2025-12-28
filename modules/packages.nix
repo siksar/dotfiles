@@ -18,7 +18,7 @@
     # Browser & Productivity
     brave
     bitwarden-desktop
-    
+    home-manager   
     # AI Tools
     lmstudio
     
