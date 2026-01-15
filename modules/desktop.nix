@@ -15,10 +15,11 @@
       autoRepeatInterval = 20;
     };
 
-    displayManager.gdm.enable = true;
-    desktopManager.gnome.enable = true;
+#    displayManager.gdm.enable = true;
+#    desktopManager.gnome.enable = true;
   };
-
+  services.desktopManager.cosmic.enable = true;
+  services.displayManager.cosmic-greeter.enable = true;
   # GNOME bloat removal - Aggressive cleanup
   environment.gnome.excludePackages = with pkgs; [
     gnome-tour
@@ -47,6 +48,7 @@
     adwaita-icon-theme
     vanilla-dmz
     pavucontrol
+    papirus-icon-theme
   ];
 
   # XDG Portal for file pickers, etc.
