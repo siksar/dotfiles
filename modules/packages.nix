@@ -21,10 +21,10 @@
     home-manager   
     # AI Tools
     lmstudio
-    
     # AppImage support
     appimage-run
-    
+    antigravity
+
     # Development tools (uncomment if needed)
     vscode
      docker
@@ -39,7 +39,9 @@
     mask = ''\xff\xff\xff\xff\x00\x00\x00\x00\xff\xff\xff'';
     magicOrExtension = ''\x7fELF....AI\x02'';
   };
-
+#let
+#  antigravity = pkgs.callPackage /path/to/Google-Antigravity/antigravity.nix {};
+#in
   # Flatpak
   services.flatpak.enable = true;
 

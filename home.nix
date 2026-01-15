@@ -168,9 +168,9 @@
     settings = {
       logo = {
         type = "kitty-direct";
-        source = "~/.config/fastfetch/nixos-logo.png";
-        width = 25;
-        height = 12;
+        source = "~/.config/fastfetch/nixos-logo.jpg";
+        width = 30;
+        height = 30;
         padding = {
           top = 1;
         };
@@ -435,7 +435,26 @@
     slurp
     swappy
     grimblast
+     # Docker tools
+    docker-compose      # Docker Compose v2
     
+    # Podman tools
+    podman-compose      # Podman Compose
+    podman-tui          # TUI for podman
+    
+    # Kubernetes
+    kubectl             # Kubernetes CLI
+    kubernetes-helm     # Helm package manager
+    k9s                 # Kubernetes TUI
+    
+    # Container utilities
+    dive                # Docker image explorer
+    lazydocker          # Docker TUI
+    ctop                # Container top
+    
+    # Image building
+    buildah             # Container image builder
+    skopeo              # Container image operations
     # Wallpaper
     swww
     

@@ -41,7 +41,15 @@
       "vm.vfs_cache_pressure" = 50;
     };
   };
-
+services.xserver = {
+  enable = true;
+  videoDrivers = [ "nvidia" ];
+  
+  # "28" değeri tüm overclock ve fan kontrol özelliklerini açar
+  deviceSection = ''
+    Option "Coolbits" "28"
+  '';
+};
   # ========================================================================
   # LOCALIZATION
   # ========================================================================
@@ -62,6 +70,35 @@
     };
   };
 
+  # Docker
+  virtualisation.docker = {
+    enable = true;
+    enableOnBoot = true;  # Start on boot
+    autoPrune = {
+      enable = true;
+      dates = "weekly";
+    };
+  };
+
+  # Podman (Docker alternative - rootless)
+  virtualisation.podman = {
+    enable = true;
+    dockerCompat = true;  # Create 'docker' alias to podman
+    defaultNetwork.settings.dns_enabled = true;
+  };
+
+  # Container networking
+  virtualisation.containers = {
+    enable = true;
+    storage.settings = {
+      storage = {
+        driver = "overlay2";
+        runroot = "/run/containers/storage";
+        graphroot = "/var/lib/containers/storage";
+      };
+    };
+  };
+
   # ========================================================================
   # USER MANAGEMENT
   # ========================================================================
@@ -73,7 +110,8 @@
       "wheel" 
       "video" 
       "audio"
-      # "docker"  # Uncomment if using Docker
+      "podman"
+      "docker"  # Uncomment if using Docker
     ];
   };
 
