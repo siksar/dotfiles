@@ -356,8 +356,10 @@
   # ========================================================================
   # PACKAGES
   # ========================================================================
-  home.packages = with pkgs; [
+  home.packages = [
     # Noctalia Shell
+    noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
+  ] ++ (with pkgs; [
     noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
 
     # Clipboard & Screenshot (for Hyprland)
