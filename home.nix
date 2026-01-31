@@ -6,10 +6,10 @@
   imports = [
     ./home/hyprland.nix   # Hyprland user config
     ./home/noctalia.nix   # Noctalia Shell
-    ./home/waybar.nix     # Waybar status bar
-    ./home/rofi.nix       # Application launcher
+    # ./home/waybar.nix     # DISABLED - Using Noctalia bar
+    # ./home/rofi.nix       # DISABLED - Using Noctalia launcher
     ./home/editors.nix    # VS Code, Neovim, Helix
-    ./home/dunst.nix      # Notifications
+    # ./home/dunst.nix      # DISABLED - Using Noctalia notifications
     ./home/hyprlock.nix   # Lock screen & idle
     ./home/tui-media.nix  # Anime/Manga TUI apps
     ./home/wrappers.nix   # Tutorial/Examples for wrappers
