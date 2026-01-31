@@ -12,6 +12,10 @@
       wifi.powersave = false;
     };
     
+    
+    # DNS Servers (Cloudflare)
+    nameservers = [ "1.1.1.1" "1.0.0.1" ];
+
     firewall = {
       enable = true;
       allowedTCPPorts = [ 27015 27036 ];
@@ -20,12 +24,12 @@
       allowedUDPPortRanges = [ ];
     };
   };
+
+  # Systemd-resolved
   services.resolved = {
     enable = true;
     dnssec = "false";
-    extraConfig = ''
-      DNS=1.1.1.1 1.0.0.1
-      FallbackDNS=8.8.8.8 8.8.4.4
-    '';
+    domains = [ "~." ];
+    fallbackDns = [ "8.8.8.8" "8.8.4.4" ];
   };
 }

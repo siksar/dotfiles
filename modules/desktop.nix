@@ -1,7 +1,7 @@
 { config, pkgs, ... }:
 {
   # ========================================================================
-  # DESKTOP ENVIRONMENTS
+  # DESKTOP ENVIRONMENT - Hyprland Only
   # ========================================================================
   
   services = {
@@ -31,30 +31,24 @@
   services.displayManager.defaultSession = "hyprland";
 
   # ========================================================================
-  # COSMIC DESKTOP (Session option)
+  # ESSENTIAL DESKTOP PACKAGES
   # ========================================================================
-  services.desktopManager.cosmic.enable = true;
-
-  # ========================================================================
-  # KDE PLASMA 6 (Session option)
-  # ========================================================================
-  services.desktopManager.plasma6.enable = true;
-  
-  # KDE specific packages
   environment.systemPackages = with pkgs; [
-    # Core KDE utilities
-    kdePackages.dolphin
-    kdePackages.ark
-    kdePackages.konsole
-    kdePackages.gwenview
-    kdePackages.spectacle
-    kdePackages.kate
+    # File manager (lightweight alternative to Dolphin)
+    xfce.thunar
+    xfce.thunar-volman
+    xfce.thunar-archive-plugin
+    
+    # Archive manager
+    file-roller
+    
+    # Image viewer
+    imv
     
     # System
     adwaita-icon-theme
-    vanilla-dmz
-    pavucontrol
     papirus-icon-theme
+    pavucontrol
   ];
 
   # ========================================================================
@@ -69,19 +63,16 @@
   };
 
   # ========================================================================
-  # XDG PORTAL - COSMIC + KDE + GTK
+  # XDG PORTAL - Hyprland + GTK
   # ========================================================================
   xdg.portal = {
     enable = true;
     extraPortals = [ 
       pkgs.xdg-desktop-portal-gtk 
-      pkgs.xdg-desktop-portal-cosmic
-      pkgs.kdePackages.xdg-desktop-portal-kde
     ];
     config = {
-      common.default = [ "kde" "gtk" ];
-      cosmic.default = [ "cosmic" "gtk" ];
-      kde.default = [ "kde" "gtk" ];
+      hyprland.default = [ "hyprland" "gtk" ];
+      common.default = [ "gtk" ];
     };
   };
 }

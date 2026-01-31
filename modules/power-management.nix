@@ -14,6 +14,9 @@
     # BIOS'a erişim olmadan undervolt ve TDP ayarı yapabilirsiniz
     ryzenadj
     
+    # System76 Power - Alternative power management
+    system76-power
+    
     # ─────────────────────────────────────────────────────────────────────
     # GENERAL POWER MANAGEMENT
     # ─────────────────────────────────────────────────────────────────────
@@ -22,7 +25,7 @@
     powertop
     
     # auto-cpufreq - Automatic CPU power management for laptops
-    auto-cpufreq
+    # auto-cpufreq
     
     # s-tui - Terminal UI for monitoring CPU temp, freq, power
     s-tui
@@ -45,6 +48,9 @@
     
     # nvtop full - GPU monitoring (RTX 5060 support)
     nvtopPackages.full
+    
+    # Nvidia GPU Tools
+    gwe # GreenWithEnvy - Overclocking & Fan Control (requires Coolbits)
     
     # ─────────────────────────────────────────────────────────────────────
     # FAN & PERIPHERAL CONTROL
@@ -110,57 +116,159 @@
     
     # efibootmgr - EFI boot manager
     efibootmgr
+    
+    (pkgs.writeShellScriptBin "power-control" ''
+      #!/usr/bin/env bash
+
+      # Power Control Script - 30W Optimized Edition
+      # Optimized for: Gigabyte Aero X16 (Ryzen + RTX) locked at 30W
+      
+      export DISPLAY=:0
+      export XAUTHORITY=/home/zixar/.Xauthority
+
+      check_root() {
+          if [ "$EUID" -ne 0 ]; then
+              echo "Please run as root"
+              exit 1
+          fi
+      }
+
+      get_power_source() {
+          for ps in /sys/class/power_supply/*; do
+              if [ -f "$ps/type" ] && [ "$(cat "$ps/type")" = "Mains" ]; then
+                  if [ "$(cat "$ps/online")" = "1" ]; then
+                      echo "AC"
+                      return
+                  fi
+              fi
+          done
+          echo "BAT"
+      }
+
+      set_profile() {
+          if command -v powerprofilesctl &> /dev/null; then
+              powerprofilesctl set "$1" || true
+          elif [ -f /sys/firmware/acpi/platform_profile ]; then
+              echo "$1" > /sys/firmware/acpi/platform_profile || true
+          fi
+      }
+
+      set_epp() {
+          if [ -f /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference ]; then
+              echo "$1" | tee /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference > /dev/null
+          fi
+      }
+
+      apply_gpu_clocks() {
+          CORE=$1
+          MEM=$2
+          echo "Applying GPU Clocks: Core +$CORE MHz, Mem +$MEM MHz..."
+          if command -v nvidia-settings &> /dev/null; then
+             # Try forcing performance level 3 (max 3D) and setting offsets
+             nvidia-settings -a "[gpu:0]/GPUGraphicsClockOffset[3]=$CORE" \
+                             -a "[gpu:0]/GPUMemoryTransferRateOffset[3]=$MEM" || echo "Failed to apply GPU clocks via nvidia-settings"
+          else
+             echo "nvidia-settings not found, skipping clocks."
+          fi
+      }
+
+      # 30W OPTIMIZED MODES
+      # Constraint: GPU is locked at ~30W by firmware/hardware.
+      # Strategy: Maximize Frequency at that 30W limit (Undervolt/Overclock).
+
+      apply_gaming() {
+          echo "Applying GAMING mode (30W Optimized)..."
+          set_profile "performance"
+          set_epp "performance"
+          
+          # GPU: 30W Limit, Moderate OC
+          nvidia-smi -pl 30
+          # +100 Core, +300 Memory - Safe boost
+          apply_gpu_clocks 100 300
+          
+          # CPU: High Performance
+          # Lower tctl slightly to keep heat down since GPU fan curve might be linked
+          ryzenadj --stapm-limit=45000 --fast-limit=50000 --slow-limit=45000 --tctl-temp=85
+          # AMD P-State active mode prefers 'powersave' governor with 'performance' EPP
+          cpupower frequency-set -g powersave
+      }
+
+      apply_turbo() {
+          echo "Applying TURBO mode (30W Aggressive)..."
+          set_profile "performance"
+          set_epp "performance"
+          
+          # GPU: 30W Limit, High OC
+          nvidia-smi -pl 30
+          # +150 Core, +600 Memory - Aggressive
+          apply_gpu_clocks 150 600
+          
+          # CPU: Max Performance within reasonable thermals
+          ryzenadj --stapm-limit=55000 --fast-limit=65000 --slow-limit=55000 --tctl-temp=90
+          cpupower frequency-set -g powersave
+      }
+
+      apply_extreme() {
+          echo "Applying EXTREME mode (30W Max Limits)..."
+          set_profile "performance"
+          set_epp "performance"
+          
+          # GPU: 30W Limit, Very High OC
+          nvidia-smi -pl 30
+          # +200 Core, +1000 Memory - Pushing silicon limits at low voltage
+          apply_gpu_clocks 200 1000
+          
+          # CPU: Max Performance
+          ryzenadj --stapm-limit=65000 --fast-limit=75000 --slow-limit=65000 --tctl-temp=95
+          cpupower frequency-set -g powersave
+      }
+
+      apply_normal() {
+          echo "Applying NORMAL mode..."
+          set_profile "balanced"
+          set_epp "balance_performance"
+          
+          # GPU: 30W, Stock Clocks
+          nvidia-smi -pl 30
+          apply_gpu_clocks 0 0
+          
+          # CPU: Balanced
+          ryzenadj --stapm-limit=35000 --fast-limit=40000 --slow-limit=35000 --tctl-temp=85
+          cpupower frequency-set -g powersave
+      }
+
+      apply_saver() {
+          echo "Applying SAVER mode..."
+          set_profile "power-saver"
+          set_epp "power"
+          
+          # GPU: Min Power (likely <30W if possible, else 30W)
+          nvidia-smi -pl 25 || nvidia-smi -pl 30
+          apply_gpu_clocks 0 0
+          
+          # CPU: Power Save
+          ryzenadj --stapm-limit=15000 --fast-limit=20000 --slow-limit=15000 --tctl-temp=75
+          cpupower frequency-set -g powersave
+      }
+
+      check_root
+      MODE=$1
+      case "$MODE" in
+          "gaming") apply_gaming ;;
+          "turbo") apply_turbo ;;
+          "extreme") apply_extreme ;;
+          "normal") apply_normal ;;
+          "saver"|"tasarruf") apply_saver ;;
+          "auto")
+              if [ "$(get_power_source)" = "AC" ]; then apply_normal; else apply_saver; fi
+              ;;
+          *)
+              echo "Usage: $0 {gaming|turbo|extreme|normal|saver|auto}"
+              exit 1
+              ;;
+      esac
+    '')
   ];
-
-  # ========================================================================
-  # HARDWARE SENSORS
-  # ========================================================================
-  hardware.sensor.iio.enable = true;  # Accelerometer vb. sensörler
-
-  # ========================================================================
-  # UDEV RULES - RyzenAdj ve diğer araçlar için gerekli izinler
-  # ========================================================================
-  services.udev.extraRules = ''
-    # RyzenAdj için MSR erişimi
-    KERNEL=="msr", MODE="0660", GROUP="wheel"
-    
-    # CPU core erişimi
-    SUBSYSTEM=="cpu", MODE="0660", GROUP="wheel"
-    
-    # Backlight kontrolü
-    ACTION=="add", SUBSYSTEM=="backlight", RUN+="${pkgs.coreutils}/bin/chgrp video /sys/class/backlight/%k/brightness"
-    ACTION=="add", SUBSYSTEM=="backlight", RUN+="${pkgs.coreutils}/bin/chmod g+w /sys/class/backlight/%k/brightness"
-    
-    # NVIDIA GPU power management
-    ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x030000", TEST=="power/control", ATTR{power/control}="auto"
-    ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x030200", TEST=="power/control", ATTR{power/control}="auto"
-  '';
-
-  # ========================================================================
-  # KERNEL MODULES - Power management için gerekli modüller
-  # ========================================================================
-  boot.kernelModules = [
-    "msr"           # Model Specific Registers (RyzenAdj için)
-    "cpuid"         # CPU identification
-    "acpi_cpufreq"  # ACPI CPU frequency scaling
-    "coretemp"      # CPU temperature reading
-    "k10temp"       # AMD K10/Zen temperature
-  ];
-
-  # ========================================================================
-  # SYSCTL - Power management optimizations
-  # ========================================================================
-  boot.kernel.sysctl = {
-    # Laptop mode - agresif güç tasarrufu
-    "vm.laptop_mode" = 5;
-    
-    # Dirty page writeback tuning
-    "vm.dirty_writeback_centisecs" = 6000;
-    "vm.dirty_expire_centisecs" = 6000;
-    
-    # Swappiness - RAM tercih et
-    "vm.swappiness" = 10;
-  };
 
   # ========================================================================
   # THERMALD SERVICE
@@ -168,88 +276,67 @@
   services.thermald.enable = true;
 
   # ========================================================================
-  # AUTO-CPUFREQ SERVICE - Best automatic power management for laptops
+  # POWER PROFILES DAEMON
   # ========================================================================
   services.auto-cpufreq = {
     enable = true;
     settings = {
-      charger = {
-        governor = "performance";
-        turbo = "auto";
-      };
       battery = {
         governor = "powersave";
+        energy_performance_preference = "power";
         turbo = "never";
+      };
+      charger = {
+        governor = "powersave";
+        energy_performance_preference = "balance_performance";
+        turbo = "auto";
       };
     };
   };
 
-  # ========================================================================
-  # FWUPD SERVICE - Firmware updates
-  # ========================================================================
-  services.fwupd.enable = true;
+  services.power-profiles-daemon.enable = false;
+  # Accelerometer vb. sensörler
 
   # ========================================================================
-  # OPENRGB - Hardware access for RGB control
+  # UDEV RULES - RyzenAdj ve diğer araçlar için gerekli izinler
   # ========================================================================
-  services.hardware.openrgb = {
-    enable = true;
-    motherboard = "amd";  # AMD chipset
-  };
+  # ========================================================================
+  # CUSTOM POWER CONTROL SCRIPT
+  # ========================================================================
 
   # ========================================================================
-  # POWERTOP AUTO-TUNE (opsiyonel)
+  # UDEV RULES - Auto Power Switching
   # ========================================================================
-  powerManagement.powertop.enable = true;
+  services.udev.extraRules = ''
+    # RyzenAdj ...
+    KERNEL=="msr", MODE="0660", GROUP="wheel"
+    SUBSYSTEM=="cpu", MODE="0660", GROUP="wheel"
 
-  # ========================================================================
-  # SYSTEMD SERVICES
-  # ========================================================================
-  
-  # RyzenAdj auto-apply service (örnek - değerleri laptopunuza göre ayarlayın)
-  systemd.services.ryzenadj-tune = {
-    description = "Apply RyzenAdj power settings";
-    wantedBy = [ "multi-user.target" ];
-    after = [ "multi-user.target" ];
+    # Auto Power Control disabled - letting power-profiles-daemon handle this
+    # SUBSYSTEM=="power_supply", ATTR{online}=="0", RUN+="${pkgs.bash}/bin/bash /run/current-system/sw/bin/power-control saver"
+    # SUBSYSTEM=="power_supply", ATTR{online}=="1", RUN+="${pkgs.bash}/bin/bash /run/current-system/sw/bin/power-control normal"
     
-    # Bu servis opsiyonel olarak enable edilebilir
-    # Varsayılan olarak disable - istediğinizde enable edin
-    enable = false;  # "systemctl enable ryzenadj-tune" ile aktif edin
+    # Backlight ...
+    ACTION=="add", SUBSYSTEM=="backlight", RUN+="${pkgs.coreutils}/bin/chgrp video /sys/class/backlight/%k/brightness"
+    ACTION=="add", SUBSYSTEM=="backlight", RUN+="${pkgs.coreutils}/bin/chmod g+w /sys/class/backlight/%k/brightness"
     
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
-      # Örnek değerler - Gigabyte Aero X16 için ayarlayın:
-      # --stapm-limit: Sustained TDP (mW)
-      # --fast-limit: Fast boost TDP (mW)
-      # --slow-limit: Slow boost TDP (mW)
-      # --tctl-temp: Temperature limit (°C)
-      ExecStart = "${pkgs.ryzenadj}/bin/ryzenadj --stapm-limit=35000 --fast-limit=45000 --slow-limit=35000 --tctl-temp=95";
-    };
-  };
+    # NVIDIA GPU ...
+    ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x030000", TEST=="power/control", ATTR{power/control}="auto"
+    ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x030200", TEST=="power/control", ATTR{power/control}="auto"
+  '';
 
-  # CPU frequency on boot (performance mode for AC)
-  systemd.services.cpu-performance-mode = {
-    description = "Set CPU to performance mode on AC power";
-    wantedBy = [ "multi-user.target" ];
-    after = [ "multi-user.target" ];
-    
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
-      ExecStart = pkgs.writeShellScript "cpu-perf" ''
-        # Check if on AC power
-        if [ -f /sys/class/power_supply/AC*/online ] && [ "$(cat /sys/class/power_supply/AC*/online)" = "1" ]; then
-          for cpu in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
-            echo "performance" > "$cpu" 2>/dev/null || true
-          done
-        fi
-      '';
-    };
-  };
-  
   # ========================================================================
-  # USER GROUPS
+  # SUDO RULES FOR POWER CONTROL
   # ========================================================================
-  # video grubu brightness kontrolü için gerekli (configuration.nix'te tanımlı)
+  security.sudo.extraRules = [
+    {
+      groups = [ "wheel" ];
+      commands = [
+        { command = "/run/current-system/sw/bin/power-control"; options = [ "NOPASSWD" ]; }
+        { command = "${pkgs.linuxPackages_latest.cpupower}/bin/cpupower"; options = [ "NOPASSWD" ]; }
+        { command = "${pkgs.ryzenadj}/bin/ryzenadj"; options = [ "NOPASSWD" ]; }
+        # Note: nvidia-smi might need to be explicitly added if not covered
+      ];
+    }
+  ];
 }

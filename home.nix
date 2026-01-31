@@ -12,6 +12,7 @@
     ./home/hyprlock.nix   # Lock screen & idle
     ./home/tui-media.nix  # Anime/Manga TUI apps
     ./home/wrappers.nix   # Tutorial/Examples for wrappers
+    ./home/yazi.nix       # Modern TUI File Manager
   ];
 
   # ========================================================================
@@ -262,12 +263,10 @@
     enable = true;
     settings = {
       logo = {
-        type = "builtin";
-        source = "nixos";
-        color = {
-          "1" = "cyan";
-          "2" = "green";
-        };
+        type = "kitty";
+        source = "/home/zixar/Pictures/logo_v2.png";
+        width = 40;
+        height = 18;
       };
       display = {
         separator = ": ";
@@ -405,6 +404,7 @@
     # Media
     mpv
     imv            # Image viewer
+    mpvpaper       # Video wallpaper
     
     # Social
     discord
@@ -412,6 +412,9 @@
     # Development
     git-lfs
     lazygit
+    
+    # Browser
+    firefox
     
     # Wayland utilities
     wtype          # For rofimoji
@@ -446,6 +449,16 @@
         "video/mkv" = "mpv.desktop";
         "inode/directory" = "thunar.desktop";
       };
+    };
+  };
+
+  # ========================================================================
+  # FILES
+  # ========================================================================
+  home.file = {
+    ".local/bin/wallpaper-cycle" = {
+      source = ./scripts/wallpaper-cycle.sh;
+      executable = true;
     };
   };
 

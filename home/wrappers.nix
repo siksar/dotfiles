@@ -37,7 +37,8 @@
     (pkgs.writeShellScriptBin "deezer-wayland" ''
       # This is a simple wrapper script
       export NIXOS_OZONE_WL=1
-      exec ${pkgs.deezer}/bin/deezer --enable-features=UseOzonePlatform --ozone-platform=wayland "$@"
+      # Assuming 'deezer' is in your PATH (e.g. from Flatpak or other source if not in pkgs)
+      exec deezer --enable-features=UseOzonePlatform --ozone-platform=wayland "$@"
     '')
   ];
 }

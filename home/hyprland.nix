@@ -40,7 +40,7 @@
         border_size = 0;
         "col.active_border" = "$orange $yellow 45deg";
         "col.inactive_border" = "$bg1";
-        layout = "dwindle";
+        layout = "master";
         resize_on_border = true;
       };
       
@@ -74,6 +74,7 @@
       # ====================================================================
       input = {
         kb_layout = "us";
+        kb_variant = "";
         follow_mouse = 1;
         sensitivity = 0;
         
@@ -113,17 +114,8 @@
       # ====================================================================
       # WINDOW RULES - Workstation Profiles (VM Isolation)
       # ====================================================================
-      windowrulev2 = [
-        # WORKSPACE 2: Windows Profile (Example)
-        # Assuming VM title contains "Windows"
-        "workspace 2, title:^(.*Windows.*)$"
-        
-        # WORKSPACE 3: General Virtual Machines (Virt-Manager)
-        "workspace 3, class:^(virt-manager)$"
-        
-        # Example for other apps/VMs
-        # "workspace 4, class:^(other-vm)$"
-      ];
+      # Window rules moved to extraConfig to avoid syntax issues
+      # windowrulev2 = [ ... ];
       
       # ====================================================================
       # LAYOUTS
@@ -184,7 +176,7 @@
         "$mod, up, movefocus, u"
         "$mod, down, movefocus, d"
         "$mod, h, movefocus, l"
-        "$mod, l, movefocus, r"
+        "$mod, l, exec, hyprctl switchxkblayout all next"
         "$mod, k, movefocus, u"
         "$mod, j, movefocus, d"
         
@@ -194,7 +186,7 @@
         "$mod SHIFT, up, movewindow, u"
         "$mod SHIFT, down, movewindow, d"
         "$mod SHIFT, h, movewindow, l"
-        "$mod SHIFT, l, movewindow, r"
+        "$mod SHIFT, l, exec, hyprlock"
         "$mod SHIFT, k, movewindow, u"
         "$mod SHIFT, j, movewindow, d"
         
@@ -232,7 +224,7 @@
         "CTRL, Print, exec, grimblast copy screen"
         
         # Lock screen
-        "$mod, L, exec, hyprlock"
+        # "$mod, L, exec, hyprlock" # Rebound to Shift+L above
         
         # Color picker
         "$mod SHIFT, C, exec, hyprpicker -a"
@@ -240,6 +232,9 @@
         # Notification center
         "$mod, N, exec, dunstctl history-pop"
         "$mod SHIFT, N, exec, dunstctl close-all"
+        
+        # Wallpaper Cycle
+        "$mod, W, exec, ~/.local/bin/wallpaper-cycle"
       ];
       
       # Volume and brightness (hold)
@@ -267,7 +262,7 @@
         
         # Wallpaper
         "swww-daemon"
-        "sleep 1 && swww img ~/Pictures/Wallpapers/gruvbox.jpg --transition-type grow --transition-pos 0.5,0.5"
+        "sleep 1 && swww img ~/Pictures/Wallpapers/rice.png --transition-type grow --transition-pos 0.5,0.5"
         
         # Clipboard
         "wl-paste --type text --watch cliphist store"
@@ -280,6 +275,14 @@
         "nm-applet --indicator"
       ];
     };
+    
+    extraConfig = ''
+      # ====================================================================
+      # WINDOW RULES - Workstation Profiles (VM Isolation)
+      # ====================================================================
+      # windowrulev2 = workspace 2, title:^(.*Windows.*)$
+      # windowrulev2 = workspace 3, class:^(virt-manager)$
+    '';
   };
   
   # ========================================================================

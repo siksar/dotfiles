@@ -34,7 +34,7 @@
         bg-sel = mkLiteral "#504945";
         fg = mkLiteral "#ebdbb2";
         fg-alt = mkLiteral "#a89984";
-        accent = mkLiteral "#928374";  # Gruvbox grey
+        accent = mkLiteral "#d65d0e";  # Gruvbox Orange (matches rice)
         urgent = mkLiteral "#cc241d";
         
         background-color = mkLiteral "@bg";

@@ -16,24 +16,15 @@
     enable = true;
     settings.general.renice = 10;
   };
+
+  # MangoHud is installed as a package in packages.nix
+  # Configuration can be done via ~/.config/MangoHud/MangoHud.conf or environment variables
+  # Example: MANGOHUD_CONFIG=fps,cpu_temp,gpu_temp mangohud %command%
+
   
   # ========================================================================
-  # GPU POWER LIMIT - Increase from 30W to 100W
+  # GPU POWER MANAGEMENT
   # ========================================================================
-  systemd.services.nvidia-power-limit = {
-    description = "Set NVIDIA GPU Power Limit";
-    wantedBy = [ "graphical.target" ];
-    after = [ "nvidia-persistenced.service" "display-manager.service" ];
-    requires = [ "nvidia-persistenced.service" ];
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
-      # Wait for GPU to be available, retry a few times
-      ExecStartPre = "${pkgs.coreutils}/bin/sleep 5";
-      ExecStart = "${pkgs.bash}/bin/bash -c '${pkgs.linuxPackages.nvidia_x11.bin}/bin/nvidia-smi -pl 100 || true'";
-    };
-  };
-  
-  # Enable nvidia-persistenced for power management
-  hardware.nvidia.nvidiaPersistenced = true;
+  # Custom power profile services removed - letting power-profiles-daemon 
+  # and NVIDIA driver handle power management automatically.
 }

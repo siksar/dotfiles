@@ -12,29 +12,48 @@
     git
     fastfetch
     htop
-    nvtopPackages.amd  # AMD için doğru paket
+    nvtopPackages.full # AMD + NVIDIA desteği için full paket
     lact               # AMD GPU kontrol (gaming.nix'ten taşındı)
     antigravity   
+    
+    # Hardware Diagnostics
+    nvme-cli
+    smartmontools
+    
     # Browser & Productivity
-    brave
     bitwarden-desktop
+    vivaldi
     home-manager   
     bottles 
     # AI Tools
     lmstudio
     localsend
     wine
-     winetricks
+    winetricks
     dxvk
     vkd3d
+    
+    # Gaming Launchers
+    prismlauncher      # Minecraft launcher with mod support
+    heroic             # Epic Games & GOG launcher
+    
+    # Music Applications
+    ytui-music         # YouTube Music TUI/CLI player
+    ytmdesktop         # YouTube Music desktop client
+    mpv                # Media player (required for ytui-music)
+    yt-dlp             # YouTube downloader (required for ytui-music)
+    
     # AppImage support
     appimage-run
     # Development tools
     vscode
     docker
-        gruvbox-gtk-theme
+    gruvbox-gtk-theme
     gruvbox-dark-icons-gtk
     docker-compose
+    protonup-qt       # Proton version manager (GE-Proton installation)
+    mangohud          # FPS counter & limiter/unlimiter
+    gamescope         # Wayland compositor for gaming (useful for fix resolution/refresh rate)
   ];
   # AppImage binfmt registration
   boot.binfmt.registrations.appimage = {

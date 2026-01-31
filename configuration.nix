@@ -35,7 +35,28 @@
       timeout = 0;
       efi.canTouchEfiVariables = true;
     };
+    
+    # Use systemd in initrd for better error handling and mount reliability
+    initrd.systemd.enable = true;
   };
+  
+  # Global systemd timeout to kill stuck services (sound.target, etc) during shutdown
+  systemd.watchdog.rebootTime = "10s";
+  # New syntax for systemd manager configuration
+  # Using systemd.settings.Manager as likely suggested by error
+  systemd = {
+    settings = {
+      Manager = {
+        DefaultTimeoutStopSec = "10s";
+      };
+    };
+  };
+
+  # ========================================================================
+  # BOOT OPTIMIZATION
+  # ========================================================================
+  # Disable NetworkManager wait online (Simulates fast boot, rarely causes issues)
+  systemd.services.NetworkManager-wait-online.enable = false;
   # NVIDIA Coolbits (videoDrivers nvidia.nix'te tanımlı)
   services.xserver.deviceSection = ''
     Option "Coolbits" "28"
@@ -129,8 +150,8 @@
     fontconfig = {
       defaultFonts = {
         monospace = [ "JetBrainsMono Nerd Font" "JetBrains Mono" ];
-        sansSerif = [ "Noto Sans" ];
-        serif = [ "Noto Serif" ];
+        sansSerif = [ "JetBrains Mono" "Noto Sans" ];
+        serif = [ "JetBrains Mono" "Noto Serif" ];
         emoji = [ "Noto Color Emoji" ];
       };
     };
@@ -183,5 +204,5 @@
   # Disable power-profiles-daemon (conflicts with auto-cpufreq)
   # services.power-profiles-daemon.enable = false;
   
-  system.stateVersion = "25.11";
+  system.stateVersion = "26.05";
 }

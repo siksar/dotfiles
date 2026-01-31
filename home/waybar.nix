@@ -207,13 +207,13 @@
       /* ====== NIXOS LOGO ====== */
       #custom-logo {
         font-size: 26px;
-        color: #5277c3;
-        padding: 14px 11px;
+        color: #ffffff;
+        padding: 14px 14px 14px 8px;
         margin-bottom: 8px;
       }
       
       #custom-logo:hover {
-        color: #7ba4db;
+        color: #ebdbb2;
       }
       
       /* ====== WORKSPACES - Colored Circles ====== */
