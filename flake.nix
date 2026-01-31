@@ -12,36 +12,32 @@
     # Hyprland - Latest features
     hyprland.url = "github:hyprwm/Hyprland";
     
-
+    # Noctalia Shell - Modern Wayland Desktop Shell
+    noctalia = {
+      url = "github:noctalia-dev/noctalia-shell";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
   
-  outputs = { self, nixpkgs, home-manager, hyprland, ... }: {
+  outputs = { self, nixpkgs, home-manager, hyprland, noctalia, ... }: {
     nixosConfigurations.nixos = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       
-      specialArgs = { inherit hyprland; };
+      specialArgs = { inherit hyprland noctalia; };
       
       modules = [
         ./configuration.nix
-        
-
-        
-        # Hyprland NixOS module
         hyprland.nixosModules.default
       ];
     };
 
-    # Standalone Home Manager Configuration
     homeConfigurations."zixar" = home-manager.lib.homeManagerConfiguration {
       pkgs = import nixpkgs {
         system = "x86_64-linux";
         config.allowUnfree = true;
-        # Include overlays if needed for home-manager specific packages
-        overlays = [
-
-        ];
+        overlays = [];
       };
-      extraSpecialArgs = { inherit hyprland; };
+      extraSpecialArgs = { inherit hyprland noctalia; };
       modules = [
         ./home.nix
       ];
