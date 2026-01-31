@@ -5,6 +5,7 @@
   # ========================================================================
   imports = [
     ./home/hyprland.nix   # Hyprland user config
+    ./home/noctalia.nix   # Noctalia Shell
     ./home/waybar.nix     # Waybar status bar
     ./home/rofi.nix       # Application launcher
     ./home/editors.nix    # VS Code, Neovim, Helix
@@ -13,7 +14,7 @@
     ./home/tui-media.nix  # Anime/Manga TUI apps
     ./home/wrappers.nix   # Tutorial/Examples for wrappers
     ./home/yazi.nix       # Modern TUI File Manager
-  ]);
+  ];
 
   # ========================================================================
   # HOME MANAGER BASE
@@ -32,7 +33,7 @@
   # Add local bin to PATH
   home.sessionPath = [
     "$HOME/.local/bin"
-  ]);
+  ];
 
   # ========================================================================
   # GIT
@@ -304,7 +305,7 @@
         { type = "locale"; key = "Locale"; }
         "separator"
         { type = "colors"; symbol = "block"; }
-  ]);
+  ];
     };
   };
 
