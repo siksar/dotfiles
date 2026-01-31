@@ -1,4 +1,4 @@
-{ config, pkgs, hyprland, ... }:
+{ config, pkgs, hyprland, noctalia, ... }:
 {
   # ========================================================================
   # IMPORTS - Modular Home Configuration
@@ -13,7 +13,7 @@
     ./home/tui-media.nix  # Anime/Manga TUI apps
     ./home/wrappers.nix   # Tutorial/Examples for wrappers
     ./home/yazi.nix       # Modern TUI File Manager
-  ];
+  ]);
 
   # ========================================================================
   # HOME MANAGER BASE
@@ -32,7 +32,7 @@
   # Add local bin to PATH
   home.sessionPath = [
     "$HOME/.local/bin"
-  ];
+  ]);
 
   # ========================================================================
   # GIT
@@ -304,7 +304,7 @@
         { type = "locale"; key = "Locale"; }
         "separator"
         { type = "colors"; symbol = "block"; }
-      ];
+  ]);
     };
   };
 
@@ -360,7 +360,6 @@
     # Noctalia Shell
     noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
   ] ++ (with pkgs; [
-    noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
 
     # Clipboard & Screenshot (for Hyprland)
     wl-clipboard
@@ -424,7 +423,7 @@
     # Wayland utilities
     wtype          # For rofimoji
     wev            # Wayland event viewer
-  ];
+  ]);
 
   # ========================================================================
   # XDG
