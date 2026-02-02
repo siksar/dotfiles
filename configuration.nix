@@ -12,7 +12,7 @@
     ./modules/nvidia.nix
     ./modules/gaming.nix
     ./modules/kernel.nix 
-    
+      
     # System modules
     ./modules/desktop.nix
     ./modules/hyprland.nix
@@ -21,7 +21,8 @@
     ./modules/networking.nix
     ./modules/packages.nix
     ./modules/zapret.nix
-    ./modules/power-management.nix
+    ./wrapped-programs/prism.nix
+   ./modules/power-management.nix
   ];
   # ========================================================================
   # BOOT CONFIGURATION

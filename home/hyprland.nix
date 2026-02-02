@@ -13,7 +13,7 @@
       # MONITORS
       # ====================================================================
       monitor = [
-        "eDP-1, 2560x1600@60, 0x0, 1.6" # Laptop screen
+        "eDP-1, 2560x1600@165, 0x0, 1" # Laptop screen
         ", preferred, auto, 1"          # Auto-detect external monitors
       ];
       
@@ -23,7 +23,7 @@
       general = {
         gaps_in = 5;
         gaps_out = 10;
-        border_size = 2;
+        border_size = 0;
         "col.active_border" = "rgba(d65d0eaa) rgba(fe8019ee) 45deg";
         "col.inactive_border" = "rgba(928374aa)";
         layout = "dwindle";
@@ -59,7 +59,7 @@
       # INPUT
       # ====================================================================
       input = {
-        kb_layout = "tr";
+        kb_layout = "us";
         kb_variant = "";
         follow_mouse = 1;
         sensitivity = 0;
@@ -91,7 +91,6 @@
           "border, 1, 10, default"
           "borderangle, 1, 8, default"
           "fade, 1, 5, smoothIn"
-          "fadeDim, 1, 5, smoothIn"
           "workspaces, 1, 6, gruvbox, slide"
         ];
       };
@@ -138,7 +137,12 @@
         # NOCTALIA BINDINGS
         "$mod, Z, exec, noctalia-shell ipc call launcher toggle"
         "$mod, Tab, exec, noctalia-shell ipc call launcher toggle"
-        "$mod, C, exec, noctalia-shell ipc call appLauncher toggleClipboard"
+        
+        # CUSTOM BINDINGS
+        "$mod, X, exec, noctalia-shell ipc call controlCenter toggle"  # Control Center
+        "$mod, W, exec, noctalia-shell ipc call wallpaper random"      # Wallpaper Random (Native Noctalia)
+        "$mod, C, exec, noctalia-shell ipc call bluetooth togglePanel" # Bluetooth Panel (Native Noctalia)
+        
         "$mod, V, exec, noctalia-shell ipc call sessionMenu show"
         
         # Window management
@@ -243,10 +247,5 @@
       ];
     };
     
-    extraConfig = ''
-      # Window rules
-      windowrulev2 = opacity 0.90 0.90,class:^(kitty)$
-      windowrulev2 = opacity 0.80 0.80,class:^(thunar)$
-    '';
   };
 }

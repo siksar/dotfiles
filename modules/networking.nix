@@ -23,7 +23,17 @@
       allowedTCPPortRanges = [ ];
       allowedUDPPortRanges = [ ];
     };
+
+    # Bluetooth
+
   };
+
+  # Enable Bluetooth
+  hardware.bluetooth.enable = true;
+  hardware.bluetooth.powerOnBoot = true;
+
+  # Blueman Applet
+  services.blueman.enable = true;
 
   # Systemd-resolved
   services.resolved = {
