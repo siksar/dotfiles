@@ -21,7 +21,6 @@
     ./modules/networking.nix
     ./modules/packages.nix
     ./modules/zapret.nix
-    ./wrapped-programs/prism.nix
    ./modules/power-management.nix
   ];
   # ========================================================================
@@ -127,6 +126,7 @@
       "audio"
       "podman"
       "docker"
+      "i2c"
     ];
  };
  

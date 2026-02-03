@@ -4,7 +4,7 @@
   # LAPTOP POWER MANAGEMENT & UNDERVOLT TOOLS
   # Gigabyte Aero X16 1VH (AMD Ryzen + NVIDIA) için optimize edilmiş
   # ========================================================================
-
+services.hardware.openrgb.enable = true;
   environment.systemPackages = with pkgs; [
     # ─────────────────────────────────────────────────────────────────────
     # AMD RYZEN SPECIFIC TOOLS
@@ -60,7 +60,7 @@
     nbfc-linux
     
     # OpenRGB - Keyboard and system RGB lighting control
-    openrgb
+   # openrgb
     
     # ─────────────────────────────────────────────────────────────────────
     # THERMAL MANAGEMENT

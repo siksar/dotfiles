@@ -34,7 +34,7 @@
     vkd3d
     
     # Gaming Launchers
-    #prismlauncher      # Minecraft launcher with mod support
+    prismlauncher      # Minecraft launcher with mod support
     heroic             # Epic Games & GOG launcher
     
     # Music Applications

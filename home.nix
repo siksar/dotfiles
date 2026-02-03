@@ -6,6 +6,7 @@
   imports = [
     ./home/hyprland.nix   # Hyprland user config
     ./home/noctalia.nix   # Noctalia Shell
+    ./home/zsh.nix        # ZSH + Starship
     # ./home/waybar.nix     # DISABLED - Using Noctalia bar
     # ./home/rofi.nix       # DISABLED - Using Noctalia launcher
     ./home/editors.nix    # VS Code, Neovim, Helix
@@ -59,112 +60,7 @@
     };
   };
 
-  # ========================================================================
-  # ZSH + STARSHIP
-  # ========================================================================
-  programs.zsh = {
-    enable = true;
-    enableCompletion = true;
-    autosuggestion.enable = true;
-    syntaxHighlighting.enable = true;
-    
-    shellAliases = {
-      # System
-      ll = "ls -la --color=auto";
-      la = "ls -A --color=auto";
-      l = "ls -CF --color=auto";
-      rebuild = "sudo nixos-rebuild switch --flake /etc/nixos#nixos";
-      update = "cd /etc/nixos && sudo nix flake update && rebuild";
-      cleanup = "sudo nix-collect-garbage -d && sudo nix-store --optimize";
-      
-      # Editors
-      v = "nvim";
-      vim = "nvim";
-      hx = "helix";
-      c = "code .";
-      
-      # Git
-      gs = "git status";
-      ga = "git add";
-      gc = "git commit";
-      gp = "git push";
-      gl = "git log --oneline -10";
-      
-      # Apps
-      lm = "lmstudio";
-      
-      # Hyprland
-      hypr = "nvim ~/.config/hypr/hyprland.conf";
-      
-      # Power Control
-      gaming = "sudo power-control gaming";
-      turbo = "sudo power-control turbo";
-      tasarruf = "sudo power-control saver";
-      normal = "sudo power-control normal";
-      auto-power = "sudo power-control auto";
-    };
-    
-    initContent = ''
-      # Auto fastfetch with image
-      if [[ -z $FASTFETCH_RAN ]]; then
-        export FASTFETCH_RAN=1
-        fastfetch
-      fi
-      
-      # Custom functions
-      mkcd() { mkdir -p "$1" && cd "$1"; }
-      
-      # Extract any archive
-      extract() {
-        if [ -f "$1" ]; then
-          case "$1" in
-            *.tar.bz2) tar xjf "$1" ;;
-            *.tar.gz)  tar xzf "$1" ;;
-            *.tar.xz)  tar xJf "$1" ;;
-            *.bz2)     bunzip2 "$1" ;;
-            *.gz)      gunzip "$1" ;;
-            *.tar)     tar xf "$1" ;;
-            *.zip)     unzip "$1" ;;
-            *.7z)      7z x "$1" ;;
-            *)         echo "'$1' cannot be extracted" ;;
-          esac
-        else
-          echo "'$1' is not a valid file"
-        fi
-      }
-    '';
-  };
-
-  programs.starship = {
-    enable = true;
-    enableZshIntegration = true;
-    settings = {
-      format = "[󱄅](bold #5277c3) $directory$git_branch$git_status$character";
-      
-      character = {
-        success_symbol = "[❯](bold #d65d0e)";  # Gruvbox orange
-        error_symbol = "[❯](bold #cc241d)";    # Gruvbox red
-      };
-      
-      directory = {
-        style = "bold #d79921";  # Gruvbox yellow
-        truncation_length = 3;
-        truncate_to_repo = true;
-      };
-      
-      git_branch = {
-        symbol = " ";
-        style = "bold #689d6a";  # Gruvbox aqua
-      };
-      
-      git_status = {
-        style = "bold #cc241d";  # Gruvbox red
-        ahead = "⇡\${count}";
-        behind = "⇣\${count}";
-        diverged = "⇕⇡\${ahead_count}⇣\${behind_count}";
-      };
-    };
-  };
+  # ZSH + Starship -> Moved to ./home/zsh.nix
 
   # ========================================================================
   # KITTY TERMINAL - Gruvbox Theme with Image Support
