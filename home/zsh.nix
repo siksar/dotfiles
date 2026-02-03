@@ -83,12 +83,14 @@
       # ----------------------------------------------------------------------
       # Sistem yönetimi için sık kullanılan komutlar
       # Git dirty uyarısını önlemek için auto-commit eklendi
+      # Not: Submodule'ler için özel işlem yapılıyor
       
       # rebuild: Sistem rebuild + git auto-commit
       rebuild = ''
         cd /etc/nixos && \
-        git add -A && \
-        git commit -m "auto: $(date '+%Y-%m-%d %H:%M')" --allow-empty && \
+        git add --all && \
+        git diff --quiet && git diff --staged --quiet || \
+        git commit -am "auto: $(date '+%Y-%m-%d %H:%M')" && \
         sudo nixos-rebuild switch --flake /etc/nixos#nixos
       '';
       
@@ -96,16 +98,18 @@
       # -b backup = Mevcut dosyaları .backup uzantısıyla yedekler
       zixswitch = ''
         cd /etc/nixos && \
-        git add -A && \
-        git commit -m "home: $(date '+%Y-%m-%d %H:%M')" --allow-empty && \
+        git add --all && \
+        git diff --quiet && git diff --staged --quiet || \
+        git commit -am "home: $(date '+%Y-%m-%d %H:%M')" && \
         home-manager switch --flake /etc/nixos#zixar -b backup
       '';
       
       # fullrebuild: Hem sistem hem home-manager rebuild
       fullrebuild = ''
         cd /etc/nixos && \
-        git add -A && \
-        git commit -m "full: $(date '+%Y-%m-%d %H:%M')" --allow-empty && \
+        git add --all && \
+        git diff --quiet && git diff --staged --quiet || \
+        git commit -am "full: $(date '+%Y-%m-%d %H:%M')" && \
         sudo nixos-rebuild switch --flake /etc/nixos#nixos && \
         home-manager switch --flake /etc/nixos#zixar -b backup
       '';
@@ -114,8 +118,9 @@
       update = ''
         cd /etc/nixos && \
         sudo nix flake update && \
-        git add -A && \
-        git commit -m "update: flake $(date '+%Y-%m-%d')" --allow-empty && \
+        git add --all && \
+        git diff --quiet && git diff --staged --quiet || \
+        git commit -am "update: flake $(date '+%Y-%m-%d')" && \
         sudo nixos-rebuild switch --flake /etc/nixos#nixos && \
         home-manager switch --flake /etc/nixos#zixar -b backup
       '';
