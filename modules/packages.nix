@@ -7,7 +7,7 @@
   nixpkgs.config.allowUnfree = true;
   environment.systemPackages = with pkgs; [
     # Core utilities
-    vim
+    neovim
     wget
     git
     fastfetch
