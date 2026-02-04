@@ -227,12 +227,22 @@
       })
       
       -- ====================================================================
-      -- TREESITTER
+      -- TREESITTER (NixOS: grammars are managed by Nix)
       -- ====================================================================
-      require("nvim-treesitter.configs").setup({
-        highlight = { enable = true },
-        indent = { enable = true },
-      })
+      local ok, ts_configs = pcall(require, "nvim-treesitter.configs")
+      if ok then
+        ts_configs.setup({
+          highlight = { enable = true },
+          indent = { enable = true },
+        })
+      else
+        -- Fallback: Just enable highlighting if configs module not found
+        vim.api.nvim_create_autocmd("FileType", {
+          callback = function()
+            pcall(vim.treesitter.start)
+          end,
+        })
+      end
       
       -- ====================================================================
       -- TELESCOPE
