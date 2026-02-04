@@ -2,9 +2,32 @@
 {
   boot = {
     # ========================================================================
-    # KERNEL - Linux Zen (Optimized for Desktop/Gaming)
+    # KERNEL - Linux Latest with Rust Support
     # ========================================================================
-    kernelPackages = pkgs.linuxPackages_zen;
+    # Linux Latest kernel - en güncel Rust desteği için
+    kernelPackages = pkgs.linuxPackages_latest;
+    
+    # ========================================================================
+    # RUST KERNEL SUPPORT (Şubat 2026 - Resmi Destekli)
+    # ========================================================================
+    # Rust kernel modüllerini aktifleştir
+    # Bu, Rust ile yazılmış sürücülerin (NOVA GPU, Android Binder, vb.) çalışmasını sağlar
+    kernelPatches = [
+      {
+        name = "rust-support";
+        patch = null;
+        structuredExtraConfig = with lib.kernel; {
+          # Rust dil desteğini aktifleştir
+          RUST = yes;
+          
+          # Rust debugging özellikleri (isteğe bağlı ama önerilen)
+          RUST_DEBUG_ASSERTIONS = lib.mkDefault yes;
+          
+          # Rust overflow checks (güvenlik için önemli)
+          RUST_OVERFLOW_CHECKS = lib.mkDefault yes;
+        };
+      }
+    ];
     
     # ========================================================================
     # KERNEL PARAMETERS
@@ -56,12 +79,21 @@
   };
 
   # ========================================================================
-  # FALLBACK KERNEL (LTS)
+  # FALLBACK KERNELS (Boot menüsünden seçilebilir)
   # ========================================================================
   specialisation = {
+    # Zen kernel (Rust'sız, gaming için optimize) - Sorun yaşarsan buna geç
+    zen-kernel.configuration = {
+      system.nixos.tags = [ "zen-no-rust" ];
+      boot.kernelPackages = lib.mkForce pkgs.linuxPackages_zen;
+      boot.kernelPatches = lib.mkForce []; # Rust patch'lerini kaldır
+    };
+    
+    # LTS kernel (en kararlı seçenek)
     lts-kernel.configuration = {
       system.nixos.tags = [ "lts" ];
-      boot.kernelPackages = lib.mkForce pkgs.linuxPackages_6_6;
+      boot.kernelPackages = lib.mkForce pkgs.linuxPackages_6_12; # Güncel LTS
+      boot.kernelPatches = lib.mkForce [];
     };
   };
 
