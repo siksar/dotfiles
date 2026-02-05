@@ -6,19 +6,10 @@
   imports = [
     ./home/hyprland.nix   # Hyprland user config
     ./home/noctalia.nix   # Noctalia Shell
-    ./home/zsh.nix
-    ./home/editors.nix
-    ./home/yazi.nix
-    
-    # Scripts
-    ./home/scripts/theme-sync.nix
-    
-    # Starship Themes
-    ./home/starship/default.nix
-
-    # The following lines were part of the original imports and are re-added
+    ./home/zsh.nix        # ZSH + Starship
     # ./home/waybar.nix     # DISABLED - Using Noctalia bar
     # ./home/rofi.nix       # DISABLED - Using Noctalia launcher
+    ./home/editors.nix    # VS Code, Neovim, Helix
     # ./home/dunst.nix      # DISABLED - Using Noctalia notifications
     ./home/hyprlock.nix   # Lock screen & idle
     ./home/tui-media.nix  # Anime/Manga TUI apps
@@ -87,7 +78,51 @@
       # Noctalia Settings → Color Scheme → Templates → Kitty'yi aktifleştir
       # Renkler ~/.config/kitty/current-theme.conf dosyasından dinamik olarak okunur
       
-      # UI Settings (renkler hariç)
+      # Gruvbox Dark Hard
+      background = "#1d2021";
+      foreground = "#ebdbb2";
+      
+      # Cursor
+      cursor = "#d65d0e";
+      cursor_text_color = "#1d2021";
+      
+      # Selection
+      selection_background = "#d65d0e";
+      selection_foreground = "#1d2021";
+      
+      # Black
+      color0 = "#282828";
+      color8 = "#928374";
+      
+      # Red
+      color1 = "#cc241d";
+      color9 = "#fb4934";
+      
+      # Green
+      color2 = "#98971a";
+      color10 = "#b8bb26";
+      
+      # Yellow
+      color3 = "#d79921";
+      color11 = "#fabd2f";
+      
+      # Blue
+      color4 = "#458588";
+      color12 = "#83a598";
+      
+      # Magenta
+      color5 = "#b16286";
+      color13 = "#d3869b";
+      
+      # Cyan
+      color6 = "#689d6a";
+      color14 = "#8ec07c";
+      
+      # White
+      color7 = "#a89984";
+      color15 = "#ebdbb2";
+      
+      # UI
       background_opacity = "0.95";
       window_padding_width = 12;
       enable_audio_bell = false;
@@ -95,22 +130,23 @@
       confirm_os_window_close = 0;
       
       # URL
+      url_color = "#83a598";
       url_style = "curly";
       
       # Tab bar
       tab_bar_edge = "bottom";
       tab_bar_style = "powerline";
       tab_powerline_style = "slanted";
+      active_tab_background = "#d65d0e";
+      active_tab_foreground = "#1d2021";
+      inactive_tab_background = "#3c3836";
+      inactive_tab_foreground = "#a89984";
       
       # Image protocol (for fastfetch, etc.)
       allow_hyperlinks = "yes";
     };
     
-    # Noctalia'nın tema dosyasını include et
-    extraConfig = ''
-      # Noctalia dynamic theme (Settings → Color Scheme → Templates → Kitty)
-      include ~/.config/kitty/current-theme.conf
-    '';
+
     
     keybindings = {
       "ctrl+shift+t" = "new_tab";
