@@ -288,5 +288,5 @@
     # settings bloğu kaldırıldı - tema dosyalarında tanımlanacak
     # settings = { ... }
   };
-  };
+
 }
