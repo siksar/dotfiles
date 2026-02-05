@@ -237,7 +237,7 @@
       # ====================================================================
       exec-once = [
         # Noctalia Shell (Managed by systemd service)
-        # "noctalia-shell"
+        "noctalia-shell"
         
         # Clipboard Manager
         "wl-paste --type text --watch cliphist store"
