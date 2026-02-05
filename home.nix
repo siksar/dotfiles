@@ -213,7 +213,7 @@
     # Rust Replacements
     pkgs.macchina      # Fastfetch alt (Rust)
     pkgs.procs         # ps alt (Rust)
-    pkgs.du-dust       # du alt (Rust)
+    pkgs.dust          # du alt (Rust)
     pkgs.tokei         # code stats (Rust)
     pkgs.sd            # sed alt (Rust)
     pkgs.jaq           # jq alt (Rust-like)
