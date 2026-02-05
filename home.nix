@@ -6,10 +6,19 @@
   imports = [
     ./home/hyprland.nix   # Hyprland user config
     ./home/noctalia.nix   # Noctalia Shell
-    ./home/zsh.nix        # ZSH + Starship
+    ./home/zsh.nix
+    ./home/editors.nix
+    ./home/yazi.nix
+    
+    # Scripts
+    ./home/scripts/theme-sync.nix
+    
+    # Starship Themes
+    ./home/starship/default.nix
+
+    # The following lines were part of the original imports and are re-added
     # ./home/waybar.nix     # DISABLED - Using Noctalia bar
     # ./home/rofi.nix       # DISABLED - Using Noctalia launcher
-    ./home/editors.nix    # VS Code, Neovim, Helix
     # ./home/dunst.nix      # DISABLED - Using Noctalia notifications
     ./home/hyprlock.nix   # Lock screen & idle
     ./home/tui-media.nix  # Anime/Manga TUI apps

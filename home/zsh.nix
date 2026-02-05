@@ -225,6 +225,19 @@
           echo "'$1' is not a valid file"
         fi
       }
+      
+      # ----------------------------------------------------------------------
+      # STARSHIP TEMA KONTROLÜ
+      # ----------------------------------------------------------------------
+      # Eğer current.toml yoksa varsayılan olarak gruvbox-rainbow'u ayarla.
+      # Bu kontrol sadece dosya yoksa çalışır.
+      if [ ! -f "$HOME/.config/starship/current.toml" ]; then
+        mkdir -p "$HOME/.config/starship"
+        if [ -f "$HOME/.config/starship/themes/gruvbox-rainbow.toml" ]; then
+           cp "$HOME/.config/starship/themes/gruvbox-rainbow.toml" "$HOME/.config/starship/current.toml"
+           chmod +w "$HOME/.config/starship/current.toml"
+        fi
+      fi
     '';
   };
 
@@ -254,202 +267,26 @@
     # Starship'i ZSH ile entegre eder.
     # ~/.zshrc'ye gerekli kodu otomatik ekler.
     # ------------------------------------------------------------------------
+    # Starship'i ZSH ile entegre eder.
+    # ~/.zshrc'ye gerekli kodu otomatik ekler.
+    # ------------------------------------------------------------------------
     enableZshIntegration = true;
+    
+    # ------------------------------------------------------------------------
+    # envExtra - ORTAM DEĞİŞKENLERİ
+    # ------------------------------------------------------------------------
+    # Starship konfigürasyon dosyasını belirtiyoruz.
+    # Bu sayede dinamik olarak theme-sync scripti ile değiştirebileceğiz.
+    # ------------------------------------------------------------------------
+    envExtra = ''
+      export STARSHIP_CONFIG=$HOME/.config/starship/current.toml
+    '';
     
     # ========================================================================
     # STARSHIP AYARLARI (settings)
     # ========================================================================
-    settings = {
-      # ----------------------------------------------------------------------
-      # FORMAT - PROMPT ŞABLONU
-      # ----------------------------------------------------------------------
-      # Bu, prompt'un genel yapısını belirler.
-      # Her $modül ismi bir Starship modülüne karşılık gelir.
-      #
-      # POWERLINE / FLAMA TARZI PROMPT
-      # ==============================
-      # Sivri uçlu segmentler için özel karakterler:
-      #  = Sağa sivri uç (segment sonu)
-      #  = Sola sivri uç (segment başı)
-      #  = İnce ayırıcı (aynı arka plan içinde)
-      #
-      # Görünüm:
-      #  🐧 ~/Documents   main  ❯
-      # └──┘└────────────┘└────┘
-      #  Tux    Dizin      Git
-      #
-      # NOT: Flama tarzı için her segment'in arka plan rengi olması
-      # ve sonunda  karakteri ile bitirilmesi gerekir.
-      #
-      # KULLANILABILIR MODÜLLER:
-      # $username     - Kullanıcı adı
-      # $hostname     - Bilgisayar adı
-      # $directory    - Mevcut dizin
-      # $git_branch   - Git dalı
-      # $git_status   - Git durumu
-      # $cmd_duration - Son komutun çalışma süresi
-      # $character    - Prompt'un son karakteri
-      # $time         - Saat
-      # $battery      - Pil durumu
-      # $memory_usage - RAM kullanımı
-      # $python       - Python virtual environment
-      # $nodejs       - Node.js versiyonu
-      # $rust         - Rust versiyonu
-      # $nix_shell    - Nix shell aktif mi?
-      # ----------------------------------------------------------------------
-      
-      # POWERLINE FLAMA FORMAT
-      # Segment 1: Tux (Linux penguen) - Mavi arka plan
-      # Segment 2: Dizin - Sarı arka plan
-      # Segment 3: Git - Yeşil arka plan (sadece git repo'dayken görünür)
-      # Her segment sivri uçla () bitiyor
-      #
-      # LINUX/TUX İKONLARI (Nerd Font):
-      #  = Klasik Tux (nf-linux-tux)
-      #  = Arch Linux
-      #  = Debian
-      # 󱄅 = NixOS
-      #  = Ubuntu
-      #  = Fedora
-      format = ''
-        [](fg:#458588)[󱄅 ](bg:#458588 fg:#ebdbb2)[](fg:#458588 bg:#d79921)$directory[](fg:#d79921 bg:#689d6a)$git_branch$git_status[](fg:#689d6a)$nix_shell$cmd_duration
-        $character
-      '';
-      
-      # ----------------------------------------------------------------------
-      # CHARACTER - PROMPT SONU KARAKTERİ
-      # ----------------------------------------------------------------------
-      # Komut yazacağın yerin hemen önündeki karakter.
-      # success_symbol: Önceki komut başarılı olduğunda
-      # error_symbol: Önceki komut hata verdiğinde
-      #
-      # POPULER ALTERNATİFLER:
-      # "❯"   - Varsayılan (Gruvbox orange)
-      # "➜"   - Ok işareti
-      # "λ"   - Lambda (Haskell fanları için)
-      # ">"   - Klasik
-      # "▸"   - Üçgen
-      # "⟫"   - Çift ok
-      # ""   - Powerline ok (flama tarzı için ideal)
-      # ----------------------------------------------------------------------
-      character = {
-        success_symbol = "[❯](bold #d65d0e)";  # Gruvbox turuncu - başarılı
-        error_symbol = "[❯](bold #cc241d)";    # Gruvbox kırmızı - hatalı
-      };
-      
-      # ----------------------------------------------------------------------
-      # DIRECTORY - DİZİN GÖSTERİMİ
-      # ----------------------------------------------------------------------
-      # Mevcut dizini gösterir.
-      #
-      # style: Renk ve stil
-      # truncation_length: Kaç dizin gösterilecek (3 = son 3)
-      # truncate_to_repo: Git repo kökünden itibaren mi kısaltılsın?
-      #
-      # RENK FORMATI: "[text](stil renk)"
-      # Stiller: bold, italic, underline, dimmed
-      # Renkler: red, green, blue, yellow, purple, cyan, white, black
-      #          veya HEX: #rrggbb
-      # ----------------------------------------------------------------------
-      directory = {
-        style = "fg:#1d2021 bg:#d79921";  # Koyu yazı, sarı arka plan (powerline)
-        format = "[ $path ]($style)";      # Boşluklu format
-        truncation_length = 3;       # Son 3 dizini göster
-        truncate_to_repo = true;     # Git repo'dan itibaren kısalt
-        home_symbol = "🏠";           # ~ yerine ev emoji'si
-        read_only = " 🔒";            # Salt okunur diziler için ikon
-      };
-      
-      # ----------------------------------------------------------------------
-      # GIT BRANCH - GIT DALI
-      # ----------------------------------------------------------------------
-      # Aktif git dalını gösterir.
-      #
-      # symbol: Dal isminden önce gösterilen ikon
-      # style: Yazı rengi/stili
-      #
-      # ALTERNATİF SEMBOLLER:
-      # " "   - Dal ikonu (varsayılan)
-      # "🌿"  - Yaprak
-      # "🔀"  - Çatal
-      # "⎇ "  - Alternatif
-      # ----------------------------------------------------------------------
-      git_branch = {
-        symbol = "";
-        style = "fg:#1d2021 bg:#689d6a";  # Koyu yazı, aqua arka plan (powerline)
-        format = "[ $symbol $branch ]($style)";
-      };
-      
-      # ----------------------------------------------------------------------
-      # GIT STATUS - GIT DURUMU
-      # ----------------------------------------------------------------------
-      # Değişiklik, ekleme, silme durumlarını gösterir.
-      #
-      # ahead: Remote'dan önde (push yapılmamış commit var)
-      # behind: Remote'dan geride (pull gerekli)
-      # diverged: Hem önde hem geride (rebase/merge gerekli)
-      #
-      # DİĞER DURUMLAR (varsayılan değerler):
-      # staged = "+"      - Stage'e eklenmiş değişiklik
-      # modified = "!"    - Değiştirilmiş dosya
-      # deleted = "✘"     - Silinmiş dosya
-      # untracked = "?"   - Takip edilmeyen dosya
-      # stashed = "$"     - Stash'lenmiş değişiklik
-      # ----------------------------------------------------------------------
-      git_status = {
-        style = "fg:#1d2021 bg:#689d6a";  # Git branch ile aynı arka plan
-        format = "[$all_status$ahead_behind]($style)";
-        ahead = "⇡\${count}";
-        behind = "⇣\${count}";
-        diverged = "⇕⇡\${ahead_count}⇣\${behind_count}";
-        staged = "+";
-        modified = "!";
-        untracked = "?";
-      };
-      
-      # ======================================================================
-      # EKLEYEBİLECEĞİN EK MODÜLLER
-      # ======================================================================
-      # Aşağıdaki modülleri aktifleştirmek için yorum satırlarını kaldır:
-      # ======================================================================
-      
-      cmd_duration = {
-         # Uzun süren komutların süresini gösterir
-         min_time = 2000;  # 2 saniyeden uzun komutlar için göster
-         format = "took [$duration](bold yellow) ";
-       };
-      
-      # time = {
-      #   # Saati gösterir
-      #   disabled = false;
-      #   format = "[$time](bold white) ";
-      #   time_format = "%H:%M";
-      # };
-      
-       battery = {
-         # Pil durumunu gösterir
-         full_symbol = "🔋";
-         charging_symbol = "⚡";
-         discharging_symbol = "💀";
-       };
-      
-       nix_shell = {
-         # Nix shell içinde olduğunu gösterir
-         symbol = "❄️ ";
-         format = "via [$symbol$state]($style) ";
-       };
-      
-      # username = {
-      #   # Kullanıcı adını gösterir
-      #   show_always = true;
-      #   format = "[$user](bold green)@";
-      # };
-      
-       hostname = {
-         # Bilgisayar adını gösterir
-         ssh_only = false;
-         format = "[$hostname](bold blue) ";
-      };
-    };
+    # settings bloğu kaldırıldı - tema dosyalarında tanımlanacak
+    # settings = { ... }
+  };
   };
 }

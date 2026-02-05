@@ -1,0 +1,68 @@
+# Catppuccin Macchiato
+
+format = """
+[](fg:#f5bde6)\
+$username\
+[](bg:#c6a0f6 fg:#f5bde6)\
+$directory\
+[](bg:#ed8796 fg:#c6a0f6)\
+$git_branch\
+$git_status\
+[](fg:#ed8796 bg:#24273a)\
+$nodejs\
+$rust\
+$golang\
+$php\
+[](fg:#24273a)\
+\n$character"""
+
+[username]
+show_always = true
+style_user = "bg:#f5bde6 fg:#1e2030"
+style_root = "bg:#f5bde6 fg:#1e2030"
+format = '[ $user ]($style)'
+
+[directory]
+style = "fg:#1e2030 bg:#c6a0f6"
+format = "[ $path ]($style)"
+truncation_length = 3
+truncation_symbol = "…/"
+
+[directory.substitutions]
+"Documents" = " "
+"Downloads" = " "
+"Music" = " "
+"Pictures" = " "
+
+[git_branch]
+symbol = ""
+style = "bg:#ed8796"
+format = "[[ $symbol $branch ](fg:#1e2030 bg:#ed8796)]($style)"
+
+[git_status]
+style = "bg:#ed8796"
+format = "[[($all_status$ahead_behind )](fg:#1e2030 bg:#ed8796)]($style)"
+
+[nodejs]
+symbol = ""
+style = "bg:#24273a"
+format = "[[ $symbol ($version) ](fg:#8aadf4 bg:#24273a)]($style)"
+
+[rust]
+symbol = ""
+style = "bg:#24273a"
+format = "[[ $symbol ($version) ](fg:#8aadf4 bg:#24273a)]($style)"
+
+[golang]
+symbol = ""
+style = "bg:#24273a"
+format = "[[ $symbol ($version) ](fg:#8aadf4 bg:#24273a)]($style)"
+
+[php]
+symbol = ""
+style = "bg:#24273a"
+format = "[[ $symbol ($version) ](fg:#8aadf4 bg:#24273a)]($style)"
+
+[character]
+success_symbol = "[➜](bold #a6da95)"
+error_symbol = "[➜](bold #ed8796)"
