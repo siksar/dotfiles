@@ -73,10 +73,5 @@
       };
     };
     
-    # Helix system wide default editor
-    helix = {
-      enable = true;
-      defaultEditor = true;
-    };
   };
 }

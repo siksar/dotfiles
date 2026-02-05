@@ -23,17 +23,21 @@
       url = "github:0xc000022070/zen-browser-flake";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    
+    # Niri - Scrollable Tiling Wayland Compositor
+    niri.url = "github:YaLTeR/niri";
   };
   
-  outputs = { self, nixpkgs, home-manager, hyprland, noctalia, zen-browser, ... }: {
+  outputs = { self, nixpkgs, home-manager, hyprland, noctalia, zen-browser, niri, ... }: {
     nixosConfigurations.nixos = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       
-      specialArgs = { inherit hyprland noctalia zen-browser; };
+      specialArgs = { inherit hyprland noctalia zen-browser niri; };
       
       modules = [
         ./configuration.nix
         hyprland.nixosModules.default
+        niri.nixosModules.niri
       ];
     };
 
@@ -43,9 +47,10 @@
         config.allowUnfree = true;
         overlays = [];
       };
-      extraSpecialArgs = { inherit hyprland noctalia zen-browser; };
+      extraSpecialArgs = { inherit hyprland noctalia zen-browser niri; };
       modules = [
         ./home.nix
+        niri.homeModules.niri
       ];
     };
   };
