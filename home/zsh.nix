@@ -270,11 +270,6 @@
     # Starship'i ZSH ile entegre eder.
     # ~/.zshrc'ye gerekli kodu otomatik ekler.
     # ------------------------------------------------------------------------
-    # Starship'i ZSH ile entegre eder.
-    # ~/.zshrc'ye gerekli kodu otomatik ekler.
-    # ------------------------------------------------------------------------
-    enableZshIntegration = true;
-    
     enableZshIntegration = true;
     
     # ========================================================================
