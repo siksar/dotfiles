@@ -23,10 +23,6 @@
   home.stateVersion = "25.11";
   home.username = "zixar";
   home.homeDirectory = "/home/zixar";
-  
-  # Backup extension - çakışan dosyaları .hm-backup ile yedekle
-  # Bu sayede eski .backup dosyaları sorun çıkarmaz
-  home.backupFileExtension = "hm-backup";
   home.sessionVariables = {
     SHELL = "${pkgs.zsh}/bin/zsh";
     EDITOR = "nvim";
