@@ -20,8 +20,8 @@
       cleanup = "sudo nix-collect-garbage -d && sudo nix-store --optimize";
       
       # Editors
-      v = "nvim";
-      vim = "nvim";
+      v = "hx";
+      vim = "hx";
       
       # Git
       gs = "git status";
@@ -31,7 +31,7 @@
       gl = "git log --oneline -10";
       
       # Apps
-      hypr = "nvim ~/.config/hypr/hyprland.conf";
+      hypr = "hx ~/.config/hypr/hyprland.conf";
     };
 
     initContent = ''

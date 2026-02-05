@@ -118,7 +118,7 @@
         key_press_enables_dpms = true;
         animate_manual_resizes = true;
         enable_swallow = true;
-        swallow_regex = "^(kitty)$";
+        swallow_regex = "^(alacritty)$";
       };
       
       # ====================================================================
@@ -128,10 +128,10 @@
       
       bind = [
         # Applications
-        "$mod, Return, exec, kitty"
+        "$mod, Return, exec, alacritty"
         "$mod, Q, killactive,"
         "$mod, M, exit,"
-        "$mod, E, exec, kitty yazi"
+        "$mod, E, exec, alacritty -e yazi"
         "$mod, B, exec, brave"
         
         # NOCTALIA BINDINGS
@@ -144,7 +144,7 @@
         "$mod, C, exec, noctalia-shell ipc call bluetooth togglePanel" # Bluetooth Panel (Native Noctalia)
         
         "$mod, V, exec, zen"
-        "$mod, R, exec, kitty nvim ."
+        "$mod, R, exec, alacritty -e hx ."
         
         # Window management
         "$mod, F, fullscreen, 1"

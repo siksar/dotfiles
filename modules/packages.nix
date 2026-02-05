@@ -7,11 +7,12 @@
   nixpkgs.config.allowUnfree = true;
   environment.systemPackages = with pkgs; [
     # Core utilities
-    neovim
+    helix          # Rust based editor (Neovim replacement)
     wget
     git
-    fastfetch
-    # htop - KALDIRILDI (btop kullanılıyor)
+    macchina       # Rust based fetch (Fastfetch replacement)
+    bottom         # Rust based monitor (Btop replacement)
+    
     nvtopPackages.full # AMD + NVIDIA desteği için full paket
     lact               # AMD GPU kontrol (gaming.nix'ten taşındı)
     antigravity   
@@ -22,7 +23,6 @@
     claude-code
     # Browser & Productivity
     bitwarden-desktop
-    # vivaldi - KALDIRILDI (Zen kullanılıyor)
     home-manager   
     bottles 
     # AI Tools
@@ -40,13 +40,13 @@
     # Music Applications
     ytui-music         # YouTube Music TUI/CLI player
     ytmdesktop         # YouTube Music desktop client
-    mpv                # Media player (required for ytui-music)
-    yt-dlp             # YouTube downloader (required for ytui-music)
+    # mpv is required for ytui-music and is generally useful
+    mpv                
+    yt-dlp             
     
     # AppImage support
     appimage-run
     # Development tools
-    # vscode - KALDIRILDI (Neovim kullanılıyor)
     docker
     gruvbox-gtk-theme
     gruvbox-dark-icons-gtk
@@ -64,7 +64,7 @@
     mask = ''\xff\xff\xff\xff\x00\x00\x00\x00\xff\xff\xff'';
     magicOrExtension = ''\x7fELF....AI\x02'';
   };
-  # services.flatpak.enable = true; # KALDIRILDI - Zen Browser artık flake üzerinden
+
   programs = {
     git = {
       enable = true;
@@ -73,7 +73,8 @@
       };
     };
     
-    neovim = {
+    # Helix system wide default editor
+    helix = {
       enable = true;
       defaultEditor = true;
     };

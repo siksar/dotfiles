@@ -8,14 +8,12 @@
     ./home/noctalia.nix   # Noctalia Shell
     ./home/zsh.nix        # ZSH
     ./home/starship.nix   # Starship Config
-    # ./home/waybar.nix     # DISABLED - Using Noctalia bar
-    # ./home/rofi.nix       # DISABLED - Using Noctalia launcher
-    ./home/editors.nix    # VS Code, Neovim, Helix
-    # ./home/dunst.nix      # DISABLED - Using Noctalia notifications
+    ./home/editors.nix    # Helix
     ./home/hyprlock.nix   # Lock screen & idle
     ./home/tui-media.nix  # Anime/Manga TUI apps
     ./home/wrappers.nix   # Tutorial/Examples for wrappers
     ./home/yazi.nix       # Modern TUI File Manager
+    ./home/niri.nix       # Niri (Rust) WM
     ./modules/noctalia-home.nix # Noctalia Shell (Declarative)
   ];
 
@@ -27,9 +25,9 @@
   home.homeDirectory = "/home/zixar";
   home.sessionVariables = {
     SHELL = "${pkgs.zsh}/bin/zsh";
-    EDITOR = "nvim";
-    VISUAL = "nvim";
-    TERMINAL = "kitty";
+    EDITOR = "hx";
+    VISUAL = "hx";
+    TERMINAL = "alacritty";
     BROWSER = "zen";
   };
 
@@ -48,11 +46,11 @@
       user.email = "halilbatuhanyilmaz@proton.me";
       init.defaultBranch = "main";
       pull.rebase = false;
-      core.editor = "nvim";
+      core.editor = "hx";
     };
   };
   
-  # Delta - Better git diff
+  # Delta - Better git diff (Rust based)
   programs.delta = {
     enable = true;
     enableGitIntegration = true;
@@ -62,156 +60,99 @@
     };
   };
 
-  # ZSH + Starship -> Moved to ./home/zsh.nix
-
   # ========================================================================
-  # KITTY TERMINAL - Dynamic Theme Support (Noctalia Integration)
+  # ALACRITTY - Rust Term (Fastest) - Kitty Alternatifi
   # ========================================================================
-  programs.kitty = {
+  programs.alacritty = {
     enable = true;
-    font = {
-      name = "JetBrainsMono Nerd Font";
-      size = 12;
-    };
     settings = {
-      # ====================================================================
-      # RENK TEMASı - Noctalia tarafından yönetiliyor
-      # ====================================================================
-      # Noctalia Settings → Color Scheme → Templates → Kitty'yi aktifleştir
-      # Renkler ~/.config/kitty/current-theme.conf dosyasından dinamik olarak okunur
+      window = {
+        padding = { x = 12; y = 12; };
+        opacity = 0.95;
+        title = "Alacritty";
+        dynamic_title = true;
+      };
       
-      # Tokyo Night
-      background = "#1a1b26";
-      foreground = "#a9b1d6";
+      font = {
+        normal = { family = "JetBrainsMono Nerd Font"; style = "Regular"; };
+        bold = { family = "JetBrainsMono Nerd Font"; style = "Bold"; };
+        italic = { family = "JetBrainsMono Nerd Font"; style = "Italic"; };
+        size = 12.0;
+      };
       
-      # Cursor
-      cursor = "#c0caf5";
-      cursor_text_color = "#1a1b26";
-      
-      # Selection
-      selection_background = "#33467c";
-      selection_foreground = "#c0caf5";
-      
-      # Black
-      color0 = "#414868";
-      color8 = "#414868";
-      
-      # Red
-      color1 = "#f7768e";
-      color9 = "#f7768e";
-      
-      # Green
-      color2 = "#73daca";
-      color10 = "#73daca";
-      
-      # Yellow
-      color3 = "#e0af68";
-      color11 = "#e0af68";
-      
-      # Blue
-      color4 = "#7aa2f7";
-      color12 = "#7aa2f7";
-      
-      # Magenta
-      color5 = "#bb9af7";
-      color13 = "#bb9af7";
-      
-      # Cyan
-      color6 = "#7dcfff";
-      color14 = "#7dcfff";
-      
-      # White
-      color7 = "#c0caf5";
-      color15 = "#c0caf5";
-      
-      # UI
-      background_opacity = "0.95";
-      window_padding_width = 12;
-      enable_audio_bell = false;
-      cursor_blink_interval = 0;
-      confirm_os_window_close = 0;
-      
-      # URL
-      url_color = "#73daca";
-      url_style = "curly";
-      
-      # Tab bar
-      tab_bar_edge = "bottom";
-      tab_bar_style = "powerline";
-      tab_powerline_style = "slanted";
-      active_tab_background = "#7aa2f7";
-      active_tab_foreground = "#1a1b26";
-      inactive_tab_background = "#24283b";
-      inactive_tab_foreground = "#a9b1d6";
-      
-      # Image protocol (for fastfetch, etc.)
-      allow_hyperlinks = "yes";
-    };
-    
-
-    
-    keybindings = {
-      "ctrl+shift+t" = "new_tab";
-      "ctrl+shift+w" = "close_tab";
-      "ctrl+shift+left" = "previous_tab";
-      "ctrl+shift+right" = "next_tab";
-      "ctrl+shift+c" = "copy_to_clipboard";
-      "ctrl+shift+v" = "paste_from_clipboard";
-      "ctrl+plus" = "change_font_size all +2.0";
-      "ctrl+minus" = "change_font_size all -2.0";
-      "ctrl+0" = "change_font_size all 0";
+      # Tokyo Night Theme
+      colors = {
+        primary = {
+          background = "#1a1b26";
+          foreground = "#a9b1d6";
+        };
+        normal = {
+          black = "#414868";
+          red = "#f7768e";
+          green = "#73daca";
+          yellow = "#e0af68";
+          blue = "#7aa2f7";
+          magenta = "#bb9af7";
+          cyan = "#7dcfff";
+          white = "#c0caf5";
+        };
+        bright = {
+          black = "#414868";
+          red = "#f7768e";
+          green = "#73daca";
+          yellow = "#e0af68";
+          blue = "#7aa2f7";
+          magenta = "#bb9af7";
+          cyan = "#7dcfff";
+          white = "#c0caf5";
+        };
+      };
     };
   };
 
   # ========================================================================
-  # FASTFETCH - With Kitty Image Support
+  # SYSTEM MONITORING & TOOLS (RUST POWER)
   # ========================================================================
-  programs.fastfetch = {
+  
+  # Procs - Modern ps replacement
+  programs.broot = {
+    enable = true;
+    enableZshIntegration = true;
+  };
+
+  # Zoxide - Smarter cd
+  programs.zoxide = {
+    enable = true;
+    enableZshIntegration = true;
+    options = [ "--cmd cd" ];
+  };
+
+  # Atuin - Magical Shell History
+  programs.atuin = {
+    enable = true;
+    enableZshIntegration = true;
+    settings = {
+      auto_sync = true;
+      sync_frequency = "5m";
+      sync_address = "https://api.atuin.sh";
+      search_mode = "fuzzy";
+    };
+  };
+
+  # Bottom - Rust System Monitor (Btop Replacement)
+  programs.bottom = {
     enable = true;
     settings = {
-      logo = {
-        type = "kitty";
-        source = "/home/zixar/Pictures/logo_v2.png";
-        width = 40;
-        height = 18;
+      flags = {
+        avg_cpu = true;
+        group_processes = true;
+        temperature_type = "c";
       };
-      display = {
-        separator = ": ";
-        color = {
-          keys = "yellow";
-          title = "red";
-        };
+      colors = {
+        high_battery_color = "green";
+        medium_battery_color = "yellow";
+        low_battery_color = "red";
       };
-      modules = [
-        {
-          type = "title";
-          format = "{user-name}@{host-name}";
-        }
-        "separator"
-        { type = "os"; key = "OS"; }
-        { type = "host"; key = "Host"; }
-        { type = "kernel"; key = "Kernel"; }
-        { type = "uptime"; key = "Uptime"; }
-        { type = "packages"; key = "Packages"; }
-        { type = "shell"; key = "Shell"; }
-        { type = "display"; key = "Display"; }
-        { type = "wm"; key = "WM"; }
-        { type = "theme"; key = "Theme"; }
-        { type = "icons"; key = "Icons"; }
-        { type = "cursor"; key = "Cursor"; }
-        { type = "terminal"; key = "Terminal"; }
-        { type = "terminalfont"; key = "Terminal Font"; }
-        { type = "cpu"; key = "CPU"; }
-        { type = "gpu"; key = "GPU"; }
-        { type = "memory"; key = "Memory"; }
-        { type = "swap"; key = "Swap"; }
-        { type = "disk"; key = "Disk (/)"; }
-        { type = "localip"; key = "Local IP"; }
-        { type = "battery"; key = "Battery"; }
-        { type = "locale"; key = "Locale"; }
-        "separator"
-        { type = "colors"; symbol = "block"; }
-  ];
     };
   };
 
@@ -264,13 +205,25 @@
   # PACKAGES
   # ========================================================================
   home.packages = [
-    # Noctalia Shell is now managed by programs.noctalia-shell
+    # Noctalia Shell
     
-    # Zen Browser (Flake üzerinden - Flatpak'a gerek yok)
+    # Zen Browser
     zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.default
+    
+    # Rust Replacements
+    pkgs.macchina      # Fastfetch alt (Rust)
+    pkgs.procs         # ps alt (Rust)
+    pkgs.du-dust       # du alt (Rust)
+    pkgs.tokei         # code stats (Rust)
+    pkgs.sd            # sed alt (Rust)
+    pkgs.jaq           # jq alt (Rust-like)
+    pkgs.gitui         # lazygit alt (Rust) - optional but nice
+    pkgs.ripgrep       # grep alt (Rust)
+    pkgs.fd            # find alt (Rust)
+    
   ] ++ (with pkgs; [
 
-    # Clipboard & Screenshot (for Hyprland)
+    # Wayland tools
     wl-clipboard
     grim
     slurp
@@ -278,7 +231,6 @@
     grimblast
     
     # Container tools
-    # docker-compose - KALDIRILDI (packages.nix'te zaten var)
     podman-compose
     podman-tui
     kubectl
@@ -302,35 +254,30 @@
     papirus-icon-theme
     
     # Utilities
-    btop           # Better htop
-    eza            # Better ls
-    fd             # Better find
-    ripgrep        # Better grep
-    fzf            # Fuzzy finder
-    bat            # Better cat
-    jq             # JSON processor
-    yq             # YAML processor
-    tree           # Directory tree
+    # btop - Removed (Bottom used)
+    # fastfetch - Removed (Macchina used)
+    # fzf - Keep (Standard)
+    # unzip/p7zip - Keep
     unzip
     p7zip
+    tree
+    jq
+    yq
     
     # Media
     mpv
-    imv            # Image viewer
-    mpvpaper       # Video wallpaper
+    imv
+    mpvpaper
     
     # Social
     discord
     
     # Development
     git-lfs
-    lazygit
+    lazygit # Keeping as fallback or if gitui not enough
     
-    # Browser - FIREFOX KALDIRILDI (Zen kullanılıyor)
-    
-    # Wayland utilities
-    wtype          # For rofimoji
-    wev            # Wayland event viewer
+    wtype
+    wev
   ]);
 
   # ========================================================================
@@ -365,17 +312,23 @@
   };
 
   # ========================================================================
-  # FILES
+  # FILES & CONFIG
   # ========================================================================
   home.file = {
     ".local/bin/wallpaper-cycle" = {
       source = ./scripts/wallpaper-cycle.sh;
       executable = true;
     };
+    
+    # Macchina Config
+    ".config/macchina/macchina.toml".text = ''
+      theme = "TokyoNight"
+      show = ["Host", "Kernel", "Uptime", "Shell", "Terminal", "CPU", "Memory", "Battery"]
+    '';
   };
 
   # ========================================================================
-  # DIRENV
+  # DIRENV (Go, but essential for Nix)
   # ========================================================================
   programs.direnv = {
     enable = true;
@@ -384,13 +337,12 @@
   };
 
   # ========================================================================
-  # FZF
+  # FZF (Go)
   # ========================================================================
   programs.fzf = {
     enable = true;
     enableZshIntegration = true;
     colors = {
-      # Gruvbox colors for fzf
       "bg+" = "#3c3836";
       "bg" = "#282828";
       "spinner" = "#fb4934";
@@ -407,7 +359,7 @@
   };
 
   # ========================================================================
-  # EZA (Better ls)
+  # EZA (Better ls - Rust)
   # ========================================================================
   programs.eza = {
     enable = true;
@@ -417,7 +369,7 @@
   };
 
   # ========================================================================
-  # BAT (Better cat)
+  # BAT (Better cat - Rust)
   # ========================================================================
   programs.bat = {
     enable = true;
@@ -426,19 +378,4 @@
       pager = "less -FR";
     };
   };
-
-  # ========================================================================
-  # BTOP
-  # ========================================================================
-  programs.btop = {
-    enable = true;
-    settings = {
-      color_theme = "gruvbox_dark";
-      theme_background = false;
-      vim_keys = true;
-    };
-  };
-
-  # btop config dosyası için force (backup çakışmasını önler)
-  xdg.configFile."btop/btop.conf".force = true;
 }

@@ -12,23 +12,36 @@
       autoRepeatInterval = 20;
     };
   };
+  
+  # ========================================================================
+  # NIRI WINDOW MANAGER (Rust Based)
+  # ========================================================================
+  programs.niri.enable = true;
 
   # ========================================================================
-  # SDDM DISPLAY MANAGER (Wayland)
+  # GREETD DISPLAY MANAGER (Rust Based)
   # ========================================================================
-  services.displayManager.sddm = {
+  services.greetd = {
     enable = true;
-    wayland.enable = true;
+    settings = {
+      default_session = {
+        command = "${pkgs.greetd.tuigreet}/bin/tuigreet --time --cmd hyprland --asterisks --remember --remember-session --sessions ${config.services.displayManager.sessionData.desktops}/share/wayland-sessions";
+        user = "greeter";
+      };
+    };
   };
+
+  # SDDM Disabled
+  # services.displayManager.sddm = {
+  #   enable = true;
+  #   wayland.enable = true;
+  # };
   
-  # Auto-login for zixar
-  services.displayManager.autoLogin = {
-    enable = true;
-    user = "zixar";
-  };
+  # Auto-login disabled (handled by remember-session in tuigreet if needed)
+  # services.displayManager.autoLogin...
   
-  # Default session (Hyprland)
-  services.displayManager.defaultSession = "hyprland";
+  # Default session is handled by tuigreet --cmd flag
+  # services.displayManager.defaultSession = "hyprland";
 
   # ========================================================================
   # ESSENTIAL DESKTOP PACKAGES
@@ -46,6 +59,9 @@
     adwaita-icon-theme
     papirus-icon-theme
     pavucontrol
+    
+    # DM
+    greetd.tuigreet
   ];
 
   # ========================================================================
