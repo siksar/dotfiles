@@ -17,7 +17,7 @@
       rebuild = "cd /etc/nixos && git add . && git commit -m 'auto' || true && sudo nixos-rebuild switch --flake .#nixos";
       zixswitch = "cd /etc/nixos && git add . && git commit -m 'home' || true && home-manager switch --flake .#zixar -b backup";
       fullrebuild = "rebuild && zixswitch";
-      cleanup = "sudo nix-collect-garbage -d && sudo nix-store --optimize";
+      # cleanup removed to avoid auto-run accidents
       
       # Editors
       v = "hx";

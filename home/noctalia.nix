@@ -3,7 +3,7 @@
 {
   programs.noctalia-shell = {
     enable = true;
-    systemd.enable = true;
+    systemd.enable = false;
     
     # Use the package from the flake input
     package = noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default;

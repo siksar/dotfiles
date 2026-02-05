@@ -26,6 +26,8 @@
         position x=0 y=0
     }
 
+    prefer-no-csd
+
     layout {
         gaps 10
         center-focused-column "never"
@@ -44,10 +46,13 @@
             inactive-color "#414868"
         }
     }
+    
+    window-rule {
+        geometry-corner-radius 12
+        clip-to-geometry true
+    }
 
-    spawn-at-startup "noctalia-shell"
-    spawn-at-startup "swww-daemon"
-    spawn-at-startup "${pkgs.polkit_gnome}/libexec/polkit-gnome-authentication-agent-1"
+    spawn-at-startup "zixar-niri-session"
 
     binds {
         Mod+Return { spawn "alacritty"; }

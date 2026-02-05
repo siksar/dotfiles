@@ -14,10 +14,11 @@ disable-unfocused-render = false
 
 [fonts]
 size = 18
-regular = { family = "JetBrainsMono Nerd Font", style = "Regular" }
-bold = { family = "JetBrainsMono Nerd Font", style = "Bold" }
-italic = { family = "JetBrainsMono Nerd Font", style = "Italic" }
-bold-italic = { family = "JetBrainsMono Nerd Font", style = "Bold Italic" }
+# regular = { family = "JetBrainsMono Nerd Font", style = "Regular" }
+# Rio detects bold/italic automatically for Nerd Fonts usually, 
+# or use simplifed syntax if supported. 
+# For now, let's stick to the simplest valid config to fix the crash.
+family = "JetBrainsMono Nerd Font"
 
 [cursor]
 shape = "Beam"

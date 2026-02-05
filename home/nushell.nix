@@ -15,9 +15,7 @@
       la = "ls -a";
       
       # NixOS
-      rebuild = "cd /etc/nixos; git add .; git commit -m 'auto'; sudo nixos-rebuild switch --flake .#nixos";
-      fullrebuild = "rebuild; home-manager switch --flake .#zixar";
-      cleanup = "sudo nix-collect-garbage -d; sudo nix-store --optimize";
+      # NixOS aliases moved to functions in extraConfig for Nushell compatibility
       
       # Editors
       v = "hx";
@@ -34,6 +32,10 @@
       # Configs
       hypr = "hx ~/.config/hypr/hyprland.conf";
       conf = "z /etc/nixos"; # Using zoxide
+      
+      # Compatibility
+      fastfetch = "macchina";
+      neofetch = "macchina";
     };
     
     # Extra Config
@@ -59,9 +61,28 @@
         }
       }
       
-      # Zoxide hook is auto-added by programs.zoxide module
-      # Starship hook is auto-added by programs.starship module
-      # Carapace hook is auto-added by programs.carapace module
+      # Custom Commands (Replacements for complex aliases)
+      def sys-rebuild [] {
+        cd /etc/nixos
+        git add .
+        git commit -m 'auto'
+        sudo nixos-rebuild switch --flake .#nixos
+      }
+      
+      def sys-full [] {
+        sys-rebuild
+        home-manager switch --flake .#zixar
+      }
+      
+      def sys-clean [] {
+        sudo nix-collect-garbage -d
+        sudo nix-store --optimize
+      }
+      
+      # Zoxide/Starship/Carapace hooks are auto-added
+      
+      # Run Macchina (System Fetch) on startup
+      macchina
     '';
   };
   

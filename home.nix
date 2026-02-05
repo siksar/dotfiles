@@ -30,6 +30,12 @@
     VISUAL = "hx";
     TERMINAL = "alacritty";
     BROWSER = "zen";
+    QT_QPA_PLATFORM = "wayland";
+    GDK_BACKEND = "wayland";
+    SDL_VIDEODRIVER = "wayland";
+    CLUTTER_BACKEND = "wayland";
+    NIXOS_OZONE_WL = "1";
+    XDG_SESSION_TYPE = "wayland";
   };
 
   # Add local bin to PATH
@@ -224,9 +230,37 @@
     pkgs.fd            # find alt (Rust)
     
   ] ++ (with pkgs; [
+    # Niri Startup Script
+    (writeShellScriptBin "zixar-niri-session" ''
+      # Force Env Vars
+      export QT_QPA_PLATFORM=wayland
+      export GDK_BACKEND=wayland
+      export SDL_VIDEODRIVER=wayland
+      export CLUTTER_BACKEND=wayland
+      export NIXOS_OZONE_WL=1
+      export XDG_CURRENT_DESKTOP=niri
+      export XDG_SESSION_TYPE=wayland
+      
+      # Import specific variables to ensure clean systemd environment
+      dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP QT_QPA_PLATFORM NIXOS_OZONE_WL XDG_SESSION_TYPE DISPLAY GDK_BACKEND
+      systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP QT_QPA_PLATFORM NIXOS_OZONE_WL XDG_SESSION_TYPE DISPLAY GDK_BACKEND
+      
+      # Start Services
+      # Stop systemd service if active to avoid conflict
+      systemctl --user stop noctalia-shell || true
+      
+      # Start Noctalia DIRECTLY (Backgrounded)
+      noctalia-shell &
+      
+      swww-daemon &
+      ${pkgs.polkit_gnome}/libexec/polkit-gnome-authentication-agent-1 &
+    '')
 
     # Wayland tools
     wl-clipboard
+    qt6.qtwayland
+    libsForQt5.qt5.qtwayland
+    kdePackages.qtwayland
     grim
     slurp
     swappy
@@ -325,7 +359,33 @@
     # Macchina Config
     ".config/macchina/macchina.toml".text = ''
       theme = "TokyoNight"
-      show = ["Host", "Kernel", "Uptime", "Shell", "Terminal", "CPU", "Memory", "Battery"]
+      show = ["Host", "Kernel", "Uptime", "Shell", "Terminal", "Processor", "Memory", "Battery"]
+    '';
+
+    # Macchina TokyoNight Theme
+    ".config/macchina/themes/TokyoNight.toml".text = ''
+      spacing = 2
+      padding = 2
+      
+      [keys]
+      host = "blue"
+      kernel = "blue"
+      uptime = "blue"
+      shell = "blue"
+      terminal = "blue"
+      Processor = "blue"
+      memory = "blue"
+      battery = "blue"
+
+      [values]
+      host = "white"
+      kernel = "white"
+      uptime = "white"
+      shell = "white"
+      terminal = "white"
+      Processor = "white"
+      memory = "white"
+      battery = "white"
     '';
 
     # Rio Config
