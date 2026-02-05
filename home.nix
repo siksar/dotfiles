@@ -16,6 +16,7 @@
     ./home/tui-media.nix  # Anime/Manga TUI apps
     ./home/wrappers.nix   # Tutorial/Examples for wrappers
     ./home/yazi.nix       # Modern TUI File Manager
+    ./modules/noctalia-home.nix # Noctalia Shell (Declarative)
   ];
 
   # ========================================================================
@@ -263,8 +264,7 @@
   # PACKAGES
   # ========================================================================
   home.packages = [
-    # Noctalia Shell
-    noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
+    # Noctalia Shell is now managed by programs.noctalia-shell
     
     # Zen Browser (Flake üzerinden - Flatpak'a gerek yok)
     zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.default
