@@ -37,7 +37,6 @@
       modules = [
         ./configuration.nix
         hyprland.nixosModules.default
-        niri.nixosModules.niri
       ];
     };
 
@@ -50,7 +49,6 @@
       extraSpecialArgs = { inherit hyprland noctalia zen-browser niri; };
       modules = [
         ./home.nix
-        niri.homeModules.niri
       ];
     };
   };
