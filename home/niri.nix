@@ -1,10 +1,8 @@
 { config, pkgs, ... }:
 {
   # ========================================================================
-  # NIRI CONFIGURATION (Manual KDL Generation)
+  # NIRI CONFIGURATION
   # ========================================================================
-  # We use manual file generation to avoid dependency on Home Manager modules
-  # which might differ between versions/flakes.
   
   home.packages = [ pkgs.niri ];
 
@@ -26,34 +24,23 @@
         position x=0 y=0
     }
 
-    prefer-no-csd
-
     layout {
         gaps 10
         center-focused-column "never"
-
         preset-column-widths {
             proportion 0.33333
             proportion 0.5
             proportion 0.66667
         }
-
         default-column-width { proportion 0.5; }
-
         focus-ring {
             width 2
             active-color "#7aa2f7"
             inactive-color "#414868"
         }
     }
-    
-    window-rule {
-        geometry-corner-radius 12
-        clip-to-geometry true
-    }
 
-    # Startup handled by systemd (graphical-session.target)
-    # spawn-at-startup "zixar-niri-session"
+    spawn-at-startup "alacritty"
 
     binds {
         Mod+Return { spawn "alacritty"; }
@@ -62,12 +49,6 @@
         Mod+B { spawn "brave"; }
         Mod+V { spawn "zen"; }
         Mod+D { spawn "discord"; }
-
-        // Noctalia Integration
-        Mod+Z { spawn "noctalia-shell" "ipc" "call" "launcher" "toggle"; }
-        Mod+Tab { spawn "noctalia-shell" "ipc" "call" "launcher" "toggle"; }
-        Mod+X { spawn "noctalia-shell" "ipc" "call" "controlCenter" "toggle"; }
-
         Mod+Q { close-window; }
 
         Mod+Left  { focus-column-left; }
@@ -84,8 +65,12 @@
 
         Mod+Shift+E { quit; }
         Mod+Shift+P { power-off-monitors; }
-        
-        // Volume
+
+        // Noctalia Integration
+        Mod+Z { spawn "noctalia-shell" "ipc" "call" "launcher" "toggle"; }
+        Mod+Tab { spawn "noctalia-shell" "ipc" "call" "launcher" "toggle"; }
+        Mod+X { spawn "noctalia-shell" "ipc" "call" "controlCenter" "toggle"; }
+
         XF86AudioRaiseVolume { spawn "pamixer" "-i" "5"; }
         XF86AudioLowerVolume { spawn "pamixer" "-d" "5"; }
         XF86AudioMute        { spawn "pamixer" "-t"; }

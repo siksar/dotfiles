@@ -215,8 +215,10 @@
     # Noctalia Shell
     
     # Portals
-    pkgs.xdg-desktop-portal-gnome
-    pkgs.xdg-desktop-portal-gtk
+    # Portals - Handled by modules/desktop.nix
+    # pkgs.xdg-desktop-portal-gnome
+    # pkgs.xdg-desktop-portal-gtk
+    
     
     # Zen Browser
     zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.default
@@ -428,33 +430,7 @@
   # ========================================================================
   # SYSTEMD SERVICES
   # ========================================================================
-  systemd.user.services.swww-daemon = {
-    Unit = {
-      Description = "SWWW Wallpaper Daemon";
-      PartOf = [ "graphical-session.target" ];
-      After = [ "graphical-session.target" ];
-    };
-    Service = {
-      ExecStart = "${pkgs.swww}/bin/swww-daemon";
-      Restart = "on-failure";
-    };
-    Install = {
-      WantedBy = [ "graphical-session.target" ];
-    };
-  };
-
-  systemd.user.services.polkit-gnome = {
-    Unit = {
-      Description = "Polkit GNOME Authentication Agent";
-      PartOf = [ "graphical-session.target" ];
-      After = [ "graphical-session.target" ];
-    };
-    Service = {
-      ExecStart = "${pkgs.polkit_gnome}/libexec/polkit-gnome-authentication-agent-1";
-      Restart = "on-failure";
-    };
-    Install = {
-      WantedBy = [ "graphical-session.target" ];
-    };
-  };
+  # ========================================================================
+  # SYSTEMD SERVICES - Handled by modules/desktop.nix or specific home modules
+  # ========================================================================
 }
