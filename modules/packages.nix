@@ -3,29 +3,31 @@
   # ========================================================================
   # SYSTEM PACKAGES
   # ========================================================================
-  
+
   nixpkgs.config.allowUnfree = true;
   environment.systemPackages = with pkgs; [
     # Core utilities
-    helix          # Rust based editor (Neovim replacement)
+    helix # Rust based editor (Neovim replacement)
     wget
     git
-    macchina       # Rust based fetch (Fastfetch replacement)
-    bottom         # Rust based monitor (Btop replacement)
-    
+    macchina # Rust based fetch (Fastfetch replacement)
+    bottom # Rust based monitor (Btop replacement)
+
     nvtopPackages.full # AMD + NVIDIA desteği için full paket
-    lact               # AMD GPU kontrol (gaming.nix'ten taşındı)
-    # antigravity - User Tool (Keeping)
-    
-    
+    lact # AMD GPU kontrol (gaming.nix'ten taşındı)
+    antigravity - User
+    Tool
+    (Keeping)
+
+
     # Hardware Diagnostics
     nvme-cli
     smartmontools
     claude-code
     # Browser & Productivity
     bitwarden-desktop
-    home-manager   
-    bottles 
+    home-manager
+    bottles
     # AI Tools
     lmstudio
     localsend
@@ -33,17 +35,17 @@
     winetricks
     dxvk
     vkd3d
-    
+
     # Gaming Launchers
-    prismlauncher      # Minecraft launcher with mod support
-    heroic             # Epic Games & GOG launcher
-    
+    prismlauncher # Minecraft launcher with mod support
+    heroic # Epic Games & GOG launcher
+
     # Music Applications
-    ytmdesktop         # YouTube Music desktop client
+    ytmdesktop # YouTube Music desktop client
     # mpv is required for ytui-music and is generally useful
-    mpv                
-    yt-dlp             
-    
+    mpv
+    yt-dlp
+
     # AppImage support
     appimage-run
     # Development tools
@@ -51,9 +53,9 @@
     gruvbox-gtk-theme
     gruvbox-dark-icons-gtk
     docker-compose
-    protonup-qt       # Proton version manager (GE-Proton installation)
-    mangohud          # FPS counter & limiter/unlimiter
-    gamescope         # Wayland compositor for gaming (useful for fix resolution/refresh rate)
+    protonup-qt # Proton version manager (GE-Proton installation)
+    mangohud # FPS counter & limiter/unlimiter
+    gamescope # Wayland compositor for gaming (useful for fix resolution/refresh rate)
   ];
   # AppImage binfmt registration
   boot.binfmt.registrations.appimage = {
@@ -72,6 +74,6 @@
         init.defaultBranch = "main";
       };
     };
-    
+
   };
 }
