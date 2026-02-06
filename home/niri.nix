@@ -1,4 +1,4 @@
-{ config, pkgs, noctalia, ... }:
+{ config, pkgs, ... }:
 {
   # ========================================================================
   # NIRI HOME-MANAGER CONFIGURATION
@@ -50,8 +50,8 @@
       spawn-at-startup = [
         { command = [ "alacritty" ]; }
         { command = [ "swww-daemon" ]; }
-        # Noctalia Shell - QuickShell based dock/panel
-        { command = [ "${noctalia.packages.${pkgs.system}.default}/bin/noctalia-shell" ]; }
+        # Noctalia Shell - will be available via your noctalia module
+        { command = [ "noctalia-shell" ]; }
       ];
 
       # Keybindings
@@ -104,9 +104,6 @@
   # NIRI PACKAGES
   # ========================================================================
   home.packages = with pkgs; [
-    # Noctalia Shell (QuickShell based)
-    noctalia.packages.${pkgs.system}.default
-    
     # Niri utilities
     swww          # Wallpaper daemon
     pamixer       # Audio control
