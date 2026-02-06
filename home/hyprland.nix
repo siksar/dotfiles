@@ -37,11 +37,11 @@
         rounding = 10;
         
         blur = {
-          enabled = true;
-          size = 6;
-          passes = 3;
-          new_optimizations = true;
-          xray = true;
+          enabled = false;
+          # size = 6;
+          # passes = 3;
+          # new_optimizations = true;
+          # xray = true;
         };
         
         shadow = {
@@ -138,7 +138,7 @@
       
       bind = [
         # Applications
-        "$mod, Return, exec, ${pkgs.kitty}/bin/kitty"
+        "$mod, Return, exec, ${pkgs.alacritty}/bin/alacritty"
         "$mod, Q, killactive,"
         "$mod, M, exit,"
         "$mod, E, exec, thunar"
