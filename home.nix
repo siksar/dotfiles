@@ -15,7 +15,7 @@
     ./home/yazi.nix       # Modern TUI File Manager
     ./home/niri.nix       # Niri (Rust) WM
     ./home/nushell.nix    # Nushell
-    ./modules/noctalia-home.nix # Noctalia Shell (Declarative)
+    ./home/nushell.nix    # Nushell
   ];
 
   # ========================================================================
