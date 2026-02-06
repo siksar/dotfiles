@@ -138,7 +138,7 @@
       
       bind = [
         # Applications
-        "$mod, Return, exec, kitty"
+        "$mod, Return, exec, ${pkgs.kitty}/bin/kitty"
         "$mod, Q, killactive,"
         "$mod, M, exit,"
         "$mod, E, exec, thunar"
