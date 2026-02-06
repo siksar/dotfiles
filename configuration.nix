@@ -3,25 +3,25 @@
   # ========================================================================
   # IMPORTS - Modular Configuration Structure
   # ========================================================================
-  imports = [ 
+  imports = [
     ./hardware-configuration.nix
     # Hardware Contribution Test (DISABLED)
     # ./hardware/gigabyte/aero/16/default.nix
-    
+
     # User modules
     ./modules/nvidia.nix
     ./modules/gaming.nix
-    ./modules/kernel.nix 
-      
+    ./modules/kernel.nix
+
     # System modules
     ./modules/desktop.nix
-    # ./modules/hyprland.nix
+    ./modules/hyprland.nix  # ENABLED - Hyprland support
     ./modules/flstudio.nix
     ./modules/audio.nix
     ./modules/networking.nix
     ./modules/packages.nix
     ./modules/zapret.nix
-   ./modules/power-management.nix
+    ./modules/power-management.nix
   ];
   # ========================================================================
   # BOOT CONFIGURATION
@@ -35,11 +35,11 @@
       timeout = 0;
       efi.canTouchEfiVariables = true;
     };
-    
+
     # Use systemd in initrd for better error handling and mount reliability
     initrd.systemd.enable = true;
   };
-  
+
   # Global systemd timeout to kill stuck services (sound.target, etc) during shutdown
   systemd.settings.Manager.RebootWatchdogSec = "10s";
   # New syntax for systemd manager configuration
@@ -87,7 +87,7 @@
   # ========================================================================
   virtualisation.libvirtd.enable = true;
   programs.virt-manager.enable = true;
-  
+
    security.unprivilegedUsernsClone = true;
  virtualisation.docker = {
     enable = true;
@@ -118,23 +118,23 @@
   users.users.zixar = {
     isNormalUser = true;
     description = "zixar";
-    shell = pkgs.nushell; 
-    extraGroups = [ 
-      "networkmanager" 
-      "wheel" 
-      "video" 
+    shell = pkgs.nushell;
+    extraGroups = [
+      "networkmanager"
+      "wheel"
+      "video"
       "audio"
       "podman"
       "docker"
       "i2c"
     ];
  };
- 
+
  # /etc/nixos dizinine sudo'suz yazma yetkisi
  systemd.tmpfiles.rules = [
    "d /etc/nixos 0755 zixar users -"
  ];
- 
+
  programs.zsh.enable = true;
   # ========================================================================
   # FONTS
@@ -200,10 +200,10 @@
   # ========================================================================
   # SYSTEM
   # ========================================================================
-  
+
   # TLP removed - using auto-cpufreq instead (power-management.nix)
   # Disable power-profiles-daemon (conflicts with auto-cpufreq)
   # services.power-profiles-daemon.enable = false;
-  
+
   system.stateVersion = "26.05";
 }

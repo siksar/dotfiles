@@ -1,9 +1,8 @@
 { config, pkgs, ... }:
 {
   # ========================================================================
-  # DESKTOP ENVIRONMENT - Hyprland Only
+  # DESKTOP ENVIRONMENT - Hyprland + Niri
   # ========================================================================
-  
   services = {
     xserver = {
       enable = true;
@@ -12,12 +11,13 @@
       autoRepeatInterval = 20;
     };
   };
-  
   # ========================================================================
   # NIRI WINDOW MANAGER (Rust Based)
   # ========================================================================
-  programs.niri.enable = true;
-
+  programs.niri = {
+    enable = true;
+    # Niri package from flake input will be used automatically via nixosModules.niri
+  };
   # ========================================================================
   # GREETD DISPLAY MANAGER (Rust Based)
   # ========================================================================
@@ -25,66 +25,48 @@
     enable = true;
     settings = {
       default_session = {
-        command = "${pkgs.tuigreet}/bin/tuigreet --time --cmd niri-session --asterisks --remember --remember-session --sessions ${config.services.displayManager.sessionData.desktops}/share/wayland-sessions";
+        # Multi-session support - user can choose between Hyprland and Niri
+        command = "${pkgs.tuigreet}/bin/tuigreet --time --asterisks --remember --remember-session --sessions ${config.services.displayManager.sessionData.desktops}/share/wayland-sessions";
         user = "greeter";
       };
     };
   };
-
-  # SDDM Disabled
-  # services.displayManager.sddm = {
-  #   enable = true;
-  #   wayland.enable = true;
-  # };
-  
-  # Auto-login disabled (handled by remember-session in tuigreet if needed)
-  # services.displayManager.autoLogin...
-  
-  # Default session is handled by tuigreet --cmd flag
-  # services.displayManager.defaultSession = "hyprland";
-
   # ========================================================================
   # ESSENTIAL DESKTOP PACKAGES
   # ========================================================================
   environment.systemPackages = with pkgs; [
-    # File manager - THUNAR KALDIRILDI (Yazi kullanılıyor - home/yazi.nix)
-    
     # Archive manager
     file-roller
-    
     # Image viewer
     imv
-    
     # System
     adwaita-icon-theme
     papirus-icon-theme
     pavucontrol
-    
     # DM
     tuigreet
   ];
-
   # ========================================================================
   # DCONF & GTK INTEGRATION
   # ========================================================================
   programs.dconf.enable = true;
-  
   # Cursor theme
   environment.variables = {
     XCURSOR_THEME = "Adwaita";
     XCURSOR_SIZE = "24";
   };
-
   # ========================================================================
-  # XDG PORTAL - Hyprland + GTK
+  # XDG PORTAL - Hyprland + Niri + GTK
   # ========================================================================
   xdg.portal = {
     enable = true;
-    extraPortals = [ 
-      pkgs.xdg-desktop-portal-gtk 
+    extraPortals = [
+      pkgs.xdg-desktop-portal-gtk
+      pkgs.xdg-desktop-portal-gnome
     ];
     config = {
       hyprland.default = [ "hyprland" "gtk" ];
+      niri.default = [ "gnome" "gtk" ];
       common.default = [ "gtk" ];
     };
   };

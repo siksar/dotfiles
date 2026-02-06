@@ -1,79 +1,114 @@
-{ config, pkgs, ... }:
+{ config, pkgs, noctalia, ... }:
 {
   # ========================================================================
-  # NIRI CONFIGURATION
+  # NIRI HOME-MANAGER CONFIGURATION
   # ========================================================================
-  
-  home.packages = [ pkgs.niri ];
+  wayland.windowManager.niri = {
+    settings = {
+      # Input configuration
+      input = {
+        keyboard = {
+          xkb = {
+            layout = "us";
+          };
+        };
+        touchpad = {
+          tap = true;
+          natural-scroll = true;
+        };
+      };
 
-  xdg.configFile."niri/config.kdl".text = ''
-    input {
-        keyboard {
-            xkb {
-                layout "us"
-            }
-        }
-        touchpad {
-            tap
-            natural-scroll
-        }
-    }
+      # Output configuration
+      outputs = {
+        "eDP-1" = {
+          scale = 1.0;
+          position = {
+            x = 0;
+            y = 0;
+          };
+        };
+      };
 
-    output "eDP-1" {
-        scale 1.0
-        position x=0 y=0
-    }
+      # Layout configuration
+      layout = {
+        gaps = 10;
+        center-focused-column = "never";
+        preset-column-widths = [
+          { proportion = 0.33333; }
+          { proportion = 0.5; }
+          { proportion = 0.66667; }
+        ];
+        default-column-width = { proportion = 0.5; };
+        focus-ring = {
+          width = 2;
+          active-color = "#7aa2f7";
+          inactive-color = "#414868";
+        };
+      };
 
-    layout {
-        gaps 10
-        center-focused-column "never"
-        preset-column-widths {
-            proportion 0.33333
-            proportion 0.5
-            proportion 0.66667
-        }
-        default-column-width { proportion 0.5; }
-        focus-ring {
-            width 2
-            active-color "#7aa2f7"
-            inactive-color "#414868"
-        }
-    }
+      # Startup applications
+      spawn-at-startup = [
+        { command = [ "alacritty" ]; }
+        { command = [ "swww-daemon" ]; }
+        # Noctalia Shell - QuickShell based dock/panel
+        { command = [ "${noctalia.packages.${pkgs.system}.default}/bin/noctalia-shell" ]; }
+      ];
 
-    spawn-at-startup "alacritty"
+      # Keybindings
+      binds = {
+        # Terminal & Apps
+        "Mod+Return".action.spawn = [ "alacritty" ];
+        "Mod+E".action.spawn = [ "alacritty" "-e" "yazi" ];
+        "Mod+R".action.spawn = [ "alacritty" "-e" "hx" "." ];
+        "Mod+B".action.spawn = [ "brave" ];
+        "Mod+V".action.spawn = [ "zen" ];
+        "Mod+D".action.spawn = [ "discord" ];
 
-    binds {
-        Mod+Return { spawn "alacritty"; }
-        Mod+E { spawn "alacritty" "-e" "yazi"; }
-        Mod+R { spawn "alacritty" "-e" "hx" "."; }
-        Mod+B { spawn "brave"; }
-        Mod+V { spawn "zen"; }
-        Mod+D { spawn "discord"; }
-        Mod+Q { close-window; }
+        # Window management
+        "Mod+Q".action.close-window = [];
+        "Mod+Left".action.focus-column-left = [];
+        "Mod+Right".action.focus-column-right = [];
+        "Mod+Up".action.focus-window-up = [];
+        "Mod+Down".action.focus-window-down = [];
+        "Mod+Shift+Left".action.move-column-left = [];
+        "Mod+Shift+Right".action.move-column-right = [];
+        "Mod+F".action.maximize-column = [];
+        "Mod+Shift+F".action.fullscreen-window = [];
+        "Mod+Space".action.center-column = [];
+        "Mod+Shift+E".action.quit = [];
+        "Mod+Shift+P".action.power-off-monitors = [];
 
-        Mod+Left  { focus-column-left; }
-        Mod+Right { focus-column-right; }
-        Mod+Up    { focus-window-up; }
-        Mod+Down  { focus-window-down; }
+        # Noctalia Integration
+        "Mod+Z".action.spawn = [ "noctalia-shell" "ipc" "call" "launcher" "toggle" ];
+        "Mod+Tab".action.spawn = [ "noctalia-shell" "ipc" "call" "launcher" "toggle" ];
+        "Mod+X".action.spawn = [ "noctalia-shell" "ipc" "call" "controlCenter" "toggle" ];
 
-        Mod+Shift+Left  { move-column-left; }
-        Mod+Shift+Right { move-column-right; }
+        # Audio controls
+        "XF86AudioRaiseVolume".action.spawn = [ "pamixer" "-i" "5" ];
+        "XF86AudioLowerVolume".action.spawn = [ "pamixer" "-d" "5" ];
+        "XF86AudioMute".action.spawn = [ "pamixer" "-t" ];
+      };
+    };
+  };
 
-        Mod+F { maximize-column; }
-        Mod+Shift+F { fullscreen-window; }
-        Mod+Space { center-column; }
+  # ========================================================================
+  # NIRI ENVIRONMENT - Ensuring proper Wayland variables
+  # ========================================================================
+  home.sessionVariables = {
+    # These will be set when Niri starts
+    NIXOS_OZONE_WL = "1";
+    MOZ_ENABLE_WAYLAND = "1";
+  };
 
-        Mod+Shift+E { quit; }
-        Mod+Shift+P { power-off-monitors; }
-
-        // Noctalia Integration
-        Mod+Z { spawn "noctalia-shell" "ipc" "call" "launcher" "toggle"; }
-        Mod+Tab { spawn "noctalia-shell" "ipc" "call" "launcher" "toggle"; }
-        Mod+X { spawn "noctalia-shell" "ipc" "call" "controlCenter" "toggle"; }
-
-        XF86AudioRaiseVolume { spawn "pamixer" "-i" "5"; }
-        XF86AudioLowerVolume { spawn "pamixer" "-d" "5"; }
-        XF86AudioMute        { spawn "pamixer" "-t"; }
-    }
-  '';
+  # ========================================================================
+  # NIRI PACKAGES
+  # ========================================================================
+  home.packages = with pkgs; [
+    # Noctalia Shell (QuickShell based)
+    noctalia.packages.${pkgs.system}.default
+    
+    # Niri utilities
+    swww          # Wallpaper daemon
+    pamixer       # Audio control
+  ];
 }
