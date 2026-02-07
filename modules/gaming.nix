@@ -193,7 +193,7 @@ in
     settings = {
       general = {
         renice = 10;
-        screensaver_inhibit = true;
+ #       screensaver_inhibit = true;
         defaultgov = "schedutil";
         desiredgov = "performance";
       };
