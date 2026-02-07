@@ -370,15 +370,6 @@ in
     # NPU device path
     "AMD_XDNA_DEVICE" = "/dev/accel/accel0";
     
-    # ROCm paths (for GPU/NPU compute)
-    "ROCM_PATH" = "${pkgs.rocmPackages.rocm-core}";
-    "HIP_PATH" = "${pkgs.rocmPackages.hip}";
-    
-    # Library paths
-    "LD_LIBRARY_PATH" = lib.mkDefault [
-      "${pkgs.rocmPackages.rocm-runtime}/lib"
-      "${pkgs.rocmPackages.hip}/lib"
-    ];
   };
 
   # =============================================================================
