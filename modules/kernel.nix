@@ -126,7 +126,7 @@
   # ============================================================================
   # HARDWARE
   # ============================================================================
-  hardware.cpu.amd.updateMicrocode = true;
+ # hardware.cpu.amd.updateMicrocode = true;
   hardware.enableRedistributableFirmware = true;
   hardware.enableAllFirmware = true;
 }
