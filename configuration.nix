@@ -104,39 +104,11 @@
   # ========================================================================
   virtualisation.libvirtd = {
     enable = true;
-    qemu = {
-      package = pkgs.qemu_kvm;
-      runAsRoot = true;
-      swtpm.enable = true;
-      ovmf = {
-        enable = true;
-        packages = [ pkgs.OVMFFull.fd ];
-      };
-    };
   };
   
   programs.virt-manager.enable = true;
   
   security.unprivilegedUsernsClone = true;
-  
-  virtualisation.docker = {
-    enable = true;
-    enableOnBoot = true;
-    autoPrune = {
-      enable = true;
-      dates = "weekly";
-      flags = [ "--all" ];
-    };
-    daemon.settings = {
-      exec-opts = [ "native.cgroupdriver=systemd" ];
-      log-driver = "json-file";
-      log-opts = {
-        max-size = "10m";
-        max-file = "3";
-      };
-      storage-driver = "overlay2";
-    };
-  };
   
   virtualisation.podman = {
     enable = true;
