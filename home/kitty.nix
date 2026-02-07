@@ -12,7 +12,6 @@
     };
     
     shellIntegration = {
-      enableNushellIntegration = true;
       enableZshIntegration = true;
     };
     
