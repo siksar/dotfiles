@@ -6,7 +6,7 @@
   
   programs.helix = {
     enable = true;
-    defaultEditor = true;
+    defaultEditor = false;  # Using Neovim as default
     
     settings = {
       theme = "tokyonight";
@@ -112,7 +112,7 @@
       telescope-nvim
     ];
     
-    extraLuaConfig = ''
+    initLua = ''
       -- Leader key
       vim.g.mapleader = " "
       
