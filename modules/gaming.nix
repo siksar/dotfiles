@@ -149,7 +149,7 @@ in
     gameLaunch
     
     # Monitoring
-    nvtop             # GPU monitor
+   # nvtop             # GPU monitor
     radeontop         # AMD GPU monitor
     
     # Utilities
