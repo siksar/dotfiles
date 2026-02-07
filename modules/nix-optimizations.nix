@@ -92,9 +92,6 @@ in
       max-jobs = lib.mkDefault maxJobs;
       cores = lib.mkDefault buildCores;
 
-      # Parallel downloads
-      download-threads = lib.mkDefault 8;
-
       # Build settings
       sandbox = lib.mkDefault true;
 
