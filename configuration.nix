@@ -208,7 +208,6 @@
       cores = 4;
       
       # Parallel downloads
-      download-threads = 8;
       download-buffer-size = 512 * 1024 * 1024;
       
       # Binary caches
