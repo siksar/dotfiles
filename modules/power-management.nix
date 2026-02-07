@@ -278,8 +278,7 @@
   # ========================================================================
   # POWER PROFILES DAEMON
   # ========================================================================
-  services.power-profiles-daemon.enable = true;
-  services.auto-cpufreq.enable = false;
+  services.power-profiles-daemon.enable = false;
   # Accelerometer vb. sensörler
 
   # ========================================================================
