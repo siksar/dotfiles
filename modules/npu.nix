@@ -74,13 +74,11 @@ in
 
   boot.kernelModules = [
     "amdxdna"
-    "accel"
     "amd_iommu"
   ];
 
   boot.initrd.kernelModules = [
     "amdxdna"
-    "accel"
   ];
 
   hardware.enableAllFirmware = true;

@@ -148,7 +148,6 @@
       "libvirtd"
       "kvm"
       "input"
-      "accel"
       "render"
       "gamemode"
     ];
