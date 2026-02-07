@@ -47,16 +47,16 @@
     }
 
     // Startup applications
-    spawn-at-startup "alacritty"
+    spawn-at-startup "kitty"
     spawn-at-startup "swww-daemon"
     spawn-at-startup "noctalia-shell"
 
     // Keybindings
     binds {
         // Terminal & Apps
-        Mod+Return { spawn "alacritty"; }
-        Mod+E { spawn "alacritty" "-e" "yazi"; }
-        Mod+R { spawn "alacritty" "-e" "hx" "."; }
+        Mod+Return { spawn "kitty"; }
+        Mod+E { spawn "kitty" "-e" "yazi"; }
+        Mod+R { spawn "kitty" "-e" "nvim" "/"; }
         Mod+B { spawn "brave"; }
         Mod+V { spawn "zen"; }
         Mod+D { spawn "discord"; }

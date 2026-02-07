@@ -18,9 +18,9 @@
       # NixOS aliases moved to functions in extraConfig for Nushell compatibility
       
       # Editors
-      v = "hx";
-      vim = "hx";
-      vi = "hx";
+      v = "nvim";
+      vim = "nvim";
+      vi = "nvim";
       
       # Git
       gs = "git status";

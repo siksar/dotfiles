@@ -15,7 +15,7 @@
     ./home/yazi.nix       # Modern TUI File Manager
     ./home/niri.nix       # Niri (Rust) WM
     ./home/nushell.nix    # Nushell
-    ./home/nushell.nix    # Nushell
+    ./home/kitty.nix      # Kitty Terminal
   ];
 
   # ========================================================================
@@ -26,9 +26,9 @@
   home.homeDirectory = "/home/zixar";
   home.sessionVariables = {
     SHELL = "${pkgs.nushell}/bin/nu";
-    EDITOR = "hx";
-    VISUAL = "hx";
-    TERMINAL = "alacritty";
+    EDITOR = "nvim";
+    VISUAL = "nvim";
+    TERMINAL = "kitty";
     BROWSER = "zen";
     QT_QPA_PLATFORM = "wayland";
     GDK_BACKEND = "wayland";
@@ -339,36 +339,59 @@
       executable = true;
     };
     
-    # Macchina Config
+    # Macchina Config - Fastfetch-like appearance
     ".config/macchina/macchina.toml".text = ''
-      theme = "TokyoNight"
-      show = ["Host", "Kernel", "Uptime", "Shell", "Terminal", "Processor", "Memory", "Battery"]
+      theme = "ZixarNight"
+      interface = "DefaultAscii"
+      show = [
+        "Host",
+        "Machine",
+        "Kernel",
+        "Distribution",
+        "DE",
+        "WM",
+        "Shell",
+        "Terminal",
+        "Uptime",
+        "Processor",
+        "ProcessorUsage",
+        "Memory",
+        "GPU",
+        "Battery"
+      ]
+      
+      long_shell = false
+      long_uptime = true
+      long_kernel = false
+      current_shell = true
+      physical_cores = false
     '';
 
-    # Macchina TokyoNight Theme
-    ".config/macchina/themes/TokyoNight.toml".text = ''
+    # Macchina ZixarNight Theme - Tokyo Night inspired
+    ".config/macchina/themes/ZixarNight.toml".text = ''
+      # Spacing and padding
       spacing = 2
-      padding = 2
+      padding = 0
+      hide_ascii = false
+      separator = "  "
+      key_color = "Blue"
+      separator_color = "Magenta"
       
-      [keys]
-      host = "blue"
-      kernel = "blue"
-      uptime = "blue"
-      shell = "blue"
-      terminal = "blue"
-      Processor = "blue"
-      memory = "blue"
-      battery = "blue"
+      # Palette section for custom colors
+      [palette]
+      type = "Dark"
+      glyph = ""
+      
+      # Custom ASCII art colors
+      [custom_ascii]
+      color = "Blue"
 
-      [values]
-      host = "white"
-      kernel = "white"
-      uptime = "white"
-      shell = "white"
-      terminal = "white"
-      Processor = "white"
-      memory = "white"
-      battery = "white"
+      # Bar configuration  
+      [bar]
+      glyph = "●"
+      symbol_open = "["
+      symbol_close = "]"
+      visible = true
     '';
 
     # Rio Config Removed
