@@ -12,7 +12,8 @@
     };
     
     shellIntegration = {
-      enableZshIntegration = true;
+      enableZshIntegration = false;
+      # enableNushellIntegration is not supported yet in Home Manager
     };
     
     settings = {

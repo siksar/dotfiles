@@ -7,11 +7,7 @@
   imports = [ 
     ./hardware-configuration.nix
     
-    # Hardware optimizations
-    inputs.nixos-hardware.nixosModules.common-cpu-amd
-    inputs.nixos-hardware.nixosModules.common-gpu-amd
-    inputs.nixos-hardware.nixosModules.common-pc-laptop-ssd
-    
+    # NOTE: AMD hardware modules are imported in flake.nix
     # System modules - Optimized for Gigabyte Aero X16
     ./modules/kernel.nix
     ./modules/cpu-scheduling.nix      # Zen 5/5c core management
@@ -57,8 +53,8 @@
   };
   
   # Global systemd timeout
-  systemd.watchdog.rebootTime = "10s";
   systemd.settings.Manager = {
+    RebootWatchdogSec = "10s";
     DefaultTimeoutStopSec = "10s";
     DefaultTimeoutStartSec = "30s";
   };
@@ -252,7 +248,6 @@
     
     extraOptions = ''
       http-connections = 50
-      binary-caches-parallel-connections = 50
       log-lines = 25
     '';
   };

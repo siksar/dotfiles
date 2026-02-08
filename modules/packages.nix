@@ -10,7 +10,7 @@
     helix # Rust based editor (Neovim replacement)
     wget
     git
-    macchina # Rust based fetch (Fastfetch replacement)
+    fastfetch # Fast system information tool
     bottom # Rust based monitor (Btop replacement)
 
     nvtopPackages.full # AMD + NVIDIA desteği için full paket

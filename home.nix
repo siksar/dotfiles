@@ -7,17 +7,17 @@
   imports = [
     ./home/hyprland.nix
     ./home/noctalia.nix
-    ./home/zsh.nix
     ./home/starship.nix
     ./home/editors.nix
     ./home/hyprlock.nix
     ./home/tui-media.nix
     ./home/wrappers.nix
     ./home/yazi.nix
-    ./home/niri.nix
+    # ./home/niri.nix  # Disabled - using Hyprland
     ./home/nushell.nix
     ./home/kitty.nix
     ./home/gaming.nix      # User gaming config
+    ./home/fastfetch.nix    # System fetch tool
   ];
 
   # ========================================================================
@@ -71,12 +71,13 @@
 
   # ========================================================================
   # GIT
-  # ========================================================================
   programs.git = {
     enable = true;
-    userName = "zixar";
-    userEmail = "halilbatuhanyilmaz@proton.me";
-    extraConfig = {
+    settings = {
+      user = {
+        name = "zixar";
+        email = "halilbatuhanyilmaz@proton.me";
+      };
       init.defaultBranch = "main";
       pull.rebase = false;
       core.editor = "nvim";
@@ -90,106 +91,41 @@
       color.ui = true;
       credential.helper = "cache --timeout=3600";
     };
-    delta = {
-      enable = true;
-      options = {
-        syntax-theme = "gruvbox-dark";
-        line-numbers = true;
-        side-by-side = false;
-        navigate = true;
-      };
-    };
     lfs.enable = true;
   };
-
-  # ========================================================================
-  # ALACRITTY
-  # ========================================================================
-  programs.alacritty = {
+  
+  programs.delta = {
     enable = true;
-    settings = {
-      window = {
-        padding = { x = 12; y = 12; };
-        opacity = 0.95;
-        title = "Alacritty";
-        dynamic_title = true;
-        decorations = "none";
-        startup_mode = "Windowed";
-      };
-      
-      font = {
-        normal = { family = "JetBrainsMono Nerd Font"; style = "Regular"; };
-        bold = { family = "JetBrainsMono Nerd Font"; style = "Bold"; };
-        italic = { family = "JetBrainsMono Nerd Font"; style = "Italic"; };
-        size = 12.0;
-      };
-      
-      cursor = {
-        style = "Block";
-        unfocused_hollow = true;
-      };
-      
-      mouse = {
-        hide_when_typing = true;
-      };
-      
-      colors = {
-        primary = {
-          background = "#1a1b26";
-          foreground = "#a9b1d6";
-        };
-        normal = {
-          black = "#414868";
-          red = "#f7768e";
-          green = "#73daca";
-          yellow = "#e0af68";
-          blue = "#7aa2f7";
-          magenta = "#bb9af7";
-          cyan = "#7dcfff";
-          white = "#c0caf5";
-        };
-        bright = {
-          black = "#565f89";
-          red = "#ff7a93";
-          green = "#73daca";
-          yellow = "#e0af68";
-          blue = "#7aa2f7";
-          magenta = "#bb9af7";
-          cyan = "#7dcfff";
-          white = "#c0caf5";
-        };
-      };
-      
-      scrolling = {
-        history = 10000;
-        multiplier = 3;
-      };
-      
-      selection = {
-        save_to_clipboard = true;
-      };
+    enableGitIntegration = true;
+    options = {
+      syntax-theme = "gruvbox-dark";
+      line-numbers = true;
+      side-by-side = false;
+      navigate = true;
     };
   };
+
+  # NOTE: Using Kitty as terminal (configured in home/kitty.nix)
 
   # ========================================================================
   # SYSTEM MONITORING & TOOLS
   # ========================================================================
   programs.broot = {
     enable = true;
-    enableZshIntegration = true;
+    enableZshIntegration = false;
     enableNushellIntegration = true;
   };
 
   programs.zoxide = {
     enable = true;
-    enableZshIntegration = true;
+    enableZshIntegration = false;
     enableNushellIntegration = true;
     options = [ "--cmd cd" ];
   };
 
   programs.atuin = {
     enable = true;
-    enableZshIntegration = true;
+    enableZshIntegration = false;
     enableNushellIntegration = true;
     settings = {
       auto_sync = true;
@@ -279,7 +215,6 @@
     inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.default
     
     # Rust Tools
-    macchina
     procs
     dust
     tokei
@@ -297,7 +232,7 @@
     
     # Development
     gcc
-    clang
+    # clang # Removed to avoid conflict with gcc over /bin/cc
     cmake
     gnumake
     ninja
@@ -425,54 +360,7 @@
       executable = true;
     };
     
-    # Macchina config
-    ".config/macchina/macchina.toml".text = ''
-      theme = "ZixarNight"
-      interface = "DefaultAscii"
-      show = [
-        "Host",
-        "Machine",
-        "Kernel",
-        "Distribution",
-        "DesktopEnvironment",
-        "WindowManager",
-        "Shell",
-        "Terminal",
-        "Uptime",
-        "Processor",
-        "ProcessorLoad",
-        "Memory",
-        "GPU",
-        "Battery"
-      ]
-      long_shell = false
-      long_uptime = true
-      long_kernel = false
-      current_shell = true
-      physical_cores = false
-    '';
-
-    ".config/macchina/themes/ZixarNight.toml".text = ''
-      spacing = 2
-      padding = 0
-      hide_ascii = false
-      separator = "  "
-      key_color = "Blue"
-      separator_color = "Magenta"
-      
-      [palette]
-      type = "Dark"
-      glyph = ""
-      
-      [custom_ascii]
-      color = "Blue"
-
-      [bar]
-      glyph = "●"
-      symbol_open = "["
-      symbol_close = "]"
-      visible = true
-    '';
+    # fastfetch config is in home/fastfetch.nix
     
     # Ollama config
     ".config/ollama/config.json".text = ''
@@ -490,7 +378,7 @@
   # ========================================================================
   programs.direnv = {
     enable = true;
-    enableZshIntegration = true;
+    enableZshIntegration = false;
     enableNushellIntegration = true;
     nix-direnv.enable = true;
     silent = false;
@@ -501,8 +389,8 @@
   # ========================================================================
   programs.fzf = {
     enable = true;
-    enableZshIntegration = true;
-    enableNushellIntegration = true;
+    enableZshIntegration = false;
+    # enableNushellIntegration = true; # Not supported in current Home Manager
     colors = {
       "bg+" = "#3c3836";
       "bg" = "#282828";
@@ -530,7 +418,7 @@
   # ========================================================================
   programs.eza = {
     enable = true;
-    enableZshIntegration = true;
+    enableZshIntegration = false;
     enableNushellIntegration = true;
     git = true;
     icons = "auto";
@@ -560,15 +448,8 @@
     ];
   };
 
-  # ========================================================================
-  # LESS
-  # ========================================================================
-  programs.less = {
-    enable = true;
-    keys = ''
-      # Custom less keybindings
-    '';
-  };
+  # LESS - using defaults
+  programs.less.enable = true;
 
   # ========================================================================
   # MAN PAGES
@@ -578,21 +459,22 @@
     generateCaches = true;
   };
 
-  # ========================================================================
-  # SSH
-  # ========================================================================
   programs.ssh = {
     enable = true;
-    compression = true;
-    controlMaster = "auto";
-    controlPath = "~/.ssh/sockets/%r@%h-%p";
-    controlPersist = "10m";
-    serverAliveInterval = 60;
-    hashKnownHosts = true;
-    extraConfig = ''
-      AddKeysToAgent yes
-      UseKeychain yes
-    '';
+    enableDefaultConfig = false;
+    matchBlocks = {
+      "*" = {
+        compression = true;
+        controlMaster = "auto";
+        controlPath = "~/.ssh/sockets/%r@%h-%p";
+        controlPersist = "10m";
+        serverAliveInterval = 60;
+        hashKnownHosts = true;
+        extraOptions = {
+          AddKeysToAgent = "yes";
+        };
+      };
+    };
   };
 
   # ========================================================================
@@ -614,11 +496,11 @@
   services.ssh-agent.enable = true;
   services.gpg-agent = {
     enable = true;
-    enableZshIntegration = true;
+    enableZshIntegration = false;
     enableBashIntegration = true;
     defaultCacheTtl = 3600;
     maxCacheTtl = 7200;
-    pinentryPackage = pkgs.pinentry-curses;
+    pinentry.package = pkgs.pinentry-curses;
   };
 
   # ========================================================================
@@ -628,7 +510,13 @@
     # Nix
     rebuild = "sudo nixos-rebuild switch --flake .#nixos";
     rebuild-test = "sudo nixos-rebuild test --flake .#nixos";
+    zixswitch = "home-manager switch --flake /etc/nixos#zixar -b backup";
+    fullrebuild = "sudo nixos-rebuild switch --flake .#nixos ; home-manager switch --flake /etc/nixos#zixar -b backup";
     nix-gc = "nix-collect-garbage --delete-older-than 7d";
+    
+    # Editors
+    v = "nvim";
+    vim = "nvim";
     
     # CPU
     perf-run = "with-cores perf";
@@ -659,11 +547,15 @@
     ga = "git add";
     gc = "git commit";
     gp = "git push";
-    gl = "git pull";
+    gpl = "git pull";  # Changed from 'gl' to avoid conflict
+    gl = "git log --oneline -10";  # Short git log
     gs = "git status";
     gd = "git diff";
     gco = "git checkout";
     gb = "git branch";
+    
+    # Config shortcuts
+    hypr = "nvim ~/.config/hypr/hyprland.conf";
     
     # System
     top = "btop";
@@ -710,7 +602,7 @@
     ### System Monitoring
     - `btop` - System monitor
     - `bottom` - Process viewer
-    - `macchina` - System info
+    - `fastfetch` - System info
     
     ### Development
     - `gitui` - TUI git

@@ -50,22 +50,7 @@ in
   services.tlp.enable = lib.mkForce false;
   services.thermald.enable = true;
 
-  programs.gamemode = {
-    enable = true;
-    settings = {
-      general = {
-        renice = 10;
-        screensaver_inhibit = true;
-        defaultgov = "performance";
-        desiredgov = "performance";
-      };
-      gpu = {
-        apply_gpu_optimisations = "accept-responsibility";
-        gpu_device = 0;
-        amd_performance_level = "high";
-      };
-    };
-  };
+  # NOTE: programs.gamemode is configured in modules/gaming.nix
 
   environment.shellAliases = {
     "perf-run" = "with-cores perf";

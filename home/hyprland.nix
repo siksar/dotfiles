@@ -13,7 +13,7 @@
       general = {
         gaps_in = 5;
         gaps_out = 10;
-        border_size = 2;
+        border_size = 0;
         "col.active_border" = "rgba(d65d0eff) rgba(fe8019ff) 45deg";
         "col.inactive_border" = "rgba(928374ff)";
         layout = "dwindle";
@@ -38,7 +38,7 @@
           color = "rgba(1d2021ee)";
         };
 
-        active_opacity = 1.0;
+        active_opacity = 0.95;
         inactive_opacity = 0.95;
       };
 

@@ -5,37 +5,18 @@
     
     # Environment variables
     environmentVariables = {
-      EDITOR = "hx";
-      VISUAL = "hx";
+      EDITOR = "nvim";
+      VISUAL = "nvim";
     };
 
-    # Shell Aliases (Ported from Zsh)
+    # Shell Aliases - only nushell-specific ones
+    # Most aliases are defined globally in home.shellAliases
     shellAliases = {
-      ll = "ls -la";  # Nu's ls is already colorful and structured
-      la = "ls -a";
-      
-      # NixOS
-      # NixOS aliases moved to functions in extraConfig for Nushell compatibility
-      
-      # Editors
-      v = "nvim";
-      vim = "nvim";
-      vi = "nvim";
-      
-      # Git
-      gs = "git status";
-      ga = "git add";
-      gc = "git commit";
-      gp = "git push";
-      gl = "git log --oneline -10";
-      
-      # Configs
-      hypr = "hx ~/.config/hypr/hyprland.conf";
+      # Nushell-specific compatibility aliases
       conf = "z /etc/nixos"; # Using zoxide
       
-      # Compatibility
-      fastfetch = "macchina";
-      neofetch = "macchina";
+      # System info aliases
+      neofetch = "fastfetch";
     };
     
     # Extra Config
@@ -81,8 +62,8 @@
       
       # Zoxide/Starship/Carapace hooks are auto-added
       
-      # Run Macchina (System Fetch) on startup
-      macchina
+      # Run Fastfetch (System Fetch) on startup
+      fastfetch
     '';
   };
   

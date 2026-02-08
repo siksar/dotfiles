@@ -271,9 +271,8 @@
   ];
 
   # ========================================================================
-  # THERMALD SERVICE
-  # ========================================================================
-  services.thermald.enable = true;
+  # NOTE: thermald.enable is also in cpu-scheduling.nix, using mkDefault to allow override
+  services.thermald.enable = lib.mkDefault true;
 
   # ========================================================================
   # POWER PROFILES DAEMON

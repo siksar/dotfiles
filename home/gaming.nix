@@ -23,7 +23,7 @@
     libstrangle
     
     # Monitoring
-    nvtop
+    nvtopPackages.nvidia
     radeontop
     
     # Utilities

@@ -17,9 +17,7 @@
     "nvidia.NVreg_RestrictProfilingToAdminUsers=0"
   ];
   
-  services.xserver.deviceSection = ''
-    Option "Coolbits" "28"
-  '';
+  # NOTE: Coolbits is set in configuration.nix services.xserver.deviceSection
 
   services.xserver.videoDrivers = [ "nvidia" ];
   

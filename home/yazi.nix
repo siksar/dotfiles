@@ -2,7 +2,7 @@
 {
   programs.yazi = {
     enable = true;
-    enableZshIntegration = true;
+    enableZshIntegration = false;
     enableNushellIntegration = true;
     shellWrapperName = "y";
 

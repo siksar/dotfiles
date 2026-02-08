@@ -191,6 +191,12 @@ in
   programs.gamemode = {
     enable = true;
     settings = {
+      general = {
+        renice = 10;
+        screensaver_inhibit = true;
+        defaultgov = "performance";
+        desiredgov = "performance";
+      };
       
       gpu = {
         apply_gpu_optimisations = "accept-responsibility";
