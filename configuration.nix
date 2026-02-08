@@ -37,7 +37,7 @@
         consoleMode = "max";
         editor = false;
       };
-      timeout = 2;
+      timeout = 0;
       efi.canTouchEfiVariables = true;
       efi.efiSysMountPoint = "/boot";
     };
