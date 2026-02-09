@@ -70,11 +70,16 @@
   # ============================================================================
   # MODPROBE
   # ============================================================================
+  # ============================================================================
+  # MODPROBE
+  # ============================================================================
   boot.extraModprobeConfig = ''
     options amd_pstate mode=active
     options amdgpu dc=1 dpm=1
     options nvme default_ps_max_latency_us=0
     options zram num_devices=1
+    # Krackan/Strix Point support attempt (Zen 5 = Family 26/1Ah)
+    options ryzen_smu monitor_cpu_temp=1 force_cpu_family=26
   '';
 
   # ============================================================================

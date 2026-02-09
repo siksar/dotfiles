@@ -19,17 +19,13 @@
     # Niri package from flake input will be used automatically via nixosModules.niri
   };
   # ========================================================================
-  # GREETD DISPLAY MANAGER (Rust Based)
+  # SDDM DISPLAY MANAGER (Qt Based, Wayland Native)
   # ========================================================================
-  services.greetd = {
+  services.displayManager.sddm = {
     enable = true;
-    settings = {
-      default_session = {
-        # Multi-session support - user can choose between Hyprland and Niri
-        command = "${pkgs.tuigreet}/bin/tuigreet --time --asterisks --remember --remember-session --sessions ${config.services.displayManager.sessionData.desktops}/share/wayland-sessions";
-        user = "greeter";
-      };
-    };
+    wayland.enable = true;
+    theme = "where_is_my_sddm_theme";
+    package = pkgs.kdePackages.sddm;
   };
   # ========================================================================
   # ESSENTIAL DESKTOP PACKAGES
@@ -43,8 +39,22 @@
     adwaita-icon-theme
     papirus-icon-theme
     pavucontrol
-    # DM
-    tuigreet
+    # SDDM Theme - Tokyo Night
+    (pkgs.where-is-my-sddm-theme.override {
+      themeConfig.General = {
+        background = "/etc/nixos/logo.jpg";
+        backgroundMode = "fill";
+        blurRadius = 80;
+        passwordCharacter = "●";
+        showUsersByDefault = true;
+        # Tokyo Night Storm colors
+        basicTextColor = "#c0caf5";
+        accentColor = "#7aa2f7";
+        passwordCursorColor = "#bb9af7";
+        passwordInputBackground = "#1a1b26";
+        passwordInputWidth = 0.4;
+      };
+    })
     # Xwayland satellite for Niri X11 compatibility
     xwayland-satellite
   ];

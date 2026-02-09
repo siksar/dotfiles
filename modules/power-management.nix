@@ -402,7 +402,25 @@
     wantedBy = ["multi-user.target"];
     serviceConfig = {
       ExecStart = "${pkgs.lact}/bin/lact daemon";
+      Nice = -10;
+      Restart = "on-failure";
     };
     enable = true;
+  };
+
+  # ========================================================================
+  # NOTEBOOK FAN CONTROL (NBFC) 
+  # ========================================================================
+  # Laptop fanları genellikle GPU driver üzerinden değil EC üzerinden kontrol edilir
+  # LACT çalışmıyorsa NBFC kullanın
+  
+  systemd.services.nbfc_service = {
+    description = "Notebook Fan Control Service (nbfc-linux)";
+    enable = true;
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      ExecStart = "${pkgs.nbfc-linux}/bin/nbfc_service";
+      Restart = "always";
+    };
   };
 }
