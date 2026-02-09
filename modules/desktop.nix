@@ -21,11 +21,8 @@
   # ========================================================================
   # SDDM DISPLAY MANAGER (Qt Based, Wayland Native)
   # ========================================================================
-  services.displayManager.sddm = {
+  services.displayManager.gdm = {
     enable = true;
-    wayland.enable = true;
- #   theme = "where_is_my_sddm_theme";
-    package = pkgs.kdePackages.sddm;
   };
   # ========================================================================
   # ESSENTIAL DESKTOP PACKAGES
