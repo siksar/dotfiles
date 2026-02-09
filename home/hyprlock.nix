@@ -8,6 +8,10 @@
     enable = true;
     
     settings = {
+      # Source Noctalia generated theme (if exists)
+      # Fallback colors will be used if file doesn't exist
+      source = [ "~/.config/hypr/hyprlock-theme.conf" ];
+      
       general = {
         disable_loading_bar = false;
         hide_cursor = true;

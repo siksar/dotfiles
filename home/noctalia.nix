@@ -384,6 +384,12 @@
           input_path = "${config.home.homeDirectory}/.config/noctalia/templates/gtk4.css";
           output_path = "${config.home.homeDirectory}/.config/noctalia/generated/gtk4.css";
         };
+        # Hyprlock theme - dinamik Noctalia renkleri
+        hyprlock = {
+          input_path = "${config.home.homeDirectory}/.config/noctalia/templates/hyprlock.conf";
+          output_path = "${config.home.homeDirectory}/.config/hypr/hyprlock-theme.conf";
+          post_hook = "";  # Hyprlock otomatik yükler
+        };
       };
     };
   };
@@ -516,6 +522,31 @@
     @define-color popover_fg_color {{foreground}};
     @define-color view_bg_color {{background}};
     @define-color view_fg_color {{foreground}};
+  '';
+  
+  xdg.configFile."noctalia/templates/hyprlock.conf".text = ''
+    # Noctalia Template - Hyprlock Theme Colors
+    # Bu dosya Noctalia tarafından otomatik işlenir
+    
+    # Primary accent color
+    $primary = rgb({{primary}})
+    $onPrimary = rgb({{onPrimary}})
+    
+    # Surface colors
+    $surface = rgb({{surface}})
+    $surfaceVariant = rgb({{surfaceVariant}})
+    $onSurface = rgb({{onSurface}})
+    $onSurfaceVariant = rgb({{onSurfaceVariant}})
+    
+    # Background/Foreground
+    $background = rgb({{background}})
+    $foreground = rgb({{foreground}})
+    
+    # Semantic colors
+    $error = rgb({{error}})
+    $tertiary = rgb({{tertiary}})
+    $secondary = rgb({{secondary}})
+    $outline = rgb({{outline}})
   '';
   
   # Create generated directory for noctalia outputs

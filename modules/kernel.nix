@@ -15,7 +15,11 @@
     "amdxdna"
     "zram"
     "ryzen_smu"
+    "msr"           # MSR erişimi - RyzenAdj için gerekli
   ];
+
+  # ryzen_smu hardware option
+  hardware.cpu.amd.ryzen-smu.enable = true;
 
   boot.initrd.kernelModules = [
     "amdgpu"
@@ -41,6 +45,7 @@
     "usbcore.autosuspend=-1"
     "nvme_core.default_ps_max_latency_us=0"
     "amdgpu.sg_display=0"
+    "amdgpu.ppfeaturemask=0xffffffff" # AMD Overdrive/OC support
     "nvidia-drm.modeset=1"
     "nvidia-drm.fbdev=1"
     "quiet"

@@ -50,7 +50,10 @@
     nvtopPackages.full
     
     # Nvidia GPU Tools
-    gwe # GreenWithEnvy - Overclocking & Fan Control (requires Coolbits)
+    gwe # GreenWithEnvy - NOTE: X11 only, Wayland'da çalışmaz
+    
+    # LACT - Linux AMDGPU Controller (Wayland destekli, AMD+NVIDIA)
+    lact
     
     # ─────────────────────────────────────────────────────────────────────
     # FAN & PERIPHERAL CONTROL
@@ -268,6 +271,73 @@
               ;;
       esac
     '')
+    
+    # Ultra düşük güç modu - idle için
+    (pkgs.writeShellScriptBin "idle-optimize" ''
+      #!/usr/bin/env bash
+      # Idle Power Optimization Script
+      # Ultra düşük güç tüketimi ve sıcaklık için
+      
+      check_root() {
+          if [ "$EUID" -ne 0 ]; then
+              echo "Please run as root: sudo idle-optimize"
+              exit 1
+          fi
+      }
+      
+      apply_idle() {
+          echo "Applying IDLE optimization mode..."
+          
+          # CPU: Ultra düşük güç
+          ryzenadj --stapm-limit=6000 --fast-limit=8000 --slow-limit=6000 --tctl-temp=65 2>/dev/null || echo "ryzenadj not available"
+          
+          # Frekans sınırla
+          cpupower frequency-set --max 2000MHz 2>/dev/null || echo "cpupower not available"
+          
+          # EPP ayarla
+          if [ -f /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference ]; then
+              echo "power" | tee /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference > /dev/null
+          fi
+          
+          # Platform profile
+          if [ -f /sys/firmware/acpi/platform_profile ]; then
+              echo "low-power" > /sys/firmware/acpi/platform_profile || true
+          fi
+          
+          echo "✓ Idle optimization applied"
+          echo "  CPU limit: 6W STAPM, 8W Fast"
+          echo "  Max freq: 2000MHz"
+          echo "  EPP: power"
+      }
+      
+      restore_normal() {
+          echo "Restoring NORMAL mode..."
+          
+          ryzenadj --stapm-limit=35000 --fast-limit=40000 --slow-limit=35000 --tctl-temp=85 2>/dev/null || echo "ryzenadj not available"
+          cpupower frequency-set --max 5000MHz 2>/dev/null || echo "cpupower not available"
+          
+          if [ -f /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference ]; then
+              echo "balance_performance" | tee /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference > /dev/null
+          fi
+          
+          if [ -f /sys/firmware/acpi/platform_profile ]; then
+              echo "balanced" > /sys/firmware/acpi/platform_profile || true
+          fi
+          
+          echo "✓ Normal mode restored"
+      }
+      
+      check_root
+      case "$1" in
+          "on"|"idle") apply_idle ;;
+          "off"|"normal") restore_normal ;;
+          *)
+              echo "Usage: sudo idle-optimize {on|off}"
+              echo "  on/idle  - Ultra low power mode (6W)"
+              echo "  off/normal - Restore normal operation"
+              ;;
+      esac
+    '')
   ];
 
   # ========================================================================
@@ -322,4 +392,17 @@
       ];
     }
   ];
+
+  # ========================================================================
+  # LACT DAEMON SERVICE
+  # ========================================================================
+  systemd.services.lactd = {
+    description = "AMDGPU Control Daemon";
+    after = ["multi-user.target"];
+    wantedBy = ["multi-user.target"];
+    serviceConfig = {
+      ExecStart = "${pkgs.lact}/bin/lact daemon";
+    };
+    enable = true;
+  };
 }
