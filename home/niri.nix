@@ -174,7 +174,8 @@ in
         default-column-width { proportion 0.5; }
         
         focus-ring {
-            width 2
+            width 0
+            off
             active-color "#7aa2f7"
             inactive-color "#414868"
         }
@@ -228,6 +229,9 @@ in
     // ====================================================================
     window-rule {
         draw-border-with-background false
+        geometry-corner-radius 10
+        clip-to-geometry true
+        opacity 0.93
     }
     
     // Float specific windows

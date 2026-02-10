@@ -397,8 +397,41 @@
           input_path = "${config.home.homeDirectory}/.config/niri/config.kdl";
           output_path = "${config.home.homeDirectory}/.config/niri/noctalia.kdl";
        };
-       };
       };
+
+      # Desktop Widgets (User Request)
+      desktopWidgets = {
+        enabled = true;
+        gridSnap = false;
+        monitorWidgets = [
+          # Weather - Top Right
+          {
+            id = "Weather";
+            position = "top_right";
+            usePrimaryColor = true;
+            backgroundOpacity = 0.0;
+            margin = 20;
+          }
+          # Media Player - Bottom Center
+          {
+            id = "MediaPlayer";
+            position = "bottom_center";
+            usePrimaryColor = true;
+            backgroundOpacity = 0.0;
+            margin = 20;
+          }
+          # Analog Clock - Bottom Right
+          {
+            id = "Clock";
+            type = "analog";
+            position = "bottom_right";
+            usePrimaryColor = true;
+            backgroundOpacity = 0.0;
+            margin = 20;
+          }
+        ];
+      };
+    };
     };
 
   # ========================================================================
