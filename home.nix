@@ -1,15 +1,16 @@
-{ config, pkgs, inputs, ... }:
 
+{ config, pkgs, inputs, ... }:
 {
   # ========================================================================
   # IMPORTS - Modular Home Configuration
   # ========================================================================
   imports = [
     ./home/hyprland.nix
-    ./home/noctalia.nix
+    # ./home/noctalia.nix
+    ./home/caelstia-shell.nix
     ./home/starship.nix
     ./home/editors.nix
-    ./home/hyprlock.nix
+    # ./home/hyprlock.nix # Replaced by Caelstia Lock
     ./home/tui-media.nix
     ./home/wrappers.nix
     ./home/yazi.nix
@@ -17,9 +18,9 @@
     ./home/nushell.nix
     ./home/kitty.nix
     ./home/gaming.nix      # User gaming config
+
     ./home/fastfetch.nix    # System fetch tool
   ];
-
   # ========================================================================
   # HOME MANAGER BASE
   # ========================================================================
@@ -45,8 +46,8 @@
     CLUTTER_BACKEND = "wayland";
     NIXOS_OZONE_WL = "1";
     XDG_SESSION_TYPE = "wayland";
-    XDG_CURRENT_DESKTOP = "Hyprland";
-    XDG_SESSION_DESKTOP = "Hyprland";
+    # XDG_CURRENT_DESKTOP = "Hyprland";
+    # XDG_SESSION_DESKTOP = "Hyprland";
     
     # Theming
     GTK_THEME = "adw-gtk3-dark";

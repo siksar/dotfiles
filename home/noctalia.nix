@@ -50,7 +50,7 @@
               id = "ControlCenter"; 
               useDistroLogo = true;  # Tema rengine uygun distro logosu
               colorize = true;       # Renklendirme aktif
-              colorKey = "primary";  # Primary renk
+              colorKey = "Secondary";  # Primary renk
             }
             { 
               id = "Workspace";
@@ -61,7 +61,9 @@
           
           # MIDDLE: AudioVisualizer (Cava based)
           center = [
-            { id = "AudioVisualizer"; }
+            { id = "AudioVisualizer";
+              colorKey = "Secondary";
+            } 
           ];
           
           # BOTTOM: Network widgets + Calendar
@@ -74,7 +76,7 @@
               formatHorizontal = "HH:mm";
               formatVertical = "HH\nmm";
               useMonospacedFont = true;
-              usePrimaryColor = true;
+              colorKey = "Secondary";
             }
           ];
         };
@@ -85,7 +87,7 @@
       # GENERAL SETTINGS
       # ==================================================================
       general = {
-        avatarImage = "";
+        avatarImage = "/Pictures/logo.png";
         dimmerOpacity = 0.2;
         showScreenCorners = false;
         forceBlackScreenCorners = false;
@@ -96,7 +98,7 @@
         screenRadiusRatio = 1;
         animationSpeed = 1;
         animationDisabled = false;
-        compactLockScreen = false;
+        compactLockScreen = true;
         lockScreenAnimations = true;
         lockOnSuspend = true;
         showSessionButtonsOnLockScreen = true;
@@ -131,7 +133,7 @@
       # LOCATION & CALENDAR
       # ==================================================================
       location = {
-        name = "Istanbul";
+        name = "Sivas";
         weatherEnabled = true;
         weatherShowEffects = true;
         useFahrenheit = false;
@@ -193,7 +195,7 @@
       # ==================================================================
       colorSchemes = {
         useWallpaperColors = false;
-        predefinedScheme = "Gruvbox Dark";  # Default: Gruvbox
+        predefinedScheme = "Misama";  # Default: Gruvbox
         darkMode = true;
         schedulingMode = "off";
         generationMethod = "tonal-spot";  # Tonal Spot generation method
@@ -389,10 +391,15 @@
           input_path = "${config.home.homeDirectory}/.config/noctalia/templates/hyprlock.conf";
           output_path = "${config.home.homeDirectory}/.config/hypr/hyprlock-theme.conf";
           post_hook = "";  # Hyprlock otomatik yükler
-        };
+         }; 
+        #Niri theme
+        niri = {
+          input_path = "${config.home.homeDirectory}/.config/niri/config.kdl";
+          output_path = "${config.home.homeDirectory}/.config/niri/noctalia.kdl";
+       };
+       };
       };
     };
-  };
 
   # ========================================================================
   # TEMPLATE FILES - Source templates for Noctalia theme propagation

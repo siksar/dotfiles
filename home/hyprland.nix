@@ -106,13 +106,13 @@
         "$mod, R, exec, kitty -e nvim /"
         "$mod, B, exec, brave"
 
-        "$mod, Z, exec, noctalia-shell ipc call launcher toggle"
-        "$mod, Tab, exec, noctalia-shell ipc call launcher toggle"
+        "$mod, Z, exec, caelestia-shell ipc call launcher toggle"
+        "$mod, Tab, exec, caelestia-shell ipc call launcher toggle"
 
-        "$mod, X, exec, noctalia-shell ipc call controlCenter toggle"
-        "$mod, W, exec, noctalia-shell ipc call wallpaper random"
-        "$mod, C, exec, noctalia-shell ipc call bluetooth togglePanel"
-        "$mod, V, exec, noctalia-shell ipc call sessionMenu show"
+        "$mod, X, exec, caelestia-shell ipc call controlCenter toggle"
+        "$mod, W, exec, caelestia-shell ipc call wallpaper random"
+        "$mod, C, exec, caelestia-shell ipc call bluetooth togglePanel"
+        "$mod, V, exec, caelestia-shell ipc call sessionMenu show"
 
         "$mod, F, fullscreen, 1"
         "$mod SHIFT, F, fullscreen, 0"
@@ -138,7 +138,7 @@
         "$mod SHIFT, k, movewindow, u"
         "$mod SHIFT, j, movewindow, d"
 
-        "$mod SHIFT, L, exec, noctalia-shell ipc call lockScreen lock"
+        "$mod SHIFT, L, exec, caelestia-shell ipc call lockScreen lock"
 
         "$mod, 1, workspace, 1"
         "$mod, 2, workspace, 2"
@@ -171,8 +171,8 @@
 
         "$mod SHIFT, C, exec, hyprpicker -a"
 
-        "$mod, N, exec, noctalia-shell ipc call notifications showHistory"
-        "$mod SHIFT, N, exec, noctalia-shell ipc call notifications closeAll"
+        "$mod, N, exec, caelestia-shell ipc call notifications showHistory"
+        "$mod SHIFT, N, exec, caelestia-shell ipc call notifications closeAll"
       ];
 
       binde = [
@@ -189,7 +189,7 @@
       ];
 
       exec-once = [
-        "noctalia-shell"
+        "caelestia-shell"
         "wl-paste --type text --watch cliphist store"
         "wl-paste --type image --watch cliphist store"
         "${pkgs.polkit_gnome}/libexec/polkit-gnome-authentication-agent-1"

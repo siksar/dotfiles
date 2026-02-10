@@ -40,6 +40,12 @@
       url = "github:chaotic-cx/nyx/nyxpkgs-unstable";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # Caelestia Shell - Modern Wayland Shell (Quickshell based)
+    caelstia = {
+      url = "github:caelestia-dots/shell";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = { 
@@ -51,7 +57,9 @@
     zen-browser, 
     nix-gaming,
     nixos-hardware,
+    nixos-hardware,
     chaotic,
+    caelstia,
     ... 
   } @ inputs: 
   let
@@ -78,7 +86,9 @@
         zen-browser 
         nix-gaming 
         nixos-hardware 
-        chaotic;
+        nixos-hardware 
+        chaotic
+        caelstia;
     };
   in {
     nixosConfigurations.nixos = nixpkgs.lib.nixosSystem {

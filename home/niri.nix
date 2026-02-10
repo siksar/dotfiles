@@ -59,8 +59,8 @@ let
     { key = "n"; desc = " Network Manager"; cmd = "kitty -e nmtui"; }
     { key = "b"; desc = " Bluetooth"; cmd = "blueman-manager"; }
     { key = "v"; desc = " Volume Control"; cmd = "pavucontrol"; }
-    { key = "w"; desc = " WiFi Settings"; cmd = "noctalia-shell ipc call controlCenter toggle"; }
-    { key = "p"; desc = " Power Profile"; cmd = "noctalia-shell ipc call powerProfile toggle"; }
+    { key = "w"; desc = " WiFi Settings"; cmd = "caelestia-shell ipc call controlCenter toggle"; }
+    { key = "p"; desc = " Power Profile"; cmd = "caelestia-shell ipc call powerProfile toggle"; }
   ];
 
   # 🎮 Gaming Menu (Mod+G)
@@ -75,7 +75,7 @@ let
 
   # ⚡ Power Menu (Mod+Escape)
   powerMenu = mkMenu "power" [
-    { key = "l"; desc = " Lock Screen"; cmd = "noctalia-shell ipc call lockScreen lock"; }
+    { key = "l"; desc = " Lock Screen"; cmd = "caelestia-shell ipc call lockScreen lock"; }
     { key = "s"; desc = " Suspend"; cmd = "systemctl suspend"; }
     { key = "h"; desc = " Hibernate"; cmd = "systemctl hibernate"; }
     { key = "r"; desc = " Reboot"; cmd = "systemctl reboot"; }
@@ -105,15 +105,15 @@ let
     { key = "f"; desc = "Fullscreen"; cmd = "niri msg action fullscreen-window"; }
   ];
 
-  # 🎨 Noctalia Menu (Mod+N)
-  noctaliaMenu = mkMenu "noctalia" [
-    { key = "l"; desc = " Launcher"; cmd = "noctalia-shell ipc call launcher toggle"; }
-    { key = "c"; desc = " Control Center"; cmd = "noctalia-shell ipc call controlCenter toggle"; }
-    { key = "w"; desc = " Wallpaper Random"; cmd = "noctalia-shell ipc call wallpaper random"; }
-    { key = "b"; desc = " Bluetooth Panel"; cmd = "noctalia-shell ipc call bluetooth togglePanel"; }
-    { key = "n"; desc = " Notifications"; cmd = "noctalia-shell ipc call notifications showHistory"; }
-    { key = "x"; desc = " Clear Notifications"; cmd = "noctalia-shell ipc call notifications closeAll"; }
-    { key = "s"; desc = " Session Menu"; cmd = "noctalia-shell ipc call sessionMenu show"; }
+  # 🎨 Caelstia Menu (Mod+N)
+  caelestiaMenu = mkMenu "caelestia" [
+    { key = "l"; desc = " Launcher"; cmd = "caelestia-shell ipc call launcher toggle"; }
+    { key = "c"; desc = " Control Center"; cmd = "caelestia-shell ipc call controlCenter toggle"; }
+    { key = "w"; desc = " Wallpaper Random"; cmd = "caelestia-shell ipc call wallpaper random"; }
+    { key = "b"; desc = " Bluetooth Panel"; cmd = "caelestia-shell ipc call bluetooth togglePanel"; }
+    { key = "n"; desc = " Notifications"; cmd = "caelestia-shell ipc call notifications showHistory"; }
+    { key = "x"; desc = " Clear Notifications"; cmd = "caelestia-shell ipc call notifications closeAll"; }
+    { key = "s"; desc = " Session Menu"; cmd = "caelestia-shell ipc call sessionMenu show"; }
   ];
 
 in
@@ -184,7 +184,7 @@ in
         }
         
         // Struts (reserved screen space)
-        // struts { left 48; }  // Uncomment if noctalia bar needs reserved space
+        // struts { left 48; }  // Uncomment if caelestia bar needs reserved space
     }
 
     // ====================================================================
@@ -271,7 +271,7 @@ in
         SDL_VIDEODRIVER "wayland"
         MOZ_ENABLE_WAYLAND "1"
         NIXOS_OZONE_WL "1"
-        // Fix for Noctalia GTK warnings in Niri
+        // Fix for Caelstia GTK warnings in Niri
         GTK_DEBUG ""
         // Cursor
         XCURSOR_THEME "Adwaita"
@@ -285,9 +285,9 @@ in
     spawn-at-startup "swww-daemon"
     spawn-at-startup "wl-paste" "--type" "text" "--watch" "cliphist" "store"
     spawn-at-startup "wl-paste" "--type" "image" "--watch" "cliphist" "store"
-    // Noctalia Shell - delayed start to ensure Wayland socket is ready
+    // Caelstia Shell - delayed start to ensure Wayland socket is ready
     // DISPLAY and GDK_BACKEND set in environment block above
-    spawn-at-startup "sh" "-c" "sleep 2 && noctalia-shell"
+    spawn-at-startup "sh" "-c" "sleep 2 && caelestia-shell"
 
     // ====================================================================
     // HOTKEY OVERLAY (built-in which-key, Mod+Shift+/)
@@ -319,15 +319,15 @@ in
         Mod+G { spawn "${lib.getExe gamingMenu}"; }
         Mod+P { spawn "${lib.getExe screenshotMenu}"; }
         Mod+W { spawn "${lib.getExe layoutMenu}"; }
-        Mod+N { spawn "${lib.getExe noctaliaMenu}"; }
+        Mod+N { spawn "${lib.getExe caelestiaMenu}"; }
         Mod+Escape { spawn "${lib.getExe powerMenu}"; }
 
         // ============================================================
-        // NOCTALIA INTEGRATION (Direct shortcuts)
+        // CAELSTIA INTEGRATION (Direct shortcuts)
         // ============================================================
-        Mod+Z { spawn "noctalia-shell" "ipc" "call" "launcher" "toggle"; }
-        Mod+Tab { spawn "noctalia-shell" "ipc" "call" "launcher" "toggle"; }
-        Mod+X { spawn "noctalia-shell" "ipc" "call" "controlCenter" "toggle"; }
+        Mod+Z { spawn "caelestia-shell" "ipc" "call" "launcher" "toggle"; }
+        Mod+Tab { spawn "caelestia-shell" "ipc" "call" "launcher" "toggle"; }
+        Mod+X { spawn "caelestia-shell" "ipc" "call" "controlCenter" "toggle"; }
 
         // ============================================================
         // WINDOW MANAGEMENT
@@ -473,7 +473,7 @@ in
     powerMenu
     screenshotMenu
     layoutMenu
-    noctaliaMenu
+    caelestiaMenu
   ];
 
   # ========================================================================
