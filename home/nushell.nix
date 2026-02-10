@@ -60,7 +60,7 @@
       }
 
       # Custom command for Home Manager only + Git Add (Fixes dirty tree/untracked files)
-      def hm-switch [] {
+      def sys-home [] {
         print "Staging changes in /etc/nixos for Flakes..."
         cd /etc/nixos
         try { git add . } catch { print "Git add failed or nothing to add" }

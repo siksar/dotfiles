@@ -34,7 +34,7 @@
     rofi                 # rofi-wayland merged into rofi in 25.11
     
     # Notifications
-    dunst
+    # dunst # Removed to prevent conflict with Noctalia notifications
     libnotify
     
     # Screenshot & Recording

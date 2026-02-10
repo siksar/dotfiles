@@ -324,7 +324,7 @@
           enabled = false;
           volume = 0.5;
         };
-        enableMediaToast = false;
+        enableMediaToast = true;
         enableKeyboardLayoutToast = true;
         enableBatteryToast = true;
       };
