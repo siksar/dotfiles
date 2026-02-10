@@ -51,12 +51,23 @@
       }
       
       # fullrebuild as a proper nushell command (not alias!)
-      # nushell treats ';' in aliases as command separator, running second part on startup
+      # Custom command to rebuild system and home-manager safely (fixing the auto-run issue)
       def fullrebuild [] {
-        sys-rebuild
+        print "Rebuilding NixOS System..."
+        sudo nixos-rebuild switch --flake /etc/nixos#nixos
+        print "Rebuilding Home Manager..."
         home-manager switch --flake /etc/nixos#zixar -b backup
       }
-      
+
+      # Custom command for Home Manager only + Git Add (Fixes dirty tree/untracked files)
+      def hm-switch [] {
+        print "Staging changes in /etc/nixos for Flakes..."
+        cd /etc/nixos
+        try { git add . } catch { print "Git add failed or nothing to add" }
+        print "Rebuilding Home Manager..."
+        home-manager switch --flake .#zixar -b backup
+      }
+
       def sys-full [] {
         sys-rebuild
         home-manager switch --flake /etc/nixos#zixar

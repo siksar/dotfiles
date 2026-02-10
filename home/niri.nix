@@ -8,11 +8,11 @@ let
   mkMenu = name: menu: let
     configFile = pkgs.writeText "wlr-which-key-${name}.yaml" (lib.generators.toYAML {} {
       font = "JetBrainsMono Nerd Font 13";
-      background = "#1a1b26ee";
-      color = "#c0caf5";
-      border = "#7aa2f7";
+      background = "#222222ee";
+      color = "#c2c2b0";
+      border = "#c9a554";
       separator = " → ";
-      border_width = 2;
+      border_width = 0;
       corner_r = 12;
       padding = 16;
       anchor = "center";
@@ -162,7 +162,7 @@ in
     // LAYOUT
     // ====================================================================
     layout {
-        gaps 8
+        gaps 12
         center-focused-column "never"
         
         preset-column-widths {
@@ -176,8 +176,8 @@ in
         focus-ring {
             width 0
             off
-            active-color "#7aa2f7"
-            inactive-color "#414868"
+            active-color "#c9a55400"
+            inactive-color "#22222200"
         }
         
         border {

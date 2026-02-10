@@ -132,6 +132,35 @@
       require("tokyonight").setup({
         style = "night",
         transparent = true,
+        on_colors = function(colors)
+          -- Miasma Palette Override
+          colors.bg = "#222222"
+          colors.fg = "#c2c2b0"
+          colors.bg_dark = "#1a1a1a"
+          colors.bg_float = "#222222"
+          colors.bg_highlight = "#2a2a2a"
+          colors.bg_popup = "#222222"
+          colors.bg_search = "#bb7744"
+          colors.bg_sidebar = "#222222"
+          colors.bg_statusline = "#222222"
+          colors.bg_visual = "#e5c47b"
+          colors.border = "#666666"
+          colors.fg_dark = "#c2c2b0"
+          colors.fg_float = "#c2c2b0"
+          colors.fg_gutter = "#666666"
+          colors.fg_sidebar = "#c2c2b0"
+          colors.comment = "#666666"
+          colors.blue = "#78824b"
+          colors.cyan = "#c9a554"
+          colors.magenta = "#bb7744"
+          colors.purple = "#bb7744"
+          colors.orange = "#bb7744"
+          colors.yellow = "#d7c483"
+          colors.green = "#5f875f"
+          colors.teal = "#78824b"
+          colors.red = "#b36d43"
+          colors.git = { change = "#c9a554", add = "#5f875f", delete = "#b36d43" }
+        end,
       })
       vim.cmd("colorscheme tokyonight-night")
       

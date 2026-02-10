@@ -270,7 +270,7 @@
       wallpaper = {
         enabled = true;
         overviewEnabled = false;
-        directory = "";
+        directory = "${config.home.homeDirectory}/Pictures/Wallpapers";
         setWallpaperOnAllMonitors = true;
         fillMode = "crop";
         automationEnabled = false;

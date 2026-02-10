@@ -41,49 +41,45 @@
       visual_bell_duration = "0.0";
       
       # ====================================================================
-      # TOKYO NIGHT THEME
+      # MIASMA THEME (Hardcoded)
       # ====================================================================
-      foreground = "#a9b1d6";
-      background = "#1a1b26";
-      selection_foreground = "#c0caf5";
-      selection_background = "#33467c";
+      foreground = "#c2c2b0";
+      background = "#222222";
+      selection_foreground = "#000000";
+      selection_background = "#e5c47b";
       
       # Cursor
-      cursor = "#c0caf5";
-      cursor_text_color = "#1a1b26";
+      cursor = "#c7c7c7";
+      cursor_text_color = "#eeeeee";
       
       # URL color
-      url_color = "#73daca";
+      url_color = "#c9a554";
       
       # Tab bar
-      active_tab_foreground = "#1a1b26";
-      active_tab_background = "#7aa2f7";
-      inactive_tab_foreground = "#545c7e";
-      inactive_tab_background = "#292e42";
+      active_tab_foreground = "#222222";
+      active_tab_background = "#c9a554";
+      inactive_tab_foreground = "#c2c2b0";
+      inactive_tab_background = "#2a2a2a";
       
       # Normal colors
-      color0 = "#15161e";
-      color1 = "#f7768e";
-      color2 = "#9ece6a";
-      color3 = "#e0af68";
-      color4 = "#7aa2f7";
-      color5 = "#bb9af7";
-      color6 = "#7dcfff";
-      color7 = "#a9b1d6";
+      color0 = "#000000";
+      color1 = "#685742";
+      color2 = "#5f875f";
+      color3 = "#b36d43";
+      color4 = "#78824b";
+      color5 = "#bb7744";
+      color6 = "#c9a554";
+      color7 = "#d7c483";
       
       # Bright colors
-      color8 = "#414868";
-      color9 = "#f7768e";
-      color10 = "#9ece6a";
-      color11 = "#e0af68";
-      color12 = "#7aa2f7";
-      color13 = "#bb9af7";
-      color14 = "#7dcfff";
-      color15 = "#c0caf5";
-      
-      # Extended colors
-      color16 = "#ff9e64";
-      color17 = "#db4b4b";
+      color8 = "#666666";
+      color9 = "#8a6f5c";
+      color10 = "#7aa37a";
+      color11 = "#d08f5f";
+      color12 = "#95a064";
+      color13 = "#d89a66";
+      color14 = "#e0c080";
+      color15 = "#f0e0b0";
     };
     
     keybindings = {
