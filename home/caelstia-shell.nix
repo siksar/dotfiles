@@ -6,7 +6,7 @@
   
   imports = [ caelstia.homeManagerModules.default ];
   
-  programs.caelestia-shell = {
+  programs.caelestia = {
     enable = true;
     
     # ====================================================================
