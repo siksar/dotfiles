@@ -5,12 +5,10 @@
 	# IMPORTS - Modular Home Configuration
 	# ========================================================================
 	imports = [
-		./home/hyprland.nix
 		./home/noctalia.nix
 
 		./home/starship.nix
 		./home/editors.nix
-		# ./home/hyprlock.nix # Replaced by Caelstia Lock
 		./home/tui-media.nix
 		./home/wrappers.nix
 		./home/yazi.nix
@@ -28,9 +26,6 @@
 	home.stateVersion = "25.11";
 	home.username = "zixar";
 	home.homeDirectory = "/home/zixar";
-  
-	# Force overwrite for files that may conflict with backups
-	xdg.configFile."hypr/hyprland.conf".force = true;
   
 	home.sessionVariables = {
 		SHELL = "${pkgs.nushell}/bin/nu";

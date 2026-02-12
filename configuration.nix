@@ -16,7 +16,6 @@
 		./modules/nvidia.nix
 		./modules/gaming.nix
 		./modules/desktop.nix
-		./modules/hyprland.nix 
 		./modules/flstudio.nix
 		./modules/audio.nix
 		./modules/networking.nix
