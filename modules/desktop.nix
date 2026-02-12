@@ -1,7 +1,7 @@
 { config, pkgs, ... }:
 {
 	# ========================================================================
-	# DESKTOP ENVIRONMENT - Hyprland + Niri
+	# DESKTOP ENVIRONMENT - Niri
 	# ========================================================================
 	services = {
 		xserver = {
@@ -19,7 +19,7 @@
 		# Niri package from flake input will be used automatically via nixosModules.niri
 	};
 	# ========================================================================
-	# SDDM DISPLAY MANAGER (Qt Based, Wayland Native)
+	# GDM DISPLAY MANAGER (GNOME Based, Wayland Native)
 	# ========================================================================
 	services.displayManager.gdm = {
 		enable = true;
@@ -36,7 +36,7 @@
 		adwaita-icon-theme
 		papirus-icon-theme
 		pavucontrol
-		# SDDM Theme - Tokyo Night
+		# SDDM Theme - Tokyo Night (Note: Using GDM now but keeping package just in case)
 		(pkgs.where-is-my-sddm-theme.override {
 			themeConfig.General = {
 				background = "/etc/nixos/logo.jpg";
@@ -65,7 +65,7 @@
 		XCURSOR_SIZE = "24";
 	};
 	# ========================================================================
-	# XDG PORTAL - Hyprland + Niri + GTK
+	# XDG PORTAL - Niri + GTK
 	# ========================================================================
 	xdg.portal = {
 		enable = true;
@@ -74,7 +74,6 @@
 			pkgs.xdg-desktop-portal-gnome
 		];
 		config = {
-			hyprland.default = [ "hyprland" "gtk" ];
 			niri.default = [ "gnome" "gtk" ];
 			common.default = [ "gtk" ];
 		};
