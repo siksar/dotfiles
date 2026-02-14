@@ -263,6 +263,13 @@ in
                         match app-id=r#"kitty"#
                         opacity 0.95
                 }
+                
+                // Void Linux VM (Looking Glass)
+                window-rule {
+                        match app-id=r#"looking-glass-client"#
+                        open-on-workspace 4
+                        open-maximized true
+                }
 
                 // ====================================================================
                 // ENVIRONMENT VARIABLES
@@ -299,6 +306,7 @@ in
                 // DISPLAY and GDK_BACKEND set in environment block above
                 spawn-at-startup "sh" "-c" "systemctl --user stop dunst mako swaync; pkill -f dunst; pkill -f mako; pkill -f swaync"
                 spawn-at-startup "noctalia-startup"
+                spawn-at-startup "launch-void-vm"
 
                 // ====================================================================
                 // HOTKEY OVERLAY (built-in which-key, Mod+Shift+/)

@@ -22,6 +22,7 @@
 		./modules/packages.nix
 		./modules/zapret.nix
 		./modules/power-management.nix
+		./modules/virtualisation.nix
 		# ./modules/power-efficiency.nix    # TLP & thermal management (Disabled in favor of PPD)
 		./wrapped-programs/prism.nix
 	];
@@ -283,7 +284,7 @@
 		- **CPU**: AMD Ryzen AI 9 HX 370 (Strix Point)
 		- **Cores**: 4x Zen 5 (Perf) + 4x Zen 5c (Eff) = 8C/16T
 		- **NPU**: AMD XDNA 2 (50 TOPS)
-		- **GPU**: NVIDIA RTX 4070 Laptop + AMD Radeon 890M
+		- **GPU**: NVIDIA RTX 4070 Laptop + AMD Radeon 860M
 		- **RAM**: 32GB DDR5
 		- **SSD**: Kingston OM8PGP4
     

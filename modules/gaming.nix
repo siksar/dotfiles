@@ -1,8 +1,8 @@
 { config, pkgs, lib, inputs, ... }:
 
 let
-	# CPU cores for gaming (Zen 5 performance cores)
-	gamingCores = "0-3,8-11";
+	# CPU cores for gaming (Zen 5 performance cores - Interleaved)
+	gamingCores = "0,2,4,6,8,10,12,14";
   
 	# Gaming performance script
 	gamingPerf = pkgs.writeShellScriptBin "gaming-perf" ''
@@ -109,15 +109,63 @@ let
 		# Launch with optimizations
 		export DXVK_HUD=0
 		export DXVK_ASYNC=1
-		export MANGOHUD=1
+		# export MANGOHUD=1  # User prefers Steam Overlay
 		export ENABLE_VKBASALT=1
+    
+		# NVIDIA/DLSS/FSR Optimizations
+		export PROTON_ENABLE_NVAPI=1
+		export DXVK_NVAPI_DRIVER_VERSION=1
+		export WINE_FULLSCREEN_FSR=1  # Proton FSR
 		export PROTON_USE_WINED3D=0
 		export PROTON_NO_ESYNC=0
 		export PROTON_NO_FSYNC=0
-		export PROTON_ENABLE_NVAPI=1
     
 		# CPU affinity to performance cores
 		exec taskset -c ${gamingCores} gamemoderun "$GAME" "$@"
+	'';
+
+	# iGPU Launcher - Radeon 860M Optimized
+	igpuLaunch = pkgs.writeShellScriptBin "igpu-launch" ''
+		#!${pkgs.runtimeShell}
+    
+		GAME="$1"
+		shift
+    
+		# Force AMD iGPU (DRI node 1 is usually iGPU on Optimus laptops)
+		export DRI_PRIME=1
+		export DXVK_FILTER_DEVICE_NAME="AMD" # Force Vulkan to pick AMD Radeon 860M
+		
+		# Ensure High Performance for iGPU
+		if command -v cpupower &> /dev/null; then
+			sudo cpupower frequency-set -g performance --min 3000MHz --max 5100MHz || true
+		fi
+		
+		if command -v powerprofilesctl &> /dev/null; then
+			powerprofilesctl set performance || true
+		fi
+		
+		# Native Execution (No Gamescope)
+		exec taskset -c 0,2,4,6,8,10,12,14 "$GAME" "$@"
+	'';
+
+	# iGPU Launcher - Windowed Mode (For forced windowed gaming)
+	igpuLaunchWindowed = pkgs.writeShellScriptBin "igpu-win" ''
+		#!${pkgs.runtimeShell}
+    
+		GAME="$1"
+		shift
+    
+		# Force AMD iGPU
+		export DRI_PRIME=1
+		export DXVK_FILTER_DEVICE_NAME="AMD" 
+		
+		# CPU Performance
+		if command -v cpupower &> /dev/null; then
+			sudo cpupower frequency-set -g performance --min 3000MHz --max 5100MHz || true
+		fi
+		
+		# Gamescope Windowed (1600x1000)
+		exec gamescope -w 1600 -h 1000 -r 60 -- taskset -c 0,2,4,6,8,10,12,14 "$GAME" "$@"
 	'';
 
 in
@@ -147,6 +195,8 @@ in
 		# Custom scripts
 		gamingPerf
 		gameLaunch
+		igpuLaunch
+		igpuLaunchWindowed
     
 		# Monitoring
 	 # nvtop             # GPU monitor
@@ -225,7 +275,7 @@ in
 		];
 		env = {
 			DXVK_ASYNC = "1";
-			MANGOHUD = "1";
+			# MANGOHUD = "1"; # Let user decide
 		};
 	};
 

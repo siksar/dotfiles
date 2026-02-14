@@ -1,14 +1,18 @@
 { config, pkgs, lib, ... }:
 
 let
-	zen5Cores = "0-3,8-11";
-	zen5cCores = "4-7,12-15";
+	# Ryzen AI 7 350 (Krackan Point) - 8 Cores / 16 Threads
+	# Topology: Interleaved (P-E-P-E-P-E-P-E)
+	# Cores: 0, 2, 4, 6 (Zen 5 Perf) -> SMT: 8, 10, 12, 14
+	# Cores: 1, 3, 5, 7 (Zen 5c Eff)  -> SMT: 9, 11, 13, 15
+	zen5Cores = "0,2,4,6,8,10,12,14";
+	zen5cCores = "1,3,5,7,9,11,13,15";
 
 	withCores = pkgs.writeShellScriptBin "with-cores" ''
 		usage() {
 			echo "Usage: with-cores [perf|eff] <command>"
-			echo "  perf - Zen 5 performance cores (0-3,8-11)"
-			echo "  eff  - Zen 5c efficiency cores (4-7,12-15)"
+			echo "  perf - Zen 5 performance cores (0,2,4,6 + SMT)"
+			echo "  eff  - Zen 5c efficiency cores (1,3,5,7 + SMT)"
 			exit 1
 		}
 		[ $# -lt 2 ] && usage

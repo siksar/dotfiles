@@ -10,10 +10,6 @@
 		# AMD RYZEN SPECIFIC TOOLS
 		# ─────────────────────────────────────────────────────────────────────
     
-		# RyzenAdj - AMD Ryzen mobile processor tuning (TDP, power limits, temps)
-		# BIOS'a erişim olmadan undervolt ve TDP ayarı yapabilirsiniz
-		ryzenadj
-    
 		# System76 Power - Alternative power management
 		system76-power
     
@@ -123,11 +119,39 @@
 		(pkgs.writeShellScriptBin "power-control" ''
 			#!/usr/bin/env bash
 
-			# Power Control Script - 30W Optimized Edition
-			# Optimized for: Gigabyte Aero X16 (Ryzen + RTX) locked at 30W
+			# Power Control Script - AMD-PMF Edition
+			# Optimized for: Gigabyte Aero X16 (Ryzen AI 7 350 + RTX 5060)
+			# Strategy: Trust AMD-PMF for Platform (CPU/Fan) but force NVIDIA for GPU.
       
+			# Display & Authority setup for nvidia-settings
 			export DISPLAY=:0
-			export XAUTHORITY=/home/zixar/.Xauthority
+			
+			# Robust XAUTHORITY detection for Wayland/GDM/SDDM
+			# We need to find the Xauthority file owned by the user to allow root to talk to X/Xwayland
+			detect_xauth() {
+				local USER_UID=$(id -u zixar)
+				# 1. Standard home location
+				if [ -f "/home/zixar/.Xauthority" ]; then
+					echo "/home/zixar/.Xauthority"
+					return
+				fi
+				
+				# 2. Search in /run/user/UID (GDM, Wayland often puts it here)
+				# Look for files starting with .mutter, .Xauth, or just xauth
+				for candidate in $(find /run/user/$USER_UID -maxdepth 2 -name "*auth*" 2>/dev/null); do
+					if [ -f "$candidate" ]; then
+						echo "$candidate"
+						return
+					fi
+				done
+			}
+
+			XAUTH_FILE=$(detect_xauth)
+			if [ -n "$XAUTH_FILE" ]; then
+				export XAUTHORITY="$XAUTH_FILE"
+			else
+				echo "⚠ Warning: Could not find XAUTHORITY file. Nvidia settings might fail."
+			fi
 
 			check_root() {
 					if [ "$EUID" -ne 0 ]; then
@@ -136,19 +160,18 @@
 					fi
 			}
 
-			get_power_source() {
-					for ps in /sys/class/power_supply/*; do
-							if [ -f "$ps/type" ] && [ "$(cat "$ps/type")" = "Mains" ]; then
-									if [ "$(cat "$ps/online")" = "1" ]; then
-											echo "AC"
-											return
-									fi
-							fi
-					done
-					echo "BAT"
+			# Check if AMD PMF is active
+			check_pmf() {
+				if [ -d "/sys/devices/platform/amd-pmf" ]; then
+					echo "✔ AMD PMF Driver Loaded"
+				else
+					echo "⚠ AMD PMF Not Detected (Check Kernel)"
+				fi
 			}
 
 			set_profile() {
+					echo "Setting Platform Profile: $1..."
+					# This talks to amd-pmf driver via ACPI tables
 					if command -v powerprofilesctl &> /dev/null; then
 							powerprofilesctl set "$1" || true
 					elif [ -f /sys/firmware/acpi/platform_profile ]; then
@@ -157,9 +180,24 @@
 			}
 
 			set_epp() {
+					# AMD P-State EPP Control (Works with PMF)
 					if [ -f /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference ]; then
+							echo "Setting EPP: $1"
 							echo "$1" | tee /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference > /dev/null
 					fi
+			}
+
+			set_governor() {
+				# Smart governor selection
+				DESIRED=$1
+				# If schedutil requested but not available, fallback to powersave (amd-pstate default)
+				if [ "$DESIRED" = "schedutil" ]; then
+					if ! grep -q "schedutil" /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors 2>/dev/null; then
+						DESIRED="powersave"
+					fi
+				fi
+				echo "Setting CPU Governor: $DESIRED"
+				cpupower frequency-set -g "$DESIRED" >/dev/null 2>&1 || true
 			}
 
 			apply_gpu_clocks() {
@@ -167,93 +205,83 @@
 					MEM=$2
 					echo "Applying GPU Clocks: Core +$CORE MHz, Mem +$MEM MHz..."
 					if command -v nvidia-settings &> /dev/null; then
-						 # Try forcing performance level 3 (max 3D) and setting offsets
+						 # Requires X server access
+						 echo "Debug: Using XAUTHORITY=$XAUTHORITY DISPLAY=$DISPLAY"
 						 nvidia-settings -a "[gpu:0]/GPUGraphicsClockOffset[3]=$CORE" \
-														 -a "[gpu:0]/GPUMemoryTransferRateOffset[3]=$MEM" || echo "Failed to apply GPU clocks via nvidia-settings"
-					else
-						 echo "nvidia-settings not found, skipping clocks."
+														 -a "[gpu:0]/GPUMemoryTransferRateOffset[3]=$MEM"
+						 if [ $? -ne 0 ]; then
+							 echo "⚠ Failed to apply GPU clocks (Check DISPLAY/XAUTHORITY or Wayland compatibility)"
+						 else
+							 echo "✔ GPU clocks applied"
+						 fi
 					fi
 			}
 
-			# 30W OPTIMIZED MODES
-			# Constraint: GPU is locked at ~30W by firmware/hardware.
-			# Strategy: Maximize Frequency at that 30W limit (Undervolt/Overclock).
+			apply_gpu_power() {
+				LIMIT=$1
+				echo "Setting GPU Power Limit: $LIMIT W"
+				nvidia-smi -pl "$LIMIT" >/dev/null 2>&1
+				if [ $? -ne 0 ]; then
+					echo "⚠ Could not set power limit (Locked by firmware?)"
+				fi
+			}
+
+			# POWER MODES (AMD-PMF + NVIDIA Manual)
 
 			apply_gaming() {
-					echo "Applying GAMING mode (Cooler Optimization)..."
+					echo "Applying GAMING mode (PMF Performance + 50W GPU)..."
+					check_pmf
+					
+					# 1. Platform: "Performance"
 					set_profile "performance"
 					set_epp "performance"
           
-					# GPU: 30W Limit, Moderate OC
-					nvidia-smi -pl 30
-					# +100 Core, +300 Memory - Safe boost
-					apply_gpu_clocks 100 300
-          
-					# CPU: High Performance but Heat Restricted
-					# Reduced limits: 35W Sustained (was 45W), 80C Temp Limit (was 85C)
-					ryzenadj --stapm-limit=35000 --fast-limit=40000 --slow-limit=35000 --tctl-temp=80
-					# AMD P-State active mode prefers 'powersave' governor with 'performance' EPP
-					cpupower frequency-set -g powersave
+					# 2. GPU: 50W Limit (Manual Override)
+					apply_gpu_power 50
+					apply_gpu_clocks 150 400
+					
+					# 3. CPU Governor
+					set_governor "schedutil"
 			}
 
 			apply_turbo() {
-					echo "Applying TURBO mode (30W Aggressive)..."
+					echo "Applying TURBO mode (PMF Performance + 60W GPU)..."
+					check_pmf
 					set_profile "performance"
 					set_epp "performance"
-          
-					# GPU: 30W Limit, High OC
-					nvidia-smi -pl 30
-					# +150 Core, +600 Memory - Aggressive
-					apply_gpu_clocks 150 600
-          
-					# CPU: Max Performance within reasonable thermals
-					ryzenadj --stapm-limit=55000 --fast-limit=65000 --slow-limit=55000 --tctl-temp=90
-					cpupower frequency-set -g powersave
+					apply_gpu_power 60
+					apply_gpu_clocks 180 600
+					set_governor "performance"
 			}
 
 			apply_extreme() {
-					echo "Applying EXTREME mode (30W Max Limits)..."
+					echo "Applying EXTREME mode (Max Limits)..."
+					check_pmf
 					set_profile "performance"
 					set_epp "performance"
-          
-					# GPU: 30W Limit, Very High OC
-					nvidia-smi -pl 30
-					# +200 Core, +1000 Memory - Pushing silicon limits at low voltage
+					apply_gpu_power 80
 					apply_gpu_clocks 200 1000
-          
-					# CPU: Max Performance
-					ryzenadj --stapm-limit=65000 --fast-limit=75000 --slow-limit=65000 --tctl-temp=95
-					cpupower frequency-set -g powersave
+					set_governor "performance"
 			}
 
 			apply_normal() {
-					echo "Applying NORMAL mode (Heat Optimized)..."
+					echo "Applying NORMAL mode (PMF Balanced)..."
+					check_pmf
 					set_profile "balanced"
 					set_epp "balance_performance"
-          
-					# GPU: 30W, Stock Clocks
-					nvidia-smi -pl 30
+					apply_gpu_power 30
 					apply_gpu_clocks 0 0
-          
-					# CPU: Balanced & Cool
-					# Reduced limits: 25W Sustained (was 35W), 70C Temp Limit (was 85C)
-					# This directly addresses the 'lower panel heating' issue
-					ryzenadj --stapm-limit=25000 --fast-limit=30000 --slow-limit=25000 --tctl-temp=70
-					cpupower frequency-set -g powersave
+					set_governor "schedutil"
 			}
 
 			apply_saver() {
-					echo "Applying SAVER mode..."
+					echo "Applying SAVER mode (PMF Power-Saver)..."
+					check_pmf
 					set_profile "power-saver"
 					set_epp "power"
-          
-					# GPU: Min Power (likely <30W if possible, else 30W)
-					nvidia-smi -pl 25 || nvidia-smi -pl 30
+					apply_gpu_power 25
 					apply_gpu_clocks 0 0
-          
-					# CPU: Power Save
-					ryzenadj --stapm-limit=15000 --fast-limit=20000 --slow-limit=15000 --tctl-temp=75
-					cpupower frequency-set -g powersave
+					set_governor "powersave"
 			}
 
 			check_root
@@ -265,7 +293,11 @@
 					"normal") apply_normal ;;
 					"saver"|"tasarruf") apply_saver ;;
 					"auto")
-							if [ "$(get_power_source)" = "AC" ]; then apply_normal; else apply_saver; fi
+							# Simply ask PPD what mode we are in (if PPD auto-switches)
+							CURRENT=$(powerprofilesctl get)
+							if [ "$CURRENT" = "performance" ]; then apply_gaming;
+							elif [ "$CURRENT" = "power-saver" ]; then apply_saver;
+							else apply_normal; fi
 							;;
 					*)
 							echo "Usage: $0 {gaming|turbo|extreme|normal|saver|auto}"
@@ -289,9 +321,11 @@
       
 			apply_idle() {
 					echo "Applying IDLE optimization mode..."
-          
-					# CPU: Ultra düşük güç
-					ryzenadj --stapm-limit=6000 --fast-limit=8000 --slow-limit=6000 --tctl-temp=65 2>/dev/null || echo "ryzenadj not available"
+					
+					# PMF: Power Saver Mode
+					if command -v powerprofilesctl &> /dev/null; then
+							powerprofilesctl set power-saver || true
+					fi
           
 					# Frekans sınırla
 					cpupower frequency-set --max 2000MHz 2>/dev/null || echo "cpupower not available"
@@ -301,22 +335,22 @@
 							echo "power" | tee /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference > /dev/null
 					fi
           
-					# Platform profile
+					# Platform profile (Direct ACPI Fallback)
 					if [ -f /sys/firmware/acpi/platform_profile ]; then
 							echo "low-power" > /sys/firmware/acpi/platform_profile || true
 					fi
           
-					echo "✓ Idle optimization applied"
-					echo "  CPU limit: 6W STAPM, 8W Fast"
-					echo "  Max freq: 2000MHz"
-					echo "  EPP: power"
+					echo "✓ Idle optimization applied (PMF Power-Saver)"
 			}
       
 			restore_normal() {
 					echo "Restoring NORMAL mode..."
-          
-					ryzenadj --stapm-limit=35000 --fast-limit=40000 --slow-limit=35000 --tctl-temp=85 2>/dev/null || echo "ryzenadj not available"
-					cpupower frequency-set --max 5000MHz 2>/dev/null || echo "cpupower not available"
+					
+					if command -v powerprofilesctl &> /dev/null; then
+							powerprofilesctl set balanced || true
+					fi
+
+					cpupower frequency-set --max 5100MHz 2>/dev/null || echo "cpupower not available"
           
 					if [ -f /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference ]; then
 							echo "balance_performance" | tee /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference > /dev/null
@@ -326,7 +360,7 @@
 							echo "balanced" > /sys/firmware/acpi/platform_profile || true
 					fi
           
-					echo "✓ Normal mode restored"
+					echo "✓ Normal mode restored (PMF Balanced)"
 			}
       
 			check_root
@@ -335,7 +369,7 @@
 					"off"|"normal") restore_normal ;;
 					*)
 							echo "Usage: sudo idle-optimize {on|off}"
-							echo "  on/idle  - Ultra low power mode (6W)"
+							echo "  on/idle  - Ultra low power mode (6W/PMF Saver)"
 							echo "  off/normal - Restore normal operation"
 							;;
 			esac
@@ -401,7 +435,6 @@
 			commands = [
 				{ command = "/run/current-system/sw/bin/power-control"; options = [ "NOPASSWD" ]; }
 				{ command = "${pkgs.linuxPackages_latest.cpupower}/bin/cpupower"; options = [ "NOPASSWD" ]; }
-				{ command = "${pkgs.ryzenadj}/bin/ryzenadj"; options = [ "NOPASSWD" ]; }
 				# Note: nvidia-smi might need to be explicitly added if not covered
 			];
 		}

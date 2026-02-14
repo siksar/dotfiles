@@ -15,6 +15,7 @@
 		"kvm-amd"
 		"acpi_call"
 		"amdxdna"          # NPU support
+		"amd-pmf"          # Platform Management Framework
 		"zram"
 	];
 
@@ -46,6 +47,7 @@
 		# Graphics & Display (Hybrid Graphics: AMD + NVIDIA)
 		"amdgpu.sg_display=0"               # Fixes some flickering on iGPU
 		"amdgpu.ppfeaturemask=0xffffffff"   # Unlock full GPU features
+		"amdgpu.gttsize=12288"              # Allow up to 12GB system RAM for VRAM (Fix 512MB limit)
 		"nvidia-drm.modeset=1"              # REQUIRED for Wayland on NVIDIA
 		"nvidia-drm.fbdev=1"                # Framebuffer device for high-res console
 

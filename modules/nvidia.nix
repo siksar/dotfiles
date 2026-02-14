@@ -5,7 +5,7 @@
 	# GPU CONFIGURATION - AMD Ryzen AI 7 + NVIDIA RTX 5060 Max-Q
 	# ========================================================================
 	# Optimized for Hybrid Graphics (Prime Offloading)
-	# iGPU (Radeon 890M) handles display, dGPU (RTX 5060) handles heavy loads.
+	# iGPU (Radeon 860M) handles display, dGPU (RTX 5060) handles heavy loads.
   
 	hardware.graphics = {
 		enable = true;
@@ -70,7 +70,7 @@
 			};
       
 			# Bus IDs (Verified for this specific laptop model)
-			# AMD Radeon 890M (iGPU)
+			# AMD Radeon 860M (iGPU)
 			amdgpuBusId = "PCI:101:0:0"; # Hex 65 -> Decimal 101
 			
 			# NVIDIA RTX 5060 (dGPU)
