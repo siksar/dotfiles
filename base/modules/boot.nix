@@ -10,17 +10,16 @@
         consoleMode = "max";     # Best resolution for boot menu
       };
       efi.canTouchEfiVariables = true;
-      timeout = 2; # Brief timeout to select generation if needed
+      timeout = 0;
     };
 
-    # 🎬 Boot & Shutdown Animation (Plymouth)
+    # Boot & Shutdown Animation (Plymouth)
     plymouth = {
       enable = true;
-      theme = pkgs.lib.mkForce "bgrt"; # Forces "bgrt" over Stylix's auto-config
-      # Alternative themes: "spinner", "script", "fade-in"
+      theme = pkgs.lib.mkForce "bgrt";
     };
 
-    # 🤫 Silent Boot Parameters (Essential for clean animation)
+    # Silent Boot Parameters (Essential for clean animation)
     consoleLogLevel = 0;
     initrd.verbose = false;
     kernelParams = [

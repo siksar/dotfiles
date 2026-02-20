@@ -9,8 +9,7 @@
 			enable = true;
 			wifi.powersave = false;
 		};
-    
-    
+
 		# DNS Servers (Cloudflare)
 		nameservers = [ "1.1.1.1" "1.0.0.1" ];
 
@@ -21,10 +20,10 @@
 			allowedTCPPortRanges = [ ];
 			allowedUDPPortRanges = [ ];
 		};
-
-		# Bluetooth
-
 	};
+
+	# Optimize Boot: Don't wait for network to be online
+	systemd.services.NetworkManager-wait-online.enable = false;
 
 	# Enable Bluetooth
 	hardware.bluetooth.enable = true;

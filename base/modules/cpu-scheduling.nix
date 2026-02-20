@@ -28,7 +28,7 @@ in
 	environment.systemPackages = [ withCores ];
 
 	services.auto-cpufreq = {
-		enable = false; # Disabled in favor of PPD
+		enable = false;
 		settings = {
 			charger = {
 				governor = "performance";
@@ -50,16 +50,8 @@ in
 		};
 	};
 
-	# services.power-profiles-daemon.enable = false; # Removed to allow PPD from power-management.nix
-	services.tlp.enable = lib.mkForce false;
-	services.thermald.enable = true;
-
-	# NOTE: programs.gamemode is configured in modules/gaming.nix
-
 	environment.shellAliases = {
 		"perf-run" = "with-cores perf";
 		"eff-run" = "with-cores eff";
 	};
-
-
 }
