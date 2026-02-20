@@ -12,8 +12,8 @@
 		# Stylix - System-wide Theming
 		stylix.url = "github:danth/stylix";
 
-		# Noctalia Shell
-		noctalia-shell.url = "path:./noctalia-shell";
+		# Noctalia Shell - Latest
+		noctalia-shell.url = "github:noctalia-dev/noctalia-shell";
 		noctalia-shell.inputs.nixpkgs.follows = "nixpkgs";
 
 		# Zen Browser
