@@ -265,21 +265,37 @@ in
 				# ========================================
 				# WLR-WHICH-KEY MENUS
 				# ========================================
-				"$mod, D, exec, ${lib.getExe appMenu}"
-				"$mod, W, exec, ${lib.getExe fileMenu}"
-				"$mod, S, exec, ${lib.getExe systemMenu}"
-				"$mod, G, exec, ${lib.getExe gamingMenu}"
-				"$mod, P, exec, ${lib.getExe screenshotMenu}"
-				"$mod, N, exec, ${lib.getExe noctaliaMenu}"
-				"$mod, L, exec, ${lib.getExe langMenu}"
-				"$mod, Escape, exec, ${lib.getExe powerMenu}"
-
 				# ========================================
 				# NOCTALIA INTEGRATIONS
 				# ========================================
-				"$mod, Z, exec, noctalia-shell ipc call launcher emoji"
+				
+				# Launcher (Mod+D / Mod+Tab / Alt+Space)
+				"$mod, D, exec, noctalia-shell ipc call launcher toggle"
 				"ALT, Space, exec, noctalia-shell ipc call launcher toggle"
 				"$mod, Tab, exec, noctalia-shell ipc call launcher toggle"
+
+				# Session / Power Menu (Mod+Escape)
+				"$mod, Escape, exec, noctalia-shell ipc call sessionMenu toggle"
+
+				# Control Center (Mod+N) - Replaces wlr-menu-noctalia
+				"$mod, N, exec, noctalia-shell ipc call controlCenter toggle"
+
+				# Screenshot (Mod+P) - Replaces wlr-menu-screenshot
+				# Noctalia doesn't have a built-in screenshot menu yet, keep wlr-menu or use grimblast directly
+				"$mod, P, exec, ${lib.getExe screenshotMenu}"
+				
+				# System Status / Monitor (Mod+S)
+				# Could map to SystemMonitor widget toggle if supported, keeping wlr-menu for now
+				"$mod, S, exec, ${lib.getExe systemMenu}"
+
+				# Gaming Menu (Mod+G)
+				"$mod, G, exec, ${lib.getExe gamingMenu}"
+
+				# Language Menu (Mod+L)
+				"$mod, L, exec, ${lib.getExe langMenu}"
+
+				# Emoji Picker (Mod+.)
+				"$mod, period, exec, noctalia-shell ipc call launcher emoji"
 
 				# ========================================
 				# WINDOW MANAGEMENT
@@ -383,7 +399,7 @@ in
 			];
 
 			bindr = [
-				"$mod, SUPER_L, exec, noctalia-shell ipc call controlCenter toggle"
+				"$mod, SUPER_L, exec, noctalia-shell ipc call launcher toggle"
 			];
 
 			# Mouse binds
