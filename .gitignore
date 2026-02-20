@@ -1,0 +1,7 @@
+result
+result-*
+build.log
+*.log
+ls_output.txt
+write_test.txt
+.antigravity/
