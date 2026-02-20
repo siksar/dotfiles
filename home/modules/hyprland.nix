@@ -265,12 +265,15 @@ in
 				# ========================================
 				# WLR-WHICH-KEY MENUS
 				# ========================================
+				"$mod, D, exec, ${lib.getExe appMenu}"
+				"$mod, O, exec, ${lib.getExe fileMenu}"
+				# "$mod, W, exec, ${lib.getExe fileMenu}" # Replaced by Noctalia Launcher
 				# ========================================
 				# NOCTALIA INTEGRATIONS
 				# ========================================
 				
-				# Launcher (Mod+D / Mod+Tab / Alt+Space)
-				"$mod, D, exec, noctalia-shell ipc call launcher toggle"
+				# Launcher (Mod+W / Mod+Tab / Alt+Space)
+				"$mod, W, exec, noctalia-shell ipc call launcher toggle"
 				"ALT, Space, exec, noctalia-shell ipc call launcher toggle"
 				"$mod, Tab, exec, noctalia-shell ipc call launcher toggle"
 

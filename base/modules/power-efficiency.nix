@@ -9,7 +9,7 @@
 
 	# TLP - Advanced Power Management
 	services.tlp = {
-		enable = true;
+		enable = false; # Disabled to use power-profiles-daemon (AMD PMF sync)
 		settings = {
 			# ─────────────────────────────────────────────────────────────────────
 			# CPU GÜÇ AYARLARI
@@ -73,8 +73,8 @@
 	# Auto-cpufreq devre dışı (TLP ile çakışmasın)
 	services.auto-cpufreq.enable = lib.mkForce false;
   
-	# Power-profiles-daemon devre dışı (TLP ile çakışmasın)
-	services.power-profiles-daemon.enable = lib.mkForce false;
+	# Power-profiles-daemon enabled (Preferred for AMD PMF)
+	services.power-profiles-daemon.enable = lib.mkForce true;
   
 	# Thermald - termal yönetim
 	services.thermald.enable = true;

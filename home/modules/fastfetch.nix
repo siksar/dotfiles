@@ -80,8 +80,13 @@
 				}
 				{
 					type = "gpu";
-					key = "󰢮 GPU";
+					key = "󰢮 dGPU";
 					hideType = "integrated";
+				}
+				{
+					type = "gpu";
+					key = "󰢮 iGPU";
+					hideType = "discrete";
 				}
 				{
 					type = "memory";

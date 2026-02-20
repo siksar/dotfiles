@@ -1,4 +1,4 @@
-{ config, pkgs, inputs, ... }:
+{ config, pkgs, inputs, lib, ... }:
 {
 	imports = [ inputs.noctalia-shell.homeModules.default ];
 
@@ -33,12 +33,12 @@
 						}
 						{
 							id = "Workspace";
-							labelMode = "none"; # Changed from icon to none
+							labelMode = "none";
 							occupiedColor = "secondary";
 							emptyColor = "secondary";
 							focusedColor = "secondary";
 							showBadge = false;
-							showLabelsOnlyWhenOccupied = false; # Ensure labels/icons are managed
+							showLabelsOnlyWhenOccupied = false;
 						}
 
 					];
@@ -47,6 +47,8 @@
 					center = [
 						{
 							id = "NotificationHistory";
+							usePrimaryColor = false;
+							colorName = "secondary";
 						}
 						{
 							id = "AudioVisualizer";
@@ -55,6 +57,8 @@
 						{
 							id = "Battery";
 							displayMode = "icon";
+							usePrimaryColor = false;
+							colorName = "secondary";
 						}
 					];
 
@@ -62,19 +66,25 @@
 					right = [
 						{
 							id = "Network";
+							usePrimaryColor = false;
+							colorName = "secondary";
 						}
 						{
 							id = "Volume";
+							usePrimaryColor = false;
+							colorName = "secondary";
 						}
 						{
 							id = "Bluetooth";
+							usePrimaryColor = false;
+							colorName = "secondary";
 						}
 						{
 							id = "SystemMonitor";
 							compactMode = true;
 							showCpuUsage = true;
 							showMemoryUsage = true;
-							usePrimaryColor = false; # Secondary implicitly via theme if not primary
+							usePrimaryColor = false;
 							warningColor = "secondary";
 							criticalColor = "secondary";
 						}
@@ -114,6 +124,20 @@
 					enabled = true;
 					provider = "noctalia";
 				};
+			};
+
+			ui = {
+				fontDefault = lib.mkForce "JetBrains Mono";
+				fontFixed = lib.mkForce "JetBrainsMono Nerd Font";
+				
+				# Opacity & Frame
+				panelBackgroundOpacity = lib.mkForce 0.85; 
+				showOutline = false;
+				showCapsule = false;
+				
+				# Frame Settings
+				frameThickness = 4;
+				frameRadius = 20;
 			};
 		};
 	};
