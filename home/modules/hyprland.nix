@@ -399,7 +399,7 @@ in
 			];
 
 			bindr = [
-				"$mod, SUPER_L, exec, noctalia-shell ipc call launcher toggle"
+				"$mod, SUPER_L, exec, noctalia-shell ipc call controlCenter toggle"
 			];
 
 			# Mouse binds
