@@ -22,15 +22,16 @@
 			./modules/nix-optimizations.nix
 			./modules/zapret.nix
 			./modules/power-efficiency.nix
+			./modules/boot.nix
 		];
 
 	# ========================================================================
 	# SYSTEM SETTINGS
 	# ========================================================================
 
-	# Bootloader
-	boot.loader.systemd-boot.enable = true;
-	boot.loader.efi.canTouchEfiVariables = true;
+	# Bootloader & Animation (Managed in modules/boot.nix)
+	# boot.loader.systemd-boot.enable = true; # Moved
+	# boot.loader.efi.canTouchEfiVariables = true; # Moved
 
 	# Networking
 	networking.hostName = "aero-x16";

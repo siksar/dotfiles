@@ -241,7 +241,6 @@ in
 				"hyprpaper"
 				"wl-paste --type text --watch cliphist store"
 				"wl-paste --type image --watch cliphist store"
-				"noctalia-shell"
 				"launch-void-vm"
 			];
 
