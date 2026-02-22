@@ -49,7 +49,7 @@
     
 		# Wayland
 		QT_QPA_PLATFORM = "wayland;xcb";
-		QT_QPA_PLATFORMTHEME = "gtk2";
+		QT_QPA_PLATFORMTHEME = lib.mkForce "gtk2";
 		GDK_BACKEND = "wayland,x11";
 		SDL_VIDEODRIVER = "wayland";
 		CLUTTER_BACKEND = "wayland";
