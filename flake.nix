@@ -30,8 +30,10 @@
 	outputs = {
 		self,
 		nixpkgs,
+		home-manager,
 		stylix,
 		zen-browser,
+		nixos-hardware,
 		...
 	} @ inputs:
 	let
