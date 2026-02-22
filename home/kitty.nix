@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, pkgs, lib, ... }:
 {
 	# ========================================================================
 	# KITTY TERMINAL - GPU Accelerated Terminal
@@ -8,7 +8,7 @@
     
 		font = {
 			name = "JetBrainsMono Nerd Font";
-			size = 12;
+			size = lib.mkForce 12;
 		};
     
 		shellIntegration = {
