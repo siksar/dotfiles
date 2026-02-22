@@ -28,6 +28,10 @@
 	stylix.targets.hyprland.enable = false;
 	stylix.targets.waybar.enable = false;
 	stylix.targets.rofi.enable = false;
+	stylix.targets.fzf.enable = false;
+	stylix.targets.bat.enable = false;
+	stylix.targets.nushell.enable = false;
+	stylix.targets.yazi.enable = false;
 
 	# ========================================================================
 	# HOME MANAGER BASE
