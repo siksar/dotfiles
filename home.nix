@@ -22,6 +22,14 @@
 		./home/fastfetch.nix    # System fetch tool
 	];
 	# ========================================================================
+	# STYLIX OVERRIDES - Prevent conflicts with manual configs
+	# ========================================================================
+	stylix.targets.kitty.enable = false;
+	stylix.targets.hyprland.enable = false;
+	stylix.targets.waybar.enable = false;
+	stylix.targets.rofi.enable = false;
+
+	# ========================================================================
 	# HOME MANAGER BASE
 	# ========================================================================
 	home.stateVersion = "25.11";
