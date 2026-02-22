@@ -1,5 +1,5 @@
 
-{ config, pkgs, inputs, ... }:
+{ config, pkgs, lib, inputs, ... }:
 {
 	# ========================================================================
 	# IMPORTS - Modular Home Configuration
@@ -193,7 +193,7 @@
 	# ========================================================================
 	qt = {
 		enable = true;
-		platformTheme.name = "gtk";
+		platformTheme.name = lib.mkDefault "gtk";
 		style.name = "adwaita-dark";
 	};
 
