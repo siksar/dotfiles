@@ -96,7 +96,7 @@ let
 		{ key = "l"; desc = " Launcher"; cmd = "tofi-drun | xargs hyprctl dispatch exec"; }
 		{ key = "c"; desc = " Control Center"; cmd = "swaync-client -t -sw"; }
 		{ key = "w"; desc = " Wallpaper Random"; cmd = "set-wallpaper"; }
-		{ key = "r"; desc = " Reload Shell"; cmd = "pkill noctalia; noctalia-startup &"; }
+		{ key = "r"; desc = " Reload Shell"; cmd = "systemctl --user restart noctalia"; }
 	];
 
 	# 🌐 Language Menu (Mod+L)
@@ -242,7 +242,7 @@ in
 				"hyprpaper"
 				"wl-paste --type text --watch cliphist store"
 				"wl-paste --type image --watch cliphist store"
-				"noctalia-startup"
+				# "noctalia-shell" # Started by Home Manager systemd service usually, but adding exec-once if needed
 				"launch-void-vm"
 			];
 
