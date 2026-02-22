@@ -4,9 +4,8 @@
 	# ========================================================================
 	# KERNEL PACKAGES - Linux 6.18
 	# ========================================================================
-	# NVIDIA production driver (580.126.09) henüz 6.19.2 çekirdeğini desteklemiyor.
-	# zone_device_page_init API değişikliği hâlâ build kırıyor.
-	boot.kernelPackages = pkgs.linuxPackages_6_18;
+	# 580.126.09 sürümü 6.19 kernel ile uyumlu çalışıyor (User confirmed).
+	boot.kernelPackages = pkgs.linuxPackages_latest;
 
 	# ========================================================================
 	# KERNEL MODULES

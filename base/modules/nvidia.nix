@@ -23,11 +23,12 @@
 	hardware.nvidia = {
 		modesetting.enable = true;
 
-		# RTX 5060 (Blackwell) - production driver
-		package = config.boot.kernelPackages.nvidiaPackages.production;
+		# RTX 5060 (Blackwell) - stable driver
+		package = config.boot.kernelPackages.nvidiaPackages.stable;
 
-		# Blackwell (RTX 50) and newer require the open kernel modules
-		open = true;
+		# Blackwell (RTX 50) and newer work better with GSP, 
+		# but open modules can sometimes fail to build on very new kernels.
+		open = false;
 		nvidiaSettings = true;
 		powerManagement.enable = true;
 		powerManagement.finegrained = true;
