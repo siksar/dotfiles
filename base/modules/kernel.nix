@@ -2,10 +2,11 @@
 
 {
 	# ========================================================================
-	# KERNEL PACKAGES - Latest
+	# KERNEL PACKAGES - Linux 6.18
 	# ========================================================================
-	# linuxPackages_latest kullanılıyor — en güncel çekirdek.
-	boot.kernelPackages = pkgs.linuxPackages_latest;
+	# NVIDIA production driver (580.x) henüz 6.19'u desteklemiyor.
+	# zone_device_page_init API değişikliği build kırıyor.
+	boot.kernelPackages = pkgs.linuxPackages_6_18;
 
 	# ========================================================================
 	# KERNEL MODULES
