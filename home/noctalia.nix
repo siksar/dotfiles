@@ -3,7 +3,6 @@
   # ========================================================================
   # NOCTALIA SHELL - Modern Wayland Desktop Shell
   # ========================================================================
-  # NixOS Unstable üzerinde programs.noctalia-shell artık mevcut.
   
   imports = [ ../base/modules/noctalia-home.nix ];
 
@@ -12,27 +11,22 @@
     package = pkgs.noctalia-shell;
     systemd.enable = true;
 
-    # ========================================================================
-    # NOCTALIA SETTINGS
-    # ========================================================================
-    # 'colorize' ve 'colorKey' değerlerini korumak için doğrudan JSON modülünü 
-    # kullanarak ayarları tanımlıyoruz. 
     settings = lib.mkForce {
-      settingsVersion = 100;
+      settingsVersion = 0; # Version reset to 0 as requested
 
       # ==================================================================
       # BAR CONFIGURATION
       # ==================================================================
       bar = {
         barType = "framed";
-        position = "left";
+        position = "top"; # Bar moved to TOP
         monitors = [ ];
         density = "comfortable";
         showOutline = false;
-        showCapsule = true;
+        showCapsule = false; # Capsules hidden
         capsuleOpacity = 0;
         capsuleColorKey = "primary";
-        backgroundOpacity = 0.93;
+        backgroundOpacity = 0; # Fully transparent bar
         marginVertical = 4;
         marginHorizontal = 4;
         frameThickness = 10;
@@ -43,39 +37,26 @@
         autoShowDelay = 150;
 
         widgets = {
-          # TOP
+          # LEFT
           left = [
             {
               id = "ControlCenter";
-              useDistroLogo = true;
+              useDistroLogo = true; # Only Distro Logo as requested
               colorize = true;
-              colorKey = "tertiary";
-            }
-            {
-              id = "Workspace";
-              hideUnoccupied = true;
-              labelMode = "none";
               colorKey = "tertiary";
             }
           ];
 
           # MIDDLE
           center = [
-            { id = "AudioVisualizer"; colorKey = "tertiary"; }
+            { id = "Workspace"; hideUnoccupied = true; labelMode = "none"; colorKey = "tertiary"; }
           ];
 
-          # BOTTOM
+          # RIGHT
           right = [
-            { id = "Network"; colorKey = "tertiary"; }
-            { id = "Bluetooth"; colorKey = "tertiary"; }
-            { id = "Volume"; colorKey = "tertiary"; }
-            {
-              id = "Clock";
-              formatHorizontal = "HH:mm";
-              formatVertical = "HH\nmm";
-              useMonospacedFont = true;
-              colorKey = "tertiary";
-            }
+            { id = "Battery"; colorKey = "tertiary"; }
+            { id = "KeyboardLayout"; colorKey = "tertiary"; }
+            { id = "SystemMonitor"; colorKey = "tertiary"; }
           ];
         };
         screenOverrides = [ ];
@@ -101,9 +82,6 @@
         telemetryEnabled = false;
       };
 
-      # ==================================================================
-      # UI & LOCATION
-      # ==================================================================
       ui = {
         fontDefault = "JetBrainsMono Nerd Font";
         fontFixed = "JetBrainsMono Nerd Font";
@@ -128,9 +106,6 @@
         firstDayOfWeek = 1;
       };
 
-      # ==================================================================
-      # CONTROL CENTER
-      # ==================================================================
       controlCenter = {
         position = "close_to_bar_button";
         diskPath = "/";
@@ -139,13 +114,10 @@
             { id = "Network"; }
             { id = "Bluetooth"; }
             { id = "WallpaperSelector"; }
-            { id = "NoctaliaPerformance"; }
           ];
           right = [
             { id = "Notifications"; }
             { id = "PowerProfile"; }
-            { id = "KeepAwake"; }
-            { id = "NightLight"; }
           ];
         };
         cards = [
@@ -153,14 +125,9 @@
           { enabled = true; id = "shortcuts-card"; }
           { enabled = true; id = "audio-card"; }
           { enabled = true; id = "brightness-card"; }
-          { enabled = true; id = "weather-card"; }
-          { enabled = true; id = "media-sysmon-card"; }
         ];
       };
 
-      # ==================================================================
-      # AUDIO & COLORS
-      # ==================================================================
       audio = {
         volumeStep = 5;
         cavaFrameRate = 30;
@@ -175,15 +142,7 @@
         generationMethod = "tonal-spot";
       };
 
-      # ==================================================================
-      # DOCK & WALLPAPER
-      # ==================================================================
-      dock = {
-        enabled = false;
-        position = "bottom";
-        displayMode = "auto_hide";
-        backgroundOpacity = 1;
-      };
+      dock = { enabled = false; };
 
       wallpaper = {
         enabled = true;
@@ -197,66 +156,29 @@
         panelPosition = "follow_bar";
       };
 
-      # ==================================================================
-      # APP LAUNCHER
-      # ==================================================================
       appLauncher = {
         enableClipboardHistory = true;
         autoPasteClipboard = false;
         enableClipPreview = true;
         clipboardWrapText = true;
-        clipboardWatchTextCommand = "wl-paste --type text --watch cliphist store";
-        clipboardWatchImageCommand = "wl-paste --type image --watch cliphist store";
-        position = "center";
-        sortByMostUsed = true;
         terminalCommand = "kitty -e";
         viewMode = "list";
         showCategories = true;
         iconMode = "tabler";
-        enableSettingsSearch = true;
-        enableWindowsSearch = true;
       };
 
-      # ==================================================================
-      # NOTIFICATIONS
-      # ==================================================================
       notifications = {
         enabled = true;
         location = "top_right";
         overlayLayer = true;
         backgroundOpacity = 1;
-        lowUrgencyDuration = 3;
-        normalUrgencyDuration = 8;
-        criticalUrgencyDuration = 15;
-        enableMediaToast = true;
-        enableKeyboardLayoutToast = true;
-        enableBatteryToast = true;
       };
 
-      # ==================================================================
-      # PLUGINS
-      # ==================================================================
       plugins = {
         autoUpdate = false;
-        sources = [
-          {
-            enabled = true;
-            name = "Official Noctalia Plugins";
-            url = "https://github.com/noctalia-dev/noctalia-plugins";
-          }
-        ];
-        states = {
-          audiovisualizer = {
-            enabled = true;
-            sourceUrl = "https://github.com/noctalia-dev/noctalia-plugins";
-          };
-        };
         version = 1;
       };
 
-      # ==================================================================
-      # DESKTOP WIDGETS
-      # ==================================================================
       desktopWidgets = {
         enabled = true;
         gridSnap = false;
@@ -264,21 +186,6 @@
           {
             id = "Weather";
             position = "top_right";
-            usePrimaryColor = true;
-            backgroundOpacity = 0.0;
-            margin = 20;
-          }
-          {
-            id = "MediaPlayer";
-            position = "bottom_center";
-            usePrimaryColor = true;
-            backgroundOpacity = 0.0;
-            margin = 20;
-          }
-          {
-            id = "Clock";
-            type = "analog";
-            position = "bottom_right";
             usePrimaryColor = true;
             backgroundOpacity = 0.0;
             margin = 20;
