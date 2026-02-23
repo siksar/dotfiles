@@ -7,7 +7,7 @@
 	imports = [ 
 		./hardware-configuration.nix
     
-		# NOTE: AMD hardware modules are imported in flake.nix
+		# NOTE: AMD hardware modules are imported in flake/flake.nix
 		# System modules - Optimized for Gigabyte Aero X16
 		./modules/kernel.nix
 		./modules/cpu-scheduling.nix      # Zen 5/5c core management
@@ -23,7 +23,8 @@
 		./modules/zapret.nix
 		./modules/power-management.nix
 		./modules/virtualisation.nix
-		./modules/stylix.nix              # Miasma Orange theming
+		# Stylix: dotfiles/stylix/stylix.nix (imported from flake)
+		# Opsiyonel: ./modules/quickshell.nix (quickshell.enable = true)
 		../wrapped-programs/prism.nix
 	];
 
@@ -276,7 +277,7 @@
 		enable = true;
 		clean.enable = true;
 		clean.extraArgs = "--keep-since 14d --keep 5";
-		flake = "/home/zixar/dotfiles";
+		flake = "/home/zixar/dotfiles/flake";
 	};
 
 	# ========================================================================

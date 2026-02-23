@@ -42,35 +42,33 @@
 				}
 			}
       
-			# Custom Commands (Replacements for complex aliases)
+			# Custom Commands — flake: ~/dotfiles/flake
 			def sys-rebuild [] {
-				cd /etc/nixos
+				cd ($env.HOME + "/dotfiles/flake")
 				git add .
 				git commit -m 'auto'
-				sudo nixos-rebuild switch --flake /etc/nixos#nixos
+				sudo nixos-rebuild switch --flake ($env.HOME + "/dotfiles/flake#nixos")
 			}
       
-			# fullrebuild as a proper nushell command (not alias!)
-			# Custom command to rebuild system and home-manager safely (fixing the auto-run issue)
 			def fullrebuild [] {
+				let flake = $env.HOME + "/dotfiles/flake"
 				print "Rebuilding NixOS System..."
-				sudo nixos-rebuild switch --flake /etc/nixos#nixos
+				sudo nixos-rebuild switch --flake ($flake + "#nixos")
 				print "Rebuilding Home Manager..."
-				home-manager switch --flake /etc/nixos#zixar -b backup
+				home-manager switch --flake ($flake + "#zixar") -b backup
 			}
 
-			# Custom command for Home Manager only + Git Add (Fixes dirty tree/untracked files)
 			def sys-home [] {
-				print "Staging changes in /etc/nixos for Flakes..."
-				cd /etc/nixos
+				let flake = $env.HOME + "/dotfiles/flake"
+				cd $flake
 				try { git add . } catch { print "Git add failed or nothing to add" }
 				print "Rebuilding Home Manager..."
-				home-manager switch --flake .#zixar -b backup
+				home-manager switch --flake ($flake + "#zixar") -b backup
 			}
 
 			def sys-full [] {
 				sys-rebuild
-				home-manager switch --flake /etc/nixos#zixar
+				home-manager switch --flake ($env.HOME + "/dotfiles/flake") + "#zixar"
 			}
       
 			def sys-clean [] {

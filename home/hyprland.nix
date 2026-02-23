@@ -24,28 +24,30 @@ let
 	# NEW MENU DEFINITIONS (Sıfırdan Tasarım)
 	# ========================================================================
 
-	# 📝 Editor/Files Menu (Mod+W)
-	editorMenu = mkMenu "editor" [
-		{ key = "y"; desc = " Yazi File Manager"; cmd = "kitty -e yazi"; }
-		{ key = "n"; desc = " Neovim (Cwd)"; cmd = "kitty -e nvim ."; }
-		{ key = "r"; desc = " Neovim (Root)"; cmd = "kitty -e nvim /"; }
-		{ key = "c"; desc = " NixOS Config"; cmd = "kitty -e nvim /etc/nixos"; }
+	# ✍️ Writer / Editor Menu (Mod+W)
+	writerMenu = mkMenu "writer" [
+		{ key = "q"; desc = " NixOS Config"; cmd = "kitty -e nvim ~/dotfiles/flake"; }
+		{ key = "w"; desc = " Obsidian"; cmd = "obsidian"; }
+		{ key = "e"; desc = " Neovim (Cwd)"; cmd = "kitty -e nvim ."; }
+		{ key = "r"; desc = " Yazi File Manager"; cmd = "kitty -e yazi"; }
+		{ key = "t"; desc = " Zed Editor"; cmd = "zeditor"; }
+		{ key = "y"; desc = " Neovim (Root)"; cmd = "kitty -e nvim /"; }
 	];
 
-	# 💼 Work Menu (Mod+E)
-	workMenu = mkMenu "work" [
-		{ key = "a"; desc = " Antigravity AI"; cmd = "kitty -e antigravity"; }
-		{ key = "l"; desc = " LM Studio"; cmd = "lm-studio"; }
-		{ key = "z"; desc = " Zen Browser"; cmd = "zen"; }
+	# ⚡ Quick Menu (Mod+E)
+	quickMenu = mkMenu "quick" [
+		{ key = "q"; desc = " WiFi Settings"; cmd = "noctalia-shell ipc call network togglePanel"; }
+		{ key = "w"; desc = " Bluetooth Settings"; cmd = "noctalia-shell ipc call bluetooth togglePanel"; }
+		{ key = "e"; desc = " Volume Settings"; cmd = "noctalia-shell ipc call audio togglePanel"; }
 	];
 
-	# 🎵 Media Menu (Mod+S)
+	# 🎵 Media Menu (Mod+A)
 	mediaMenu = mkMenu "media" [
-		{ key = "y"; desc = " ytfzf (YouTube)"; cmd = "kitty -e ytfzf -t"; }
-		{ key = "n"; desc = " ncmpcpp (Music)"; cmd = "kitty -e ncmpcpp"; }
-		{ key = "c"; desc = " cava (Visualizer)"; cmd = "kitty -e cava"; }
-		{ key = "d"; desc = " deemix"; cmd = "deemix-gui"; }
-		{ key = "l"; desc = " lrcget (Lyrics)"; cmd = "lrcget"; }
+		{ key = "q"; desc = " YouTube (ytfzf)"; cmd = "kitty -e ytfzf -t"; }
+		{ key = "w"; desc = " Music Player (ncmpcpp)"; cmd = "kitty -e ncmpcpp"; }
+		{ key = "e"; desc = " Deezer Downloader (deemix)"; cmd = "kitty -e deemix"; }
+		{ key = "r"; desc = " Synced Lyrics (lrcsnc)"; cmd = "kitty -e lrcsnc"; }
+		{ key = "t"; desc = " Audio Visualizer (cava)"; cmd = "kitty -e cava"; }
 	];
 
 in
@@ -63,7 +65,9 @@ in
 				repeat_delay = 200;
 				repeat_rate = 80;
 				follow_mouse = 1;
-				touchpad.natural_scroll = true;
+				touchpad = {
+					natural_scroll = true;
+				};
 			};
 
 			general = {
@@ -120,15 +124,10 @@ in
 				"$mod, Space, togglefloating"
 				"$mod, F, fullscreen, 1"
 
-				# CUSTOM MENUS
-				"$mod, W, exec, ${lib.getExe editorMenu}"
-				"$mod, E, exec, ${lib.getExe workMenu}"
-				"$mod, S, exec, ${lib.getExe mediaMenu}"
-
-				# NOCTALIA IPC TOGGLES
-				"$mod, Z, exec, noctalia-shell ipc call network togglePanel"
-				"$mod, X, exec, noctalia-shell ipc call bluetooth togglePanel"
-				"$mod, C, exec, noctalia-shell ipc call audio togglePanel"
+				# CUSTOM MENUS (Redesigned)
+				"$mod, W, exec, ${lib.getExe writerMenu}"
+				"$mod, E, exec, ${lib.getExe quickMenu}"
+				"$mod, A, exec, ${lib.getExe mediaMenu}"
 
 				# OTHER KEYBINDINGS
 				"ALT, Shift_L, exec, hyprctl switchxkblayout all next"
@@ -187,6 +186,6 @@ in
 		hyprpaper pamixer playerctl brightnessctl
 		grim slurp swappy hyprpicker wl-clipboard cliphist grimblast
 		wlr-which-key
-		editorMenu workMenu mediaMenu
+		writerMenu quickMenu mediaMenu
 	];
 }

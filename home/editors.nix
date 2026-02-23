@@ -284,6 +284,9 @@
 	# LSP SERVERS & TOOLS
 	# ========================================================================
 	home.packages = with pkgs; [
+		# AI Editor
+		cursor-cli
+
 		# Nix
 		nil
 		nixpkgs-fmt

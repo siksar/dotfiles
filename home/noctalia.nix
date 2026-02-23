@@ -23,10 +23,11 @@
         monitors = [ ];
         density = "comfortable";
         showOutline = false;
-        showCapsule = false; # Capsules hidden
+        showCapsule = false; # Capsules removed as requested
         capsuleOpacity = 0;
         capsuleColorKey = "primary";
-        backgroundOpacity = 0; # Fully transparent bar
+        backgroundOpacity = 0;
+        transparent = true;
         marginVertical = 4;
         marginHorizontal = 4;
         frameThickness = 10;
@@ -41,22 +42,41 @@
           left = [
             {
               id = "ControlCenter";
-              useDistroLogo = true; # Only Distro Logo as requested
+              useDistroLogo = true;
               colorize = true;
               colorKey = "tertiary";
+            }
+            { 
+              id = "Workspace"; 
+              hideUnoccupied = false; 
+              labelMode = "none"; 
+              focusedColor = "tertiary";
+              occupiedColor = "tertiary";
+              emptyColor = "tertiary";
             }
           ];
 
           # MIDDLE
           center = [
-            { id = "Workspace"; hideUnoccupied = true; labelMode = "none"; colorKey = "tertiary"; }
+            { id = "AudioVisualizer"; usePrimaryColor = false; colorKey = "tertiary"; }
           ];
 
           # RIGHT
           right = [
-            { id = "Battery"; colorKey = "tertiary"; }
-            { id = "KeyboardLayout"; colorKey = "tertiary"; }
-            { id = "SystemMonitor"; colorKey = "tertiary"; }
+            { id = "Battery"; colorize = true; colorKey = "tertiary"; }
+            { id = "KeyboardLayout"; colorize = true; colorKey = "tertiary"; }
+            {
+              id = "Group";
+              idPrefix = "Plugins";
+              widgets = [
+                { id = "MprsLyric"; colorize = true; colorKey = "tertiary"; }
+                { id = "Tailscale"; colorize = true; colorKey = "tertiary"; }
+                { id = "Timer"; colorize = true; colorKey = "tertiary"; }
+                { id = "RScreenRecorder"; colorize = true; colorKey = "tertiary"; }
+                { id = "VideoWallpaper"; colorize = true; colorKey = "tertiary"; }
+              ];
+            }
+            { id = "SystemMonitor"; colorize = true; colorKey = "tertiary"; }
           ];
         };
         screenOverrides = [ ];
@@ -132,6 +152,8 @@
         volumeStep = 5;
         cavaFrameRate = 30;
         visualizerType = "linear";
+        visualizerColorKey = "tertiary";
+        colorKey = "tertiary";
         volumeFeedback = false;
       };
 
@@ -191,6 +213,10 @@
             margin = 20;
           }
         ];
+      };
+
+      templates = {
+        enable = true;
       };
     };
   };

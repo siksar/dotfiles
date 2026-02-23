@@ -22,18 +22,9 @@
 		./home/fastfetch.nix    # System fetch tool
 	];
 	# ========================================================================
-	# STYLIX OVERRIDES - Prevent conflicts with manual configs
+	# STYLIX - Tema tek merkezden (dotfiles/stylix/stylix.nix)
+	# Hedefler Stylix varsayılanlarına bırakıldı; istisna gerekiyorsa burada override.
 	# ========================================================================
-	stylix.targets.kitty.enable = false;
-	stylix.targets.hyprland.enable = false;
-	stylix.targets.waybar.enable = false;
-	stylix.targets.rofi.enable = false;
-	stylix.targets.fzf.enable = false;
-	stylix.targets.bat.enable = false;
-	stylix.targets.nushell.enable = false;
-	stylix.targets.yazi.enable = false;
-	stylix.targets.helix.enable = false;
-	stylix.targets.neovim.enable = false;
 
 	# ========================================================================
 	# HOME MANAGER BASE
@@ -490,10 +481,10 @@
 	# SHELL ALIASES
 	# ========================================================================
 	home.shellAliases = {
-		# Nix
-		rebuild = "sudo nixos-rebuild switch --flake .#nixos";
-		rebuild-test = "sudo nixos-rebuild test --flake .#nixos";
-		zixswitch = "home-manager switch --flake ~/dotfiles#zixar -b backup";
+		# Nix (flake dizini: ~/dotfiles/flake)
+		rebuild = "sudo nixos-rebuild switch --flake ~/dotfiles/flake#nixos";
+		rebuild-test = "sudo nixos-rebuild test --flake ~/dotfiles/flake#nixos";
+		zixswitch = "home-manager switch --flake ~/dotfiles/flake#zixar -b backup";
 		# NOTE: fullrebuild moved to nushell.nix as a custom command (def)
 		# because nushell treats ';' in aliases as a command separator,
 		# causing the second command to run on every shell startup!
@@ -539,7 +530,8 @@
 		gco = "git checkout";
 		gb = "git branch";
     
-		# Config shortcuts
+		# Config shortcuts (flake: ~/dotfiles/flake)
+		dotfiles = "cd ~/dotfiles/flake";
 		hypr = "nvim ~/.config/hypr/hyprland.conf";
     
 		# System
@@ -597,7 +589,7 @@
 		## Customization
 		Edit files in `~/.config/home-manager/` and run:
 		```bash
-		home-manager switch --flake .#zixar
+		home-manager switch --flake ~/dotfiles/flake#zixar
 		```
 	'';
 }

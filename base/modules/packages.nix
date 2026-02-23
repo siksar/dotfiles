@@ -27,7 +27,6 @@
 		rust-analyzer
 		clippy
 		rustfmt
-		
 		# Build Dependencies for Rust Crates
 		gcc          # Linker
 		pkg-config
@@ -44,7 +43,7 @@
 		fastfetch
 		nvtopPackages.full
 		lact
-		antigravity
+		antigravity-fhs
 		nvme-cli
 		smartmontools
 		appimage-run
