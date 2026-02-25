@@ -22,6 +22,16 @@
 		nixos-hardware = {
 			url = "github:NixOS/nixos-hardware";
 		};
+
+		antigravity-nix = {
+			url = "github:jacopone/antigravity-nix";
+			inputs.nixpkgs.follows = "nixpkgs";
+		};
+
+		noctalia-shell = {
+			url = "github:noctalia-dev/noctalia-shell";
+			inputs.nixpkgs.follows = "nixpkgs";
+		};
 	};
 
 	outputs = {
@@ -31,6 +41,8 @@
 		stylix,
 		zen-browser,
 		nixos-hardware,
+		antigravity-nix,
+		noctalia-shell,
 		...
 	} @ inputs:
 	let
@@ -45,7 +57,7 @@
 		};
 
 		specialArgs = {
-			inherit inputs zen-browser nixos-hardware;
+			inherit inputs zen-browser nixos-hardware antigravity-nix noctalia-shell;
 		};
 	in {
 		nixosConfigurations.nixos = nixpkgs.lib.nixosSystem {
@@ -68,6 +80,16 @@
 
 				../base/configuration.nix
 				../stylix/stylix.nix
+			];
+		};
+
+		# Standalone home-manager: home-manager switch --flake .#zixar
+		homeConfigurations.zixar = home-manager.lib.homeManagerConfiguration {
+			inherit pkgs;
+			extraSpecialArgs = specialArgs;
+			modules = [ 
+				../home.nix 
+				stylix.homeManagerModules.stylix
 			];
 		};
 

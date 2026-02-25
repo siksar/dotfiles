@@ -9,7 +9,7 @@
 #   veya: nix repl → :l 01-values-and-types.nix
 # ============================================================================
 
-{
+rec {
   # ── 1. SAYILAR (Integers) ───────────────────────────────────────────────
   # Nix'te sadece tam sayılar var. Float yok!
   sayi = 42;

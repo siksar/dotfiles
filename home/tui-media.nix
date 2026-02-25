@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, config, ... }:
 {
 	home.packages = with pkgs; [
 		# Media TUI Tools
@@ -11,4 +11,22 @@
 		mangal        # Manga CLI
 		youtube-tui   # YouTube TUI
 	];
+
+	services.mpd = {
+		enable = true;
+		musicDirectory = "${config.home.homeDirectory}/Music/deemix Music";
+		extraConfig = ''
+			audio_output {
+				type "pipewire"
+				name "My PipeWire Output"
+			}
+		'';
+	};
+
+	services.mpd-mpris.enable = true;
+
+	programs.ncmpcpp = {
+		enable = true;
+		mpdMusicDir = "${config.home.homeDirectory}/Music/deemix Music";
+	};
 }

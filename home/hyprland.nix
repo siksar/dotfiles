@@ -36,7 +36,7 @@ let
 
 	# ⚡ Quick Menu (Mod+E)
 	quickMenu = mkMenu "quick" [
-		{ key = "q"; desc = " QML Reload"; cmd = "quickshell -r"; }
+		{ key = "q"; desc = " QML Reload"; cmd = "pkill quickshell; quickshell -d"; }
 		{ key = "w"; desc = " Audio Settings"; cmd = "pavucontrol"; }
 	];
 
@@ -73,8 +73,6 @@ in
 				gaps_in = 6;
 				gaps_out = 12;
 				border_size = 0;
-				"col.active_border" = lib.mkForce "rgb(bb7744) rgb(c9a554) 45deg";
-				"col.inactive_border" = lib.mkForce "rgb(222222)";
 				layout = "dwindle";
 			};
 
@@ -86,7 +84,6 @@ in
 				shadow = {
 					enabled = true;
 					range = 12;
-					color = lib.mkForce "rgba(bb774440)";
 				};
 			};
 
@@ -110,7 +107,6 @@ in
 				"hyprpaper"
 				"wl-paste --type text --watch cliphist store"
 				"wl-paste --type image --watch cliphist store"
-				"quickshell"
 				"${pkgs.polkit_gnome}/libexec/polkit-gnome-authentication-agent-1"
 			];
 
@@ -130,7 +126,6 @@ in
 
 				# OTHER KEYBINDINGS
 				"ALT, Shift_L, exec, hyprctl switchxkblayout all next"
-				"$mod, Tab, exec, quickshell -w ControlCenter"
 
 				# Workspaces
 				"$mod, 1, workspace, 1"
@@ -154,7 +149,6 @@ in
 			];
 
 			bindr = [
-				"$mod, SUPER_L, exec, killall rofi || rofi -show drun"
 			];
 
 			# Multimedia

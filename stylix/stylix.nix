@@ -6,29 +6,20 @@
 		enable = true;
 		polarity = "dark";
 
-		base16Scheme = {
-			base00 = "222222";
-			base01 = "1c1c1c";
-			base02 = "3c3c3c";
-			base03 = "5c5c5c";
-			base04 = "b4b4b4";
-			base05 = "c2c2b0";
-			base06 = "d9d9d9";
-			base07 = "e8e8e8";
-			base08 = "685742";
-			base09 = "FF8C00";
-			base0A = "c9a554";
-			base0B = "5f875f";
-			base0C = "c9a554";
-			base0D = "FF6600";
-			base0E = "b36d43";
-			base0F = "c9a554";
-		};
+		# Tokyo Night Dark theme
+		base16Scheme = "${pkgs.base16-schemes}/share/themes/tokyo-night-dark.yaml";
 
 		cursor = {
 			package = pkgs.adwaita-icon-theme;
 			name = "Adwaita";
 			size = 24;
+		};
+
+		iconTheme = {
+			enable = true;
+			package = pkgs.papirus-icon-theme;
+			dark = "Papirus-Dark";
+			light = "Papirus";
 		};
 
 		fonts = {

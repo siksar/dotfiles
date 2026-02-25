@@ -76,6 +76,19 @@
 				sudo nix-store --optimize
 			}
       
+			# Hızlı UI ve Home Manager derleme / reload komutu
+			def zixreload [] {
+				let dotfiles = $env.HOME + "/dotfiles"
+				cd $dotfiles
+				try { git add . } catch { print "Git add atlandı" }
+				print "🚀 Rebuilding Home Manager..."
+				home-manager switch --flake ($dotfiles + "/flake#zixar") -b backup
+				print "✨ Reloading Noctalia Shell..."
+				try { pkill -f noctalia-shell } catch { print "Stopping existing noctalia..." }
+				try { bash -c "noctalia-shell > /dev/null 2>&1 &" } catch { print "Noctalia starting..." }
+				print "✅ Tüm ekran ve konfigürasyonlar başarıyla yenilendi!"
+			}
+      
 			# Zoxide/Starship/Carapace hooks are auto-added
       
 			# Run Fastfetch (System Fetch) on startup

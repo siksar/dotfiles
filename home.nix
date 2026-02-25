@@ -6,7 +6,7 @@
 	# ========================================================================
 	imports = [
 		./home/hyprland.nix
-		./home/quickshell.nix
+		./home/noctalia-shell.nix
 		./home/hyprpaper.nix
 
 		./home/starship.nix
@@ -25,6 +25,14 @@
 	# STYLIX - Tema tek merkezden (dotfiles/stylix/stylix.nix)
 	# Hedefler Stylix varsayılanlarına bırakıldı; istisna gerekiyorsa burada override.
 	# ========================================================================
+	stylix = {
+		# Needs to be set for standalone home-manager evaluation
+		base16Scheme = "${pkgs.base16-schemes}/share/themes/tokyo-night-dark.yaml";
+		image = pkgs.fetchurl {
+			url = "https://raw.githubusercontent.com/NixOS/nixos-artwork/master/wallpapers/nix-wallpaper-dracula.png";
+			sha256 = "11p57bvv06m2p701dcvqckp8n1pnsf4psckp25wdb6smpms5h9s9";
+		};
+	};
 
 	# ========================================================================
 	# HOME MANAGER BASE
@@ -51,9 +59,8 @@
 		XDG_CURRENT_DESKTOP = "Hyprland";
 		XDG_SESSION_DESKTOP = "Hyprland";
     
-		# Theming
-		GTK_THEME = "adw-gtk3-dark";
-		ICON_THEME = "Papirus-Dark";
+		# Theming managed by Stylix
+
     
 		# GPU
 		__GLX_VENDOR_LIBRARY_NAME = "nvidia";
@@ -104,7 +111,6 @@
 		enable = true;
 		enableGitIntegration = true;
 		options = {
-			syntax-theme = "gruvbox-dark";
 			line-numbers = true;
 			side-by-side = false;
 			navigate = true;
@@ -335,16 +341,7 @@
 			executable = true;
 		};
 
-		# Quickshell config (GreetD'de Quickshell oturumu seçildiğinde kullanılır)
-		".config/quickshell/main.qml".text = ''
-			// Quickshell minimal — dotfiles
-			// https://invent.kde.org/nickshanks/quickshell
-			import QtQuick
-			import Quickshell
 
-			Shell {
-			}
-		'';
 
 		# fastfetch config is in home/fastfetch.nix
 

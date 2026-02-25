@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+ { config, pkgs, inputs, ... }:
 {
 	# ========================================================================
 	# SYSTEM PACKAGES
@@ -43,7 +43,7 @@
 		fastfetch
 		nvtopPackages.full
 		lact
-		antigravity-fhs
+		inputs.antigravity-nix.packages.${pkgs.system}.default
 		nvme-cli
 		smartmontools
 		appimage-run
@@ -53,6 +53,8 @@
 		# ====================================================================
 		vscode
 		claude-code
+		codex
+		nodejs
 		bitwarden-desktop
 		home-manager
 		bottles

@@ -24,9 +24,10 @@
 		./modules/power-management.nix
 		./modules/virtualisation.nix
 		# Stylix: dotfiles/stylix/stylix.nix (imported from flake)
-		# Opsiyonel: ./modules/quickshell.nix (quickshell.enable = true)
+
 		../wrapped-programs/prism.nix
 	];
+
 
 	# ========================================================================
 	# BOOT CONFIGURATION

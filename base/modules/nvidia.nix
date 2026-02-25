@@ -33,7 +33,7 @@
 		powerManagement.enable = true;
 		powerManagement.finegrained = true;
 		nvidiaPersistenced = true;
-		dynamicBoost.enable = true;
+		dynamicBoost.enable = false;
 
 		prime = {
 			offload = {
