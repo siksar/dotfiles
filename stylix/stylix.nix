@@ -46,6 +46,7 @@
 			grub.enable = false;
 			plymouth.enable = true;
 			gtk.enable = true;
+			kitty.enable = false;
 		};
 	};
 }

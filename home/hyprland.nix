@@ -127,6 +127,9 @@ in
 				# Caelstia Shell Toggles
 				"$mod, Z, exec, caelestia-shell ipc call launcher toggle"
 				"$mod, X, exec, caelestia-shell ipc call controlCenter toggle"
+				"$mod, W, exec, caelestia-shell ipc call wallpaper random"
+				"$mod, C, exec, caelestia-shell ipc call bluetooth togglePanel"
+				"$mod, V, exec, caelestia-shell ipc call sessionMenu show"
 
 				# OTHER KEYBINDINGS
 				"ALT, Shift_L, exec, hyprctl switchxkblayout all next"
@@ -150,6 +153,11 @@ in
 				"$mod SHIFT, 7, movetoworkspace, 7"
 				"$mod SHIFT, 8, movetoworkspace, 8"
 				"$mod SHIFT, 9, movetoworkspace, 9"
+
+				# Lock Screen & Notifications
+				"$mod SHIFT, L, exec, caelestia-shell ipc call lockScreen lock"
+				"$mod, N, exec, caelestia-shell ipc call notifications showHistory"
+				"$mod SHIFT, N, exec, caelestia-shell ipc call notifications closeAll"
 			];
 
 			bindr = [

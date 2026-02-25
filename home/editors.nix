@@ -86,9 +86,6 @@
 			nvim-web-devicons
 			nui-nvim
       
-			# Theme
-			tokyonight-nvim
-      
 			# LSP
 			nvim-lspconfig
 			nvim-cmp
@@ -130,13 +127,7 @@
 			vim.opt.clipboard = "unnamedplus"
 			vim.opt.signcolumn = "yes"
       
-			-- Stylix manages Neovim colors via base16.
-			-- Manual theme overrides removed.
-			require("tokyonight").setup({
-				style = "night",
-				transparent = true,
-			})
-			-- vim.cmd("colorscheme tokyonight-night") -- Let Stylix set the scheme
+			-- Stylix manages Neovim colors via base16 automatically.
       
 			-- Linux Kernel Style Indentation (8-char hard tabs)
 			vim.opt.tabstop = 8
@@ -186,7 +177,7 @@
 			-- Lualine
 			require("lualine").setup({
 				options = {
-					theme = "tokyonight",
+					theme = "auto",
 				},
 			})
       

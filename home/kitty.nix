@@ -6,8 +6,9 @@
 	programs.kitty = {
 		enable = true;
     
-		# Stylix overrides kitty terminal settings natively.
-		# Removed manual font and background_opacity to avoid mkForce clashes.
+		# Explicit Miasma Theme (Adapted) implementation
+		# We disable stylix generation below or handle it externally
+		# to guarantee the specific orange-focused colors are applied properly.
     
 		shellIntegration = {
 			enableZshIntegration = false;
@@ -36,6 +37,38 @@
 			# Bell
 			enable_audio_bell = false;
 			visual_bell_duration = "0.0";
+
+			# --- Miasma Theme (Adapted) Colors ---
+			background = "#222222";
+			foreground = "#c2c2b0";
+			selection_background = "#4a4a4a";
+			selection_foreground = "#eeeeee";
+			cursor = "#c9a554";
+			cursor_text_color = "#222222";
+			url_color = "#cc966c";
+			active_border_color = "#cc966c";
+			inactive_border_color = "#4a4a4a";
+			bell_border_color = "#8a6f5c";
+
+			# Normal colors
+			color0 = "#222222"; # black
+			color1 = "#8a6f5c"; # red
+			color2 = "#b36d43"; # green
+			color3 = "#c9a554"; # yellow
+			color4 = "#c9a554"; # blue
+			color5 = "#b36d43"; # magenta
+			color6 = "#bb7744"; # cyan
+			color7 = "#c2c2b0"; # white
+
+			# Bright colors
+			color8  = "#666666";
+			color9  = "#cc966c";
+			color10 = "#bb7744";
+			color11 = "#c9a554";
+			color12 = "#c9a554";
+			color13 = "#b36d43";
+			color14 = "#bb7744";
+			color15 = "#eeeeee";
 		};
     
 		keybindings = {
