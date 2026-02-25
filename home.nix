@@ -26,8 +26,8 @@
 	# Hedefler Stylix varsayılanlarına bırakıldı; istisna gerekiyorsa burada override.
 	# ========================================================================
 	stylix = {
-		# Needs to be set for standalone home-manager evaluation
-		base16Scheme = "${pkgs.base16-schemes}/share/themes/tokyo-night-dark.yaml";
+		# Miasma theme overrides
+		base16Scheme = ./stylix/miasma.yaml;
 		image = pkgs.fetchurl {
 			url = "https://raw.githubusercontent.com/NixOS/nixos-artwork/master/wallpapers/nix-wallpaper-dracula.png";
 			sha256 = "11p57bvv06m2p701dcvqckp8n1pnsf4psckp25wdb6smpms5h9s9";

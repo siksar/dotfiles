@@ -6,8 +6,8 @@
 		enable = true;
 		polarity = "dark";
 
-		# Tokyo Night Dark theme
-		base16Scheme = "${pkgs.base16-schemes}/share/themes/tokyo-night-dark.yaml";
+		# Miasma theme
+		base16Scheme = ./miasma.yaml;
 
 		cursor = {
 			package = pkgs.adwaita-icon-theme;
