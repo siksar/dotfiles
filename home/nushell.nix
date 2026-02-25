@@ -84,8 +84,7 @@
 				print "🚀 Rebuilding Home Manager..."
 				home-manager switch --flake ($dotfiles + "/flake#zixar") -b backup
 				print "✨ Reloading Noctalia Shell..."
-				try { pkill -f noctalia-shell } catch { print "Stopping existing noctalia..." }
-				try { bash -c "noctalia-shell > /dev/null 2>&1 &" } catch { print "Noctalia starting..." }
+				try { systemctl --user restart noctalia-shell } catch { print "Failed to restart noctalia via systemd..." }
 				print "✅ Tüm ekran ve konfigürasyonlar başarıyla yenilendi!"
 			}
       
