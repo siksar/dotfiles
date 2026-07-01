@@ -19,7 +19,9 @@
     "amd_pstate=active"            # Strix Point/Zen 5 EPP scaling
     "amdgpu.gfx_off=1"            # RDNA 3.5 iGPU sleep
     "amdgpu.abmlevel=3"           # eDP panel Auto Brightness Management
-    "amdgpu.dcdebugmask=0x12"     # Zen 5 Panel Self Refresh freeze fix
+    # NOT: amdgpu.dcdebugmask kaldırıldı → PSR(0x10) + Stutter(0x2) TAM AÇIK.
+    # Ekran-açık idle gücünü büyük ölçüde düşürür. Panel donarsa cerrahi fallback:
+    # "amdgpu.dcdebugmask=0x200" (yalnız PSR-SU kapalı, PSR1+stutter korunur).
 
     # --- Enerji Verimliliği ---
     "nowatchdog"                   # NMI watchdog kapalı → wakeup azalır
@@ -27,7 +29,8 @@
     "pcie_aspm=force"              # PCIe Active State PM → dGPU/WiFi/NVMe uykuya girebilir
     "pcie_aspm.policy=powersupersave" # en agresif ASPM politikası
     "mem_sleep_default=s2idle"     # Modern Standby (s2idle) tercih et
-    "nvidia_drm.fbdev=1"           # NVIDIA framebuffer → Plymouth + Wayland uyumu
+    # NOT: nvidia_drm.fbdev=1 kaldırıldı → dGPU fbcon tutmaz, D3cold'da kalıcı kalır.
+    # Konsol fbdev'i zaten amdgpu'da (/proc/fb = amdgpudrmfb). dGPU idle'da uyur.
     "snd_hda_intel.power_save=1"   # HDA ses kartı boşta power save
     "snd_hda_intel.power_save_controller=Y"
 
