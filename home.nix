@@ -10,4 +10,17 @@
   home.homeDirectory = "/home/zixar";
   home.stateVersion  = "26.05";
   programs.home-manager.enable = true;
+
+  programs.bash = {
+    enable = true;
+    profileExtra = ''
+      # JetBrains Toolbox
+      export PATH="$PATH:$HOME/.local/share/JetBrains/Toolbox/scripts"
+
+      # TTY1'de grafik oturum yoksa UWSM → Hyprland başlat
+      if [ -z "$WAYLAND_DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
+        exec uwsm start hyprland-uwsm.desktop
+      fi
+    '';
+  };
 }
