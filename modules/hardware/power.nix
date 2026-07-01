@@ -1,8 +1,8 @@
 { pkgs, ... }:
 
 {
-  # Güç profili yönetimi
-  services.power-profiles-daemon.enable = true;
+  # Güç profili yönetimi — TLP tarafından devre dışı bırakılır (modules/hardware/tlp.nix)
+  # services.power-profiles-daemon.enable burada set edilmiyor; tlp.nix false yapar.
   services.printing.enable = false;
   systemd.oomd.enable = false;
 
