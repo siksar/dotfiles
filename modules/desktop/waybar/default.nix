@@ -1,4 +1,4 @@
-{ osConfig, pkgs, ... }:
+{ osConfig, ... }:
 
 let
   bg      = "#${osConfig.desktop.theme.colors.bg}";
@@ -8,7 +8,6 @@ in
 {
   programs.waybar = {
     enable = true;
-    package = pkgs.waybar;
 
     settings = [{
       layer    = "top";
@@ -43,7 +42,7 @@ in
         tooltip    = false;
       };
 
-      # omarchy battery bar — ikon tabanlı, tooltip'te watt gösterir
+      # omarchy battery bar — ikon tabanlı, tooltip'te watt + kalan süre gösterir
       battery = {
         format-discharging = "{icon}";
         format-charging    = "{icon}";
@@ -53,9 +52,9 @@ in
           charging = [ "󰢜" "󰂆" "󰂇" "󰂈" "󰢝" "󰂉" "󰢞" "󰂊" "󰂋" "󰂅" ];
           default  = [ "󰁺" "󰁻" "󰁼" "󰁽" "󰁾" "󰁿" "󰂀" "󰂁" "󰂂" "󰁹" ];
         };
-        "tooltip-format-discharging" = "{power:>1.0f}W↓  {capacity}%";
-        "tooltip-format-charging"    = "{power:>1.0f}W↑  {capacity}%";
-        "tooltip-format-plugged"     = "Tam şarj  {capacity}%";
+        "tooltip-format-discharging" = "{power:.2f}W↓   {capacity}%\n{time} kaldı";
+        "tooltip-format-charging"    = "{power:.2f}W↑   {capacity}%\n{time} dolacak";
+        "tooltip-format-plugged"     = "Tam şarj   {capacity}%";
         interval = 5;
         states = {
           warning  = 20;
@@ -123,7 +122,7 @@ in
       #workspaces button.active  { opacity: 1; color: ${accent}; }
       #workspaces button.urgent  { color: #f7768e; opacity: 1; }
 
-      #clock    { margin: 0 8px; }
+      #clock { margin: 0 8px; }
 
       #battery,
       #network,
