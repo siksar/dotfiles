@@ -13,11 +13,11 @@
     efiInstallAsRemovable = false;
 
     extraConfig = ''
-      remember_last_entry: yes
+      timeout: 3
       interface_resolution: 2560x1600
       resolution: 2560x1600
       term_font_scale: 2x2
-      term_margin: 30
+      term_margin: 0
     '';
 
     style = {
