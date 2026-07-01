@@ -29,6 +29,15 @@
 
   programs.firefox.enable = true;
 
+  # Hyprland — iGPU-only Wayland compositor (SDDM session + UWSM desteği)
+  programs.hyprland = {
+    enable   = true;
+    withUWSM = true;
+  };
+
+  # Waybar için JetBrainsMono Nerd Font (pil/ağ ikonları)
+  fonts.packages = with pkgs; [ nerd-fonts.jetbrains-mono ];
+
   programs.nh = {
     enable = true;
     clean.enable = true;
@@ -47,6 +56,14 @@
     vim
     git
     gh
+
+    # Hyprland araçları
+    rofi              # uygulama başlatıcı (SUPER+SPACE)
+    brightnessctl     # klavye kısayoluyla parlaklık
+    grim              # Wayland ekran görüntüsü
+    slurp             # alan seçici (grim ile)
+    wl-clipboard      # wl-copy / wl-paste
+    pavucontrol       # PulseAudio / PipeWire GUI
 
     # Rust / Nix / Kubernetes platform engineering
     rustup
