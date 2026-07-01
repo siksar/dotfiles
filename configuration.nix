@@ -8,7 +8,6 @@
 
     # Boot
     ./modules/boot/limine.nix
-    ./modules/boot/plymouth.nix
 
     # Hardware
     ./modules/hardware/gpu.nix

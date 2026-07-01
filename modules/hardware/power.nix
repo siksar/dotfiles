@@ -34,9 +34,8 @@
     "snd_hda_intel.power_save=1"   # HDA ses kartı boşta power save
     "snd_hda_intel.power_save_controller=Y"
 
-    # --- Plymouth Quiet Boot ---
+    # --- Sessiz Boot (Plymouth olmadan) ---
     "quiet"
-    "splash"
     "rd.systemd.show_status=false"
     "rd.udev.log_level=3"
     "udev.log_priority=3"
