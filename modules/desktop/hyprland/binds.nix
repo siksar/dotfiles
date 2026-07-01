@@ -10,7 +10,7 @@
     bindd=SUPER, SPACE, Launch apps, exec, rofi -show drun
 
     # --- Pencere Yönetimi ---
-    bindd=SUPER, W, Close window, killactive,
+    bindd=SUPER, Q, Close window, killactive,
     bindd=SUPER, T, Toggle window floating, togglefloating,
     bindd=SUPER SHIFT, F, Full screen, fullscreen, 0
     bindd=SUPER CTRL, F, Tiled full screen, fullscreenstate, 0 2
