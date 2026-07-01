@@ -59,6 +59,7 @@ in
 
     render {
       direct_scanout = true
+      new_render_scheduling = true  # PSR residency'yi artırır: frame'ler gereksiz yere push edilmez
     }
 
     group {
@@ -128,12 +129,13 @@ in
       focus_on_activate = true
       anr_missed_pings = 3
       on_focus_under_fullscreen = 1
-      vrr = 1
+      vrr = 0  # VRR kapalı: PSR ile çakışıyor; AC'de elle açılabilir
     }
 
     cursor {
       hide_on_key_press = true
       warp_on_change_workspace = 1
+      inactive_timeout = 3  # 3sn hareketsizlikte imleci gizle → PSR devreye girsin
     }
 
     binds {

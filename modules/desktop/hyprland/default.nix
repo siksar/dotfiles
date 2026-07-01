@@ -10,6 +10,7 @@
   wayland.windowManager.hyprland = {
     enable = true;
     systemd.enable = false; # UWSM ile çakışmayı önler (programs.hyprland.withUWSM = true)
+    configType = "hyprlang";
   };
 }
 

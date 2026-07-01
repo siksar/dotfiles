@@ -2,8 +2,8 @@
 
 {
   services.xserver.enable = true;
-  services.xserver.videoDrivers = [ "nvidia" ];
-  services.desktopManager.plasma6.enable = false;
+  services.xserver.videoDrivers = [ "amdgpu" "nvidia" ];
+  services.desktopManager.plasma6.enable = true;
 
   hardware.graphics = {
     enable      = true;
