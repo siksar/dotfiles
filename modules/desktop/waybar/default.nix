@@ -118,7 +118,7 @@ in
       "custom/battery-wh" = {
         exec           = "${batteryWh}/bin/battery-wh";
         "return-type"  = "json";
-        interval       = 5;
+        interval       = 30;
         states         = { warning = 20; critical = 10; };
         tooltip        = true;
       };
@@ -131,7 +131,7 @@ in
         "tooltip-format-wifi"         = "{essid} {signalStrength}%";
         "tooltip-format-ethernet"     = "Ethernet";
         "tooltip-format-disconnected" = "Bağlantı yok";
-        interval = 5;
+        interval = 30;
       };
 
       pulseaudio = {
@@ -147,7 +147,7 @@ in
 
       cpu = {
         format     = "󰍛";
-        interval   = 5;
+        interval   = 30;
         "on-click" = "alacritty -e btop";
         "tooltip-format" = "{usage}%";
       };
