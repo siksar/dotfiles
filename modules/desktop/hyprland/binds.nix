@@ -7,7 +7,7 @@
     bindd=SUPER, F, File manager, exec, nautilus
     bindd=SUPER, B, Web browser, exec, firefox
     bindd=SUPER, N, Neovim, exec, ghostty -e nvim
-    bindd=SUPER, SPACE, Launch apps, global, caelestia:launcher
+    bindrd=SUPER, SUPER_L, Launch apps, global, caelestia:launcher
 
     # --- Caelestia Shell ---
     bindd=SUPER, L, Lock screen, global, caelestia:lock
@@ -106,6 +106,8 @@
     bindeld=ALT, XF86MonBrightnessDown, Brightness down precise, exec, brightnessctl set 1%-
 
     # --- Ekran Görüntüsü (Caelestia: bölge seçimi + düzenleme) ---
+    # Fn+F11 bu klavyede F20 gönderiyor (libinput ile doğrulandı)
+    bindd=,F20, Screenshot region, global, caelestia:screenshotFreeze
     bindd=,PRINT, Screenshot region, global, caelestia:screenshotFreeze
     bindd=SHIFT, PRINT, Screenshot full, exec, caelestia screenshot
 

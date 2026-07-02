@@ -104,8 +104,11 @@ in
     allowImages = true;
   };
 
-  # Varsayılan duvar kağıdı
-  home.file."Pictures/Wallpapers/everforest.png".source = ../wallpapers/everforest.png;
+  # Tema duvar kağıtları (recursive: kullanıcı dizine kendi dosyasını da atabilir)
+  home.file."Pictures/Wallpapers" = {
+    source = ../wallpapers;
+    recursive = true;
+  };
 
   # --- Guard 1: hyprland şema fallback'i (yalnızca dosya yoksa) ---
   home.activation.caelestiaHyprFallback = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
