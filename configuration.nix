@@ -16,7 +16,7 @@
     ./modules/hardware/gigabyte-wmi.nix
 
     # Desktop
-    ./modules/desktop/sddm.nix
+    ./modules/desktop/greetd.nix
     ./modules/desktop/stylix.nix
 
     # System
