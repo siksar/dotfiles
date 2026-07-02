@@ -40,7 +40,7 @@ in
   # Şarj limiti %80 (pil ömrü) — EC'nin reboot sonrası hatırlaması garanti değil,
   # her boot'ta yeniden uygula. charge_limit yalnız custom charge_mode'da (1) çalışır.
   systemd.services.gigabyte-charge-limit = {
-    description = "Pil şarj limiti %80 (aorus-laptop WMI)";
+    description = "Pil şarj limiti %%80 (aorus-laptop WMI)";
     wantedBy = [ "multi-user.target" ];
     after = [ "systemd-modules-load.service" ];
     serviceConfig = {

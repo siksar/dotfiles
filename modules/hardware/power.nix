@@ -47,7 +47,7 @@
   # Realtek rtw89 WiFi + HDA ses kartı modprobe parametreleri
   boot.extraModprobeConfig = ''
     options rtw89_pci disable_clkreq=0 disable_aspm_l1=0 disable_aspm_l1ss=0
-    options rtw89_core power_save=Y
+    options rtw89_core disable_ps_mode=n
     options snd_hda_intel power_save=1 power_save_controller=Y
   '';
 
