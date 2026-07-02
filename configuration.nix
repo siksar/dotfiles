@@ -19,6 +19,9 @@
     ./modules/desktop/greetd.nix
     ./modules/desktop/stylix.nix
 
+    # Uygulamalar
+    ./modules/apps/default.nix
+
     # System
     ./modules/networking.nix
     ./modules/locale.nix

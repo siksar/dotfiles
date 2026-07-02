@@ -6,10 +6,21 @@
 let
   system = pkgs.stdenv.hostPlatform.system;
 
-  # Discord istemcisi olarak Vesktop kullanılıyor
-  cli-pkg = inputs.caelestia-cli.packages.${system}.default.override {
-    discordBin = "vesktop";
-  };
+  # Discord istemcisi olarak Vesktop kullanılıyor.
+  # Özel şemalar (schemes/*.txt) paket verisine gömülür — böylece
+  # `caelestia scheme set -n <isim>` ve launcher'daki seçici görür.
+  cli-pkg =
+    (inputs.caelestia-cli.packages.${system}.default.override {
+      discordBin = "vesktop";
+    }).overrideAttrs (old: {
+      postUnpack = (old.postUnpack or "") + ''
+        for f in ${./schemes}/*.txt; do
+          name=$(basename "$f" .txt)
+          mkdir -p "$sourceRoot/src/caelestia/data/schemes/$name/main"
+          cp "$f" "$sourceRoot/src/caelestia/data/schemes/$name/main/dark.txt"
+        done
+      '';
+    });
 
   # İlk açılış varsayılanları — runtime seçimlerini ASLA ezmez (state varsa dokunmaz)
   defaultsGuard = pkgs.writeShellScript "caelestia-defaults" ''
@@ -34,6 +45,11 @@ in
 
   programs.caelestia = {
     enable = true;
+    # Shell'in gömülü CLI'ı da bizimki olsun — launcher'daki şema seçici
+    # `caelestia scheme list`i wrapper PATH'inden çözer
+    package = inputs.caelestia-shell.packages.${system}.with-cli.override {
+      caelestia-cli = cli-pkg;
+    };
     # UWSM graphical-session.target'ı aktive eder → systemd servisi güvenli
     # (çökmede otomatik restart + shell.json değişiminde restart trigger)
     systemd.enable = true;
@@ -113,7 +129,9 @@ in
   # Shell, shell.json'a (GUI ayarları) runtime'da yazar; HM symlink'i kalırsa
   # yazamaz, symlink'i değiştirirse sonraki switch çakışır. Çözüm (nixy deseni):
   # switch sonrası symlink'i yazılabilir kopyayla değiştir, bayat backup'ları önceden sil.
-  home.activation.caelestiaCleanBackups = lib.hm.dag.entryBefore [ "linkGeneration" ] ''
+  # NOT: checkLinkTargets, linkGeneration'dan ÖNCE koşar ve bayat backup'ta
+  # hata verir — temizlik ondan da önce yapılmalı
+  home.activation.caelestiaCleanBackups = lib.hm.dag.entryBefore [ "checkLinkTargets" ] ''
     run rm -f "$HOME/.config/caelestia/shell.json.hm-backup" \
               "$HOME/.config/vesktop/settings.json.hm-backup" \
               "$HOME/.config/vesktop/settings/settings.json.hm-backup"

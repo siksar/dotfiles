@@ -28,9 +28,12 @@
 
     # nixpkgs'te olmayan uygulamalar
     helium-browser.url = "github:oxcl/nix-flake-helium-browser";
+    # claude-desktop, nodePackages kaldırılmış güncel nixpkgs ile kırılıyor
+    # (upstream lock'u da bozuk) → nodePackages'ın var olduğu 25.11'e sabitle
+    nixpkgs-2511.url = "github:nixos/nixpkgs/nixos-25.11";
     claude-desktop = {
       url = "github:k3d3/claude-desktop-linux-flake";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.nixpkgs.follows = "nixpkgs-2511";
     };
   };
 

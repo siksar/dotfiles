@@ -28,7 +28,7 @@
     general {
       gaps_in = 5
       gaps_out = 10
-      border_size = 2
+      border_size = 0
       col.active_border = rgba($primarye6)
       col.inactive_border = rgba($onSurfaceVariant11)
       resize_on_border = false
@@ -40,9 +40,9 @@
       rounding = 0
       shadow {
         enabled = true
-        range = 2
+        range = 14
         render_power = 3
-        color = rgba($shadowee)
+        color = rgba($shadow66)
       }
       blur {
         enabled = true
