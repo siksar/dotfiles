@@ -18,6 +18,7 @@
     # Desktop
     ./modules/desktop/sddm.nix
     ./modules/desktop/theme.nix
+    ./modules/desktop/stylix.nix
 
     # System
     ./modules/networking.nix
