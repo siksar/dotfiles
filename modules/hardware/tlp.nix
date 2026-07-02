@@ -1,8 +1,8 @@
 { pkgs, ... }:
 
 let
-  # --- Sistem servisi: sysfs brightness (root) ---
-  # ACAD = AC adapter cihazı; BAT: %40, AC: %80
+  # --- Sistem servisi: sysfs brightness + webcam (root) ---
+  # ACAD = AC adapter cihazı; BAT: %40 parlaklık + webcam kapalı, AC: %80 + webcam açık
   powerDisplayScript = pkgs.writeShellScript "power-display" ''
     BL=/sys/class/backlight/amdgpu_bl1
     AC=$(cat /sys/class/power_supply/ACAD/online 2>/dev/null || echo 1)
@@ -10,16 +10,18 @@ let
 
     if [ "$AC" = "0" ]; then
       echo $((MAX * 40 / 100)) > "$BL/brightness"
+      # Webcam pilde hard-off (autosuspend yetmez, enumerate bile olmasın)
+      echo 0 > /sys/bus/usb/devices/1-1/authorized 2>/dev/null || true
     else
       echo $((MAX * 80 / 100)) > "$BL/brightness"
+      echo 1 > /sys/bus/usb/devices/1-1/authorized 2>/dev/null || true
     fi
 
-    # Kullanıcı oturumu varsa Hyprland refresh rate servisini tetikle
+    # Kullanıcı oturumu varsa Hyprland adaptasyon servisini tetikle
     systemctl --user -M zixar@.host start power-display-user.service 2>/dev/null || true
   '';
 
-  # --- Kullanıcı servisi: Hyprland refresh rate ---
-  # Phase 4'e kadar no-op; Hyprland kurulunca otomatik devreye girer.
+  # --- Kullanıcı servisi: Hyprland refresh rate + pil render profili ---
   powerDisplayUserScript = pkgs.writeShellScript "power-display-user" ''
     AC=$(cat /sys/class/power_supply/ACAD/online 2>/dev/null || echo 1)
 
@@ -27,19 +29,28 @@ let
     HYPR_SIG=$(ls "$XDG_RUNTIME_DIR/hypr/" 2>/dev/null | head -1)
     [ -z "$HYPR_SIG" ] && exit 0
 
-    # hyprctl'ı nix profil + sistem yollarında ara
     HYPRCTL=$(command -v hyprctl \
               || ls /etc/profiles/per-user/zixar/bin/hyprctl \
-              || ls /run/current-system/sw/bin/hyprctl \
+                    /run/current-system/sw/bin/hyprctl \
               2>/dev/null | head -1)
     [ -z "$HYPRCTL" ] && exit 0
 
     export HYPRLAND_INSTANCE_SIGNATURE="$HYPR_SIG"
 
     if [ "$AC" = "0" ]; then
-      "$HYPRCTL" keyword monitor "eDP-1,2560x1600@60,0x0,1"
+      # Pil: 60Hz + render yükünü azalt → PSR/IPS residency artar
+      "$HYPRCTL" --batch "\
+        keyword monitor eDP-1,2560x1600@60,0x0,1 ; \
+        keyword decoration:blur:enabled false ; \
+        keyword decoration:shadow:enabled false ; \
+        keyword animations:enabled false"
     else
-      "$HYPRCTL" keyword monitor "eDP-1,2560x1600@165,0x0,1"
+      # AC: 165Hz + tam görsel kalite
+      "$HYPRCTL" --batch "\
+        keyword monitor eDP-1,2560x1600@165,0x0,1 ; \
+        keyword decoration:blur:enabled true ; \
+        keyword decoration:shadow:enabled true ; \
+        keyword animations:enabled true"
     fi
   '';
 in
@@ -55,6 +66,17 @@ in
       CPU_SCALING_GOVERNOR_ON_BAT = "powersave";
       CPU_ENERGY_PERF_POLICY_ON_AC  = "balance_performance";
       CPU_ENERGY_PERF_POLICY_ON_BAT = "power";
+
+      # --- CPU Boost (AMD Core Performance Boost) — pilde kapalı ---
+      CPU_BOOST_ON_AC  = 1;
+      CPU_BOOST_ON_BAT = 0;
+
+      # --- Pilde frekans tavanı: tuş basımı spike'larını törpüler ---
+      CPU_SCALING_MAX_FREQ_ON_BAT = 2000000;
+
+      # --- iGPU DPM: pilde en düşük saat kademesine kilitle ---
+      RADEON_DPM_PERF_LEVEL_ON_AC  = "auto";
+      RADEON_DPM_PERF_LEVEL_ON_BAT = "low";
 
       # --- ACPI Platform Profili ---
       PLATFORM_PROFILE_ON_AC  = "performance";
@@ -88,18 +110,22 @@ in
       RUN+="${pkgs.systemd}/bin/systemctl start --no-block power-display.service"
   '';
 
-  # Sistem servisi — sysfs backlight yazar (root, compositor bağımsız)
+  # Sistem servisi — boot'ta VE udev'de koşar (pille boot edilirse de uygulanır)
   systemd.services.power-display = {
-    description = "AC/BAT display brightness adaptation";
+    description = "AC/BAT display brightness + webcam adaptation";
+    wantedBy = [ "multi-user.target" ];
     serviceConfig = {
-      Type        = "oneshot";
-      ExecStart   = powerDisplayScript;
+      Type      = "oneshot";
+      ExecStart = powerDisplayScript;
     };
   };
 
-  # Kullanıcı servisi — Hyprland refresh rate (Phase 4'ten itibaren aktif)
+  # Kullanıcı servisi — Hyprland oturumu açılınca otomatik koşar (UWSM graphical-session)
   systemd.user.services.power-display-user = {
-    description = "AC/BAT Hyprland refresh rate adaptation";
+    description = "AC/BAT Hyprland refresh rate + render profile adaptation";
+    wantedBy = [ "graphical-session.target" ];
+    after    = [ "graphical-session.target" ];
+    partOf   = [ "graphical-session.target" ];
     serviceConfig = {
       Type      = "oneshot";
       ExecStart = powerDisplayUserScript;
