@@ -22,6 +22,11 @@
     "amd_pstate=active"            # Strix Point/Zen 5 EPP scaling
     "amdgpu.gfx_off=1"            # RDNA 3.5 iGPU sleep
     "amdgpu.abmlevel=4"           # eDP panel Auto Brightness Management (max seviye)
+    # PSR(0x10) + Stutter(0x2) AÇIK (maskede yok). 0x4000 = DC_FORCE_IPS_ENABLE:
+    # IPS1/IPS2'yi ekran açıkken de zorlar (Windows'un Krackan'daki ana tasarrufu).
+    # Ölçülen: config=6 iken ips1=ips2=0 → yalnız RCG çalışıyordu.
+    # DONMA olursa geri al: bu satırı sil (DCN35 Z8+IPS2 hang raporları mevcut).
+    "amdgpu.dcdebugmask=0x4000"
 
     # --- Enerji Verimliliği ---
     "nowatchdog"                   # NMI watchdog kapalı → wakeup azalır
