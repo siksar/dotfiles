@@ -13,6 +13,7 @@
     ./modules/hardware/gpu.nix
     ./modules/hardware/power.nix
     ./modules/hardware/tlp.nix
+    ./modules/hardware/gigabyte-wmi.nix
 
     # Desktop
     ./modules/desktop/sddm.nix
