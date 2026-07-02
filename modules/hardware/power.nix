@@ -10,6 +10,9 @@
   boot.kernelPackages = pkgs.linuxPackages_latest;
   boot.initrd.kernelModules = [ "amdgpu" ];
 
+  # NPU kullanılmıyor — amdxdna modülü yüklenmesin (lokal AI istenirse kaldır)
+  boot.blacklistedKernelModules = [ "amdxdna" ];
+
   # Plymouth quiet boot için log bastırma
   boot.consoleLogLevel = 0;
   boot.initrd.verbose  = false;
@@ -18,16 +21,15 @@
     # --- AMD GPU / CPU ---
     "amd_pstate=active"            # Strix Point/Zen 5 EPP scaling
     "amdgpu.gfx_off=1"            # RDNA 3.5 iGPU sleep
-    "amdgpu.abmlevel=3"           # eDP panel Auto Brightness Management
-    # NOT: amdgpu.dcdebugmask kaldırıldı → PSR(0x10) + Stutter(0x2) TAM AÇIK.
-    # Ekran-açık idle gücünü büyük ölçüde düşürür. Panel donarsa cerrahi fallback:
-    # "amdgpu.dcdebugmask=0x200" (yalnız PSR-SU kapalı, PSR1+stutter korunur).
+    "amdgpu.abmlevel=4"           # eDP panel Auto Brightness Management (max seviye)
 
     # --- Enerji Verimliliği ---
     "nowatchdog"                   # NMI watchdog kapalı → wakeup azalır
     "nmi_watchdog=0"               # aynı şeyin kernel param karşılığı
     "pcie_aspm=force"              # PCIe Active State PM → dGPU/WiFi/NVMe uykuya girebilir
     "pcie_aspm.policy=powersupersave" # en agresif ASPM politikası
+    "pcie_port_pm=force"           # PM'i reddeden PCIe köprülerde de runtime PM zorla
+    "workqueue.power_efficient=1"  # kworker'ları boşta çekirdeklere topla → daha derin C-state
     "mem_sleep_default=s2idle"     # Modern Standby (s2idle) tercih et
     # NOT: nvidia_drm.fbdev=1 kaldırıldı → dGPU fbcon tutmaz, D3cold'da kalıcı kalır.
     # Konsol fbdev'i zaten amdgpu'da (/proc/fb = amdgpudrmfb). dGPU idle'da uyur.
