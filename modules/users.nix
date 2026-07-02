@@ -8,7 +8,6 @@
     packages = with pkgs; [
       kdePackages.kate
       bitwarden-desktop
-      alacritty
       btop
       neovim
       nautilus

@@ -3,11 +3,19 @@
 {
   wayland.windowManager.hyprland.extraConfig = ''
     # --- Uygulamalar ---
-    bindd=SUPER, RETURN, Terminal, exec, alacritty
+    bindd=SUPER, RETURN, Terminal, exec, ghostty
     bindd=SUPER, F, File manager, exec, nautilus
     bindd=SUPER, B, Web browser, exec, firefox
-    bindd=SUPER, N, Neovim, exec, alacritty -e nvim
-    bindd=SUPER, SPACE, Launch apps, exec, rofi -show drun
+    bindd=SUPER, N, Neovim, exec, ghostty -e nvim
+    bindd=SUPER, SPACE, Launch apps, global, caelestia:launcher
+
+    # --- Caelestia Shell ---
+    bindd=SUPER, L, Lock screen, global, caelestia:lock
+    bindd=SUPER, X, Session menu, global, caelestia:session
+    bindd=SUPER, D, Dashboard, exec, caelestia shell drawers toggle dashboard
+    bindd=SUPER SHIFT, N, Notification sidebar, global, caelestia:sidebar
+    bindd=SUPER SHIFT, C, Clear notifications, global, caelestia:clearNotifs
+    bindd=SUPER CTRL SHIFT, R, Restart shell, exec, systemctl --user restart caelestia
 
     # --- Pencere Yönetimi ---
     bindd=SUPER, Q, Close window, killactive,
@@ -81,9 +89,6 @@
     bindd=SUPER, S, Toggle scratchpad, togglespecialworkspace, scratchpad
     bindd=SUPER ALT, S, Move window to scratchpad, movetoworkspacesilent, special:scratchpad
 
-    # --- Waybar ---
-    bindd=SUPER SHIFT, SPACE, Toggle top bar, exec, pkill -SIGUSR1 waybar
-
     # --- Ses (PipeWire / WirePlumber) ---
     bindeld=,XF86AudioRaiseVolume, Volume up, exec, wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 5%+
     bindeld=,XF86AudioLowerVolume, Volume down, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
@@ -92,24 +97,24 @@
     bindeld=ALT, XF86AudioRaiseVolume, Volume up precise, exec, wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 1%+
     bindeld=ALT, XF86AudioLowerVolume, Volume down precise, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 1%-
 
-    # --- Parlaklık (brightnessctl) ---
-    bindeld=,XF86MonBrightnessUp, Brightness up, exec, brightnessctl set +5%
-    bindeld=,XF86MonBrightnessDown, Brightness down, exec, brightnessctl set 5%-
+    # --- Parlaklık (Caelestia OSD'li; altta yine brightnessctl) ---
+    bindeld=,XF86MonBrightnessUp, Brightness up, global, caelestia:brightnessUp
+    bindeld=,XF86MonBrightnessDown, Brightness down, global, caelestia:brightnessDown
     bindeld=SHIFT, XF86MonBrightnessUp, Brightness maximum, exec, brightnessctl set 100%
     bindeld=SHIFT, XF86MonBrightnessDown, Brightness minimum, exec, brightnessctl set 1%
     bindeld=ALT, XF86MonBrightnessUp, Brightness up precise, exec, brightnessctl set +1%
     bindeld=ALT, XF86MonBrightnessDown, Brightness down precise, exec, brightnessctl set 1%-
 
-    # --- Ekran Görüntüsü (grim + slurp + wl-clipboard) ---
-    bindd=,PRINT, Screenshot region, exec, grim -g "$(slurp)" - | wl-copy
-    bindd=SHIFT, PRINT, Screenshot full, exec, grim ~/Pictures/screenshot-$(date +%Y%m%d-%H%M%S).png
+    # --- Ekran Görüntüsü (Caelestia: bölge seçimi + düzenleme) ---
+    bindd=,PRINT, Screenshot region, global, caelestia:screenshotFreeze
+    bindd=SHIFT, PRINT, Screenshot full, exec, caelestia screenshot
 
     # --- Kapak Anahtarı ---
     bindl=, switch:on:Lid Switch, exec, hyprctl dispatch dpms off eDP-1
     bindl=, switch:off:Lid Switch, exec, hyprctl dispatch dpms on eDP-1
 
     # --- Güç ---
-    bindld=, XF86PowerOff, Power menu, exec, systemctl poweroff
+    bindld=, XF86PowerOff, Power menu, global, caelestia:session
 
     # --- Fare ---
     bind=SUPER, mouse_down, workspace, e+1

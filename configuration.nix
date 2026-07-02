@@ -17,7 +17,6 @@
 
     # Desktop
     ./modules/desktop/sddm.nix
-    ./modules/desktop/theme.nix
     ./modules/desktop/stylix.nix
 
     # System
@@ -29,6 +28,9 @@
 
 
   programs.firefox.enable = true;
+
+  # Caelestia'nın GTK/ikon teması yazmaları (dconf write) için gerekli
+  programs.dconf.enable = true;
 
   # Hyprland — iGPU-only Wayland compositor (SDDM session + UWSM desteği)
   programs.hyprland = {
@@ -59,7 +61,6 @@
     gh
 
     # Hyprland araçları
-    rofi              # uygulama başlatıcı (SUPER+SPACE)
     brightnessctl     # klavye kısayoluyla parlaklık
     grim              # Wayland ekran görüntüsü
     slurp             # alan seçici (grim ile)

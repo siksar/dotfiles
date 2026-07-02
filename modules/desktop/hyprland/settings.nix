@@ -1,16 +1,13 @@
-{ osConfig, ... }:
+{ ... }:
 
-let
-  theme = osConfig.desktop.theme;
-in
 {
   wayland.windowManager.hyprland.extraConfig = ''
+    # --- Renk şeması (Caelestia canlı yazar; fallback: HM activation) ---
+    source = ~/.config/hypr/scheme/current.conf
+
     # --- Monitör ---
     monitor = eDP-1, 2560x1600@165, 0x0, 1
     monitor = , preferred, auto, 1
-
-    # --- Başlangıç ---
-    exec-once = waybar
 
     # --- Ortam Değişkenleri ---
     # iGPU-only: AQ_DRM_DEVICES = card1 (amdgpu). Nvidia env kaldırıldı.
@@ -32,8 +29,8 @@ in
       gaps_in = 5
       gaps_out = 10
       border_size = 2
-      col.active_border = ${theme.colors.activeBorder}
-      col.inactive_border = ${theme.colors.inactiveBorder}
+      col.active_border = rgba($primarye6)
+      col.inactive_border = rgba($onSurfaceVariant11)
       resize_on_border = false
       allow_tearing = false
       layout = dwindle
@@ -45,7 +42,7 @@ in
         enabled = true
         range = 2
         render_power = 3
-        color = rgba(1a1a1aee)
+        color = rgba($shadowee)
       }
       blur {
         enabled = true
@@ -63,10 +60,10 @@ in
     }
 
     group {
-      col.border_active = ${theme.colors.activeBorder}
-      col.border_inactive = ${theme.colors.inactiveBorder}
-      col.border_locked_active = ${theme.colors.activeBorder}
-      col.border_locked_inactive = ${theme.colors.inactiveBorder}
+      col.border_active = rgba($primarye6)
+      col.border_inactive = rgba($onSurfaceVariant11)
+      col.border_locked_active = rgba($tertiarye6)
+      col.border_locked_inactive = rgba($onSurfaceVariant11)
 
       groupbar {
         font_size = 12

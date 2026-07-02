@@ -3,8 +3,9 @@
 {
   imports = [
     ./modules/desktop/hyprland/default.nix
-    ./modules/desktop/waybar/default.nix
+    ./modules/desktop/caelestia/default.nix
     ./modules/desktop/caelestia/stylix-hm.nix
+    ./modules/desktop/ghostty.nix
   ];
 
   home.username      = "zixar";
