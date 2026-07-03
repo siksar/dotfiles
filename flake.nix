@@ -28,6 +28,10 @@
 
     # nixpkgs'te olmayan uygulamalar
     helium-browser.url = "github:oxcl/nix-flake-helium-browser";
+
+    # Yerel AI: NPU (XDNA2/FastFlowLM) + iGPU (Vulkan) + Lemonade sunucusu
+    # DİKKAT: nixpkgs follows EKLEME — binary cache hash'leri pinli nixpkgs'e göre
+    nix-amd-ai.url = "github:noamsto/nix-amd-ai";
     # claude-desktop artık resmî Linux .deb'inden yerel pakette:
     # modules/apps/claude-desktop-pkg.nix
   };

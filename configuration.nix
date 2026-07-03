@@ -22,6 +22,7 @@
 
     # Uygulamalar
     ./modules/apps/default.nix
+    ./modules/apps/local-ai.nix
 
     # System
     ./modules/networking.nix
