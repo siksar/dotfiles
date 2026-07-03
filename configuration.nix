@@ -18,6 +18,7 @@
     # Desktop
     ./modules/desktop/greetd.nix
     ./modules/desktop/stylix.nix
+    ./modules/desktop/firefox.nix
 
     # Uygulamalar
     ./modules/apps/default.nix
@@ -29,8 +30,6 @@
     ./modules/users.nix
   ];
 
-
-  programs.firefox.enable = true;
 
   # Caelestia'nın GTK/ikon teması yazmaları (dconf write) için gerekli
   programs.dconf.enable = true;

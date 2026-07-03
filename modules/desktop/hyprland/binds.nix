@@ -9,6 +9,9 @@
     bindd=SUPER, N, Neovim, exec, ghostty -e nvim
     bindrd=SUPER, SUPER_L, Launch apps, global, caelestia:launcher
 
+    # Copilot tuşu = Meta+Shift+F23 (libinput ile doğrulandı) → Claude Desktop
+    bindd=SUPER SHIFT, F23, Claude Desktop, exec, claude-desktop
+
     # --- Caelestia Shell ---
     bindd=SUPER, L, Lock screen, global, caelestia:lock
     bindd=SUPER, X, Session menu, global, caelestia:session

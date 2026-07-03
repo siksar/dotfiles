@@ -1,10 +1,24 @@
 # Caelestia — shell (bar/launcher/bildirim/kilit) + cli (runtime tema motoru)
 # Tema geçişi rebuild İSTEMEZ: launcher'da ">scheme " ile anlık değişir.
 # Şema seçimi ~/.local/state/caelestia/scheme.json'da kalıcıdır.
-{ inputs, lib, pkgs, ... }:
+{ inputs, lib, pkgs, config, ... }:
 
 let
   system = pkgs.stdenv.hostPlatform.system;
+
+  # Şema geçişi sonrası koşan hook:
+  # 1) tuigreet temasını yazar (greeter son temayla açılır)
+  # 2) pywalfox'u tetikler (Firefox canlı boyanır)
+  postHook = pkgs.writeShellScript "caelestia-post-hook" ''
+    if [ -w /var/cache/tuigreet/theme.conf ]; then
+      c() { printf '%s' "$SCHEME_COLOURS" | ${lib.getExe pkgs.jq} -r --arg k "$1" '.[$k]'; }
+      printf 'border=#%s;text=#%s;prompt=#%s;action=#%s;button=#%s;container=#%s;input=#%s' \
+        "$(c primary)" "$(c onSurface)" "$(c primary)" "$(c secondary)" \
+        "$(c primary)" "$(c surface)" "$(c surfaceContainerHigh)" \
+        > /var/cache/tuigreet/theme.conf
+    fi
+    ${pkgs.pywalfox-native}/bin/pywalfox update >/dev/null 2>&1 || true
+  '';
 
   # Discord istemcisi olarak Vesktop kullanılıyor.
   # Özel şemalar (schemes/*.txt) paket verisine gömülür — böylece
@@ -88,14 +102,64 @@ in
         enableZed = false;
         enablePandora = false;
         enableCava = false;
+        postHook = "${postHook}";
       };
     };
   };
 
+  # Pywalfox için pywal formatında renk template'i — şema geçişinde
+  # ~/.local/state/caelestia/theme/wal-colors.json olarak render edilir
+  xdg.configFile."caelestia/templates/wal-colors.json".text = ''
+    {
+      "special": {
+        "background": "#{{ background.hex }}",
+        "foreground": "#{{ onBackground.hex }}",
+        "cursor": "#{{ secondary.hex }}"
+      },
+      "colors": {
+        "color0": "#{{ term0.hex }}",
+        "color1": "#{{ term1.hex }}",
+        "color2": "#{{ term2.hex }}",
+        "color3": "#{{ term3.hex }}",
+        "color4": "#{{ term4.hex }}",
+        "color5": "#{{ term5.hex }}",
+        "color6": "#{{ term6.hex }}",
+        "color7": "#{{ term7.hex }}",
+        "color8": "#{{ term8.hex }}",
+        "color9": "#{{ term9.hex }}",
+        "color10": "#{{ term10.hex }}",
+        "color11": "#{{ term11.hex }}",
+        "color12": "#{{ term12.hex }}",
+        "color13": "#{{ term13.hex }}",
+        "color14": "#{{ term14.hex }}",
+        "color15": "#{{ term15.hex }}"
+      }
+    }
+  '';
+
+  # pywalfox render edilmiş dosyayı pywal yolundan okur
+  home.file.".cache/wal/colors.json".source =
+    config.lib.file.mkOutOfStoreSymlink
+      "${config.home.homeDirectory}/.local/state/caelestia/theme/wal-colors.json";
+
+  # Pywalfox native-messaging manifest'i (Firefox eklentisi ↔ pywalfox köprüsü)
+  home.file.".mozilla/native-messaging-hosts/pywalfox.json".text = builtins.toJSON {
+    name = "pywalfox";
+    description = "Pywalfox native host";
+    path = "${pkgs.writeShellScript "pywalfox-host" ''
+      exec ${pkgs.pywalfox-native}/bin/pywalfox start
+    ''}";
+    type = "stdio";
+    allowed_extensions = [ "pywalfox@frewacom.org" ];
+  };
+
+
   # Caelestia'nın dconf ile ayarladığı GTK/ikon temalarının paketleri
+  # + pywalfox CLI (debug için elle de çağrılabilir)
   home.packages = with pkgs; [
     adw-gtk3
     papirus-icon-theme
+    pywalfox-native
   ];
 
   # Launcher pano geçmişi
