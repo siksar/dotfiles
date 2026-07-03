@@ -6,6 +6,7 @@
     ./modules/desktop/caelestia/default.nix
     ./modules/desktop/caelestia/stylix-hm.nix
     ./modules/desktop/ghostty.nix
+    ./modules/desktop/shell.nix
     ./modules/apps/vesktop.nix
     ./modules/apps/helium.nix
     ./modules/apps/claude-desktop.nix

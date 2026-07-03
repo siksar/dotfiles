@@ -16,5 +16,6 @@
     vencord.enable = false;
     fuzzel.enable = false;    # caelestia fuzzel.ini'yi komple yazar
     waybar.enable = false;    # Faz 2'de waybar tamamen kalkıyor
+    starship.enable = false;  # prompt ANSI renk kullanır (shell.nix) — OSC ile canlı uyar
   };
 }
