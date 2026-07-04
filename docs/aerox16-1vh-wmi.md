@@ -53,12 +53,53 @@ sistemde Windows yok; ileride yeni SSD'ye kurulacak).
 5. Bonus: Windows'ta bir WMI izleme aracıyla (ör. WMIExplorer) fan ayarı
    değiştirirken çağrılan metod+parametrelerin gözlenmesi
 
-## Windows beklemeden yapılabilecekler
+## DSDT analizi — TAMAMLANDI (2026-07-04, read-only)
 
-- `acpidump` + `iasl` ile DSDT dökümü → WMBC/WMBD metodlarının ACPI
-  kaynağını okumak; fan curve payload formatı büyük ihtimalle DSDT'den
-  çözülebilir (EC register yazımları görünür). Orta zorlukta ama Windows'suz
-  en sağlam yol.
+DSDT döküldü ve WMBD/WMBC metodları çözüldü (dsl dökümü scratchpad'de
+üretildi; WMBD ~satır 9101, WMBC ~9525). Ana bulgular:
+
+### 1. Fan eğrisi 0x68 SADECE OKUMA — sürücünün yazma yolu çalışmaz
+EC alanları: `XFNR (8-bit, offset 0x5A)` = nokta index'i, `XFN1 (16-bit)` =
+temp/speed çifti. WMBD 0x68 `XFNR = Arg2` yapıyor — 8-bit alana yazım Arg2'yi
+BAYTA KIRPAR; sürücünün `payload = data<<8 | index` tahmininde data kısmı
+çöpe gider. Yani 0x68 hem WMBD hem WMBC'de "index seç + oku"dur.
+**WMBD'de eğri-noktası yazan HİÇBİR selector yok** → bu modelde özel eğri
+tablosu WMI'dan yazılamıyor; GCC'nin "custom" modu büyük ihtimalle
+TENF+FLVL/FDTY tabanlı (sabit duty), nokta tablosu değil.
+
+### 2. Gerçek fan düğmeleri (sürücüde eşlenmemiş!)
+| Selector | EC alanı | İşlev |
+|---|---|---|
+| 0x46 | FDTY+FAN1 | CPU fan duty doğrudan yazma (%) |
+| 0x47 | GDTY+FAN2 | GPU fan duty doğrudan yazma (%) |
+| 0x50 | FDTY | CPU fan duty (tek alan) |
+| 0x7D | TFAN | hedef fan? (haritalanmadı) |
+| 0x66 | FLVL | custom fan seviyesi (sürücüde fan_custom_speed) |
+| 0x67 | TENF | custom mod aç/kapa |
+
+### 3. dGPU güç limitleri (NVIDIA NPCF) — ince ayar mümkün!
+| Selector | Etki | Aralık |
+|---|---|---|
+| 0x4A | `NPCF.AMAT = Arg2*8` + Notify | 15-25 → 120-200 (W?) |
+| 0x4B | `PEGP.NLIM=1; LTGP=Arg2` + Notify | 75-87 (TGP W?) |
+| 0x4C | `NPCF.ACBT = Arg2*8` | 0-10 → 0-80 (boost W?) |
+
+`gpu_boost` (0x51) kaba kademe; bunlar watt-seviyesinde kontrol veriyor.
+
+### 4. Diğer ilginç selector'ler
+- **0xC9 → FNKS (1-bit!)**: "Fn Key Setting" — çıplak Fn davranışını EC
+  seviyesinde değiştirme adayı (hwdb fix'imize firmware alternatifi)
+- 0xC4 LCDO (LCD overdrive), 0xD9 KBAT (klavye aydınlatma zamanlayıcı?),
+  0x80 PL3E (güç limiti?), 0xF6 KBLL (kb backlight), 0x87/0x88/0xE7
+  (koşullu mantık — MUX/pil olabilir, çözülmedi)
+- WMBC ek okunabilirler: 0x6F, 0xA2, 0xE3, 0xEB, 0xEF (haritalanmadı)
+
+### Sonuç
+Windows/GCC verisi hâlâ değerli ama artık başka amaçla: eğri yazmak için
+DEĞİL (donanım desteklemiyor), GCC'nin 0x46/0x47/0x4A-0x4C selector'lerini
+hangi değerlerle kullandığını görmek için. "Yazılım fan eğrisi" istenirse
+Linux'ta hwmon sıcaklığı okuyup 0x46/0x47 duty yazan küçük bir servisle
+yapılabilir (deneme onayı alınarak).
 
 ## Uygulama planı (veri geldikten sonra)
 
