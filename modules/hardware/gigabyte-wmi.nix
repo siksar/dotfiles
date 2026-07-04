@@ -37,6 +37,15 @@ in
   boot.extraModulePackages = [ aorus-laptop ];
   boot.kernelModules = [ "aorus-laptop" ];
 
+  # Çıplak Fn tuşu F20 (HID usage 0x7006f) gönderiyor ve xkb bunu
+  # XF86AudioMicMute'a eşlediği için her Fn basışı mikrofonu aç/kapa
+  # yapıyordu (basılı tutunca tekrar bile ediyor). Kernel seviyesinde sustur.
+  # Dahili klavye: USB-HID 0414:8104 (GIGABYTE).
+  services.udev.extraHwdb = ''
+    evdev:input:b0003v0414p8104*
+     KEYBOARD_KEY_7006f=reserved
+  '';
+
   # AC/BAT'a göre fan modu + dGPU boost (tlp.nix'teki power-display deseniyle).
   # fan_mode: 0=normal 1=sessiz 2=oyun | gpu_boost: 0-3
   systemd.services.gigabyte-power-profile = {

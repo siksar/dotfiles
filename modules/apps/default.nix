@@ -11,6 +11,12 @@
     package = pkgs.mullvad-vpn;
   };
 
+  # LocalSend — yerel ağda dosya paylaşımı (firewall 53317'yi kendisi açar)
+  programs.localsend = {
+    enable = true;
+    openFirewall = true;
+  };
+
   environment.systemPackages = with pkgs; [
     # Netflix: Widevine'lı Chrome app-mode sarmalayıcısı (google-chrome getirir)
     netflix

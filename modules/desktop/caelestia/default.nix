@@ -149,6 +149,8 @@ in
       "${config.home.homeDirectory}/.local/state/caelestia/theme/wal-colors.json";
 
   # Pywalfox native-messaging manifest'i (Firefox eklentisi ↔ pywalfox köprüsü)
+  # force: `pywalfox install` üstüne yazarsa da deklaratif sürüm kazanır
+  home.file.".mozilla/native-messaging-hosts/pywalfox.json".force = true;
   home.file.".mozilla/native-messaging-hosts/pywalfox.json".text = builtins.toJSON {
     name = "pywalfox";
     description = "Pywalfox native host";

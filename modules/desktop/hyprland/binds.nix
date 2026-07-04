@@ -110,9 +110,12 @@ let
     (mkd "eld" "ALT" "XF86MonBrightnessUp" "Brightness up precise" "exec, brightnessctl set +1%")
     (mkd "eld" "ALT" "XF86MonBrightnessDown" "Brightness down precise" "exec, brightnessctl set 1%-")
 
-    # --- Ekran Görüntüsü (Fn+F11 = F20, libinput ile doğrulandı) ---
-    (mkd "d" "" "F20" "Screenshot region" "global, caelestia:screenshotFreeze")
+    # --- Ekran Görüntüsü ---
+    # NOT: F20 bind'ı kaldırıldı — F20'yi Fn+F11 değil ÇIPLAK Fn gönderiyormuş
+    # (hwdb ile susturuldu, bkz. gigabyte-wmi.nix). Bölge screenshot: PRINT
+    # veya SUPER+SHIFT+S.
     (mkd "d" "" "PRINT" "Screenshot region" "global, caelestia:screenshotFreeze")
+    (mkd "d" "SUPER SHIFT" "S" "Screenshot region" "global, caelestia:screenshotFreeze")
     (mkd "d" "SHIFT" "PRINT" "Screenshot full" "exec, caelestia screenshot")
 
     # --- Kapak Anahtarı ---
