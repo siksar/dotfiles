@@ -69,6 +69,12 @@ in
     systemd.enable = true;
 
     settings = {
+      # Shell yüzeylerinde hafif saydamlık (bar, launcher, dashboard...)
+      appearance.transparency = {
+        enabled = true;
+        base = 0.85;
+        layers = 0.4;
+      };
       general.apps.terminal = [ "ghostty" ];
       general.idle = {
         lockBeforeSleep = true;

@@ -33,9 +33,10 @@
       };
     };
 
+    # Klasik macOS oku (apple-cursor)
     cursor = {
-      package = pkgs.bibata-cursors;
-      name = "Bibata-Modern-Classic";
+      package = pkgs.apple-cursor;
+      name = "macOS";
       size = 24;
     };
 

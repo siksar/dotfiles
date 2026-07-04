@@ -37,7 +37,10 @@
     }
 
     decoration {
-      rounding = 0
+      rounding = 15
+      # Hafif saydamlık (blur ignore_opacity ile birlikte cam efekti verir)
+      active_opacity = 0.97
+      inactive_opacity = 0.92
       shadow {
         enabled = true
         range = 14
@@ -46,11 +49,11 @@
       }
       blur {
         enabled = true
-        size = 2
-        passes = 1
+        size = 8
+        passes = 2
+        ignore_opacity = true
         special = true
-        brightness = 0.60
-        contrast = 0.75
+        new_optimizations = true
       }
     }
 
