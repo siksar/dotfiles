@@ -8,7 +8,7 @@
     ./modules/desktop/ghostty.nix
     ./modules/desktop/shell.nix
     ./modules/apps/vesktop.nix
-    ./modules/apps/helium.nix
+    ./modules/apps/zen.nix
     ./modules/apps/claude-desktop.nix
     ./modules/apps/media.nix
   ];

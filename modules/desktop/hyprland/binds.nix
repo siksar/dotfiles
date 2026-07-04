@@ -8,6 +8,14 @@
     bindd=SUPER, B, Web browser, exec, firefox
     bindd=SUPER, N, Neovim, exec, ghostty -e nvim
     bindrd=SUPER, SUPER_L, Launch apps, global, caelestia:launcher
+    # SUPER basılıyken başka HERHANGİ bir tuş/tekerlek/tık → launcher iptali.
+    # (bindin: ignore-mods + non-consuming; shell launcherInterrupted bayrağını
+    # set eder, SUPER bırakılınca menü AÇILMAZ. Copilot=Meta+Shift+F23 dahil.)
+    bindin = SUPER, catchall, global, caelestia:launcherInterrupt
+    bindn = SUPER, mouse_down, global, caelestia:launcherInterrupt
+    bindn = SUPER, mouse_up, global, caelestia:launcherInterrupt
+    bindn = SUPER, mouse:272, global, caelestia:launcherInterrupt
+    bindn = SUPER, mouse:273, global, caelestia:launcherInterrupt
 
     # Copilot tuşu = Meta+Shift+F23 (libinput ile doğrulandı) → Claude Desktop
     bindd=SUPER SHIFT, F23, Claude Desktop, exec, claude-desktop

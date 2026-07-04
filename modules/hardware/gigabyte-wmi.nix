@@ -37,6 +37,34 @@ in
   boot.extraModulePackages = [ aorus-laptop ];
   boot.kernelModules = [ "aorus-laptop" ];
 
+  # AC/BAT'a göre fan modu + dGPU boost (tlp.nix'teki power-display deseniyle).
+  # fan_mode: 0=normal 1=sessiz 2=oyun | gpu_boost: 0-3
+  systemd.services.gigabyte-power-profile = {
+    description = "AC/BAT fan modu + GPU boost (aorus-laptop WMI)";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "systemd-modules-load.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = pkgs.writeShellScript "gigabyte-power-profile" ''
+        P=/sys/devices/platform/aorus_laptop
+        [ -d "$P" ] || exit 0
+        AC=$(cat /sys/class/power_supply/ACAD/online 2>/dev/null || echo 1)
+        if [ "$AC" = "0" ]; then
+          echo 1 > "$P/fan_mode"   # sessiz
+          echo 0 > "$P/gpu_boost"
+        else
+          echo 0 > "$P/fan_mode"   # normal (EC eğrisi yük ile zaten yükselir)
+          echo 2 > "$P/gpu_boost"
+        fi
+      '';
+    };
+  };
+
+  services.udev.extraRules = ''
+    ACTION=="change", SUBSYSTEM=="power_supply", KERNEL=="ACAD", \
+      RUN+="${pkgs.systemd}/bin/systemctl start --no-block gigabyte-power-profile.service"
+  '';
+
   # Şarj limiti %80 (pil ömrü) — EC'nin reboot sonrası hatırlaması garanti değil,
   # her boot'ta yeniden uygula. charge_limit yalnız custom charge_mode'da (1) çalışır.
   systemd.services.gigabyte-charge-limit = {
