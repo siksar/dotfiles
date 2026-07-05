@@ -14,6 +14,9 @@
     open           = true; # Blackwell dGPU open source driver modules
     nvidiaSettings = true;
     package        = config.boot.kernelPackages.nvidiaPackages.latest;
+    # nvidia-powerd: NPCF.ACBT bütçesini okuyup GPU tavanını 50W→75W+'a
+    # çıkarır (Dynamic Boost). ACBT'yi gigabyte-power-profile yazar (0x4C).
+    dynamicBoost.enable = true;
     powerManagement = {
       enable      = true;
       finegrained = true;
