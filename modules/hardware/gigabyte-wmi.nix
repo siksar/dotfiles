@@ -34,8 +34,10 @@ let
   };
 in
 {
-  boot.extraModulePackages = [ aorus-laptop ];
-  boot.kernelModules = [ "aorus-laptop" ];
+  # GEÇİCİ (fan testi, 2026-07-05): ham WMBD çağrıları için acpi_call —
+  # 0x46/0x47 (FDTY/GDTY doğrudan duty) ve 0x7D (TFAN) denemeleri bitince kaldır.
+  boot.extraModulePackages = [ aorus-laptop config.boot.kernelPackages.acpi_call ];
+  boot.kernelModules = [ "aorus-laptop" "acpi_call" ];
 
   # Çıplak Fn tuşu F20 (HID usage 0x7006f) gönderiyor ve xkb bunu
   # XF86AudioMicMute'a eşlediği için her Fn basışı mikrofonu aç/kapa
