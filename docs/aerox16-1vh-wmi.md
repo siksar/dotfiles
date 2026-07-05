@@ -28,9 +28,11 @@ Ayrıntı: "Canlı test sonuçları" bölümü.
 
 ## Şu an Linux'ta çalışanlar
 
-- `fan_mode`: 0=normal, 1=sessiz, 2=oyun, 3=custom, 4=auto-max, 5=fixed
-  → `gigabyte-power-profile` servisi AC'de 0, pilde 1 yapıyor (udev ACAD tetikli)
-- `gpu_boost`: 0-3 (WMI `GPU_QBOOST` 0x51) → AC'de 2, pilde 0
+- `fan_mode`: 0=normal, 1=sessiz, 2=oyun, 3=custom(ölü), 4/5(ölü)
+  → `gigabyte-power-profile` AC'de 2 (oyun), pilde 1 (udev ACAD + resume tetikli)
+- dGPU Dynamic Boost: acpi_call `WMBD 0x4C` → AC'de ACBT=80W (+
+  `nvidia-powerd` ile GPU tavanı 50→75W+), pilde 0. (`gpu_boost`/0x51
+  KULLANILMIYOR: 2=no-op, 3=dGPU eject, 1=LCBT(0) — işlevsiz)
 - `charge_mode`/`charge_limit`: custom(1) + %80 (boot'ta servisle)
 - hwmon: 4× fan RPM + 3× sıcaklık (`sensors`, btop, Caelestia dashboard)
 - Fn tuşu düzeltmesi: çıplak Fn = F20 (HID 0x7006f) → hwdb `reserved`
@@ -376,21 +378,78 @@ Okumalar:
 - EC duty geçişleri yavaş/histerezisli (~30-60 sn oturma; skin sensörü
   SKTC etkili olabilir — SKTC okuması ara ara 0 dönüyor, güvenilmez).
 
+### Mod geçişi NASIL çalışıyor? (mekanizma, 2026-07-05)
+
+WMI mod selector'leri fan değeri yazmıyor; PECM 0x2C'deki İSTEK bitlerini
+çeviriyor. Ölçülen doğruluk tablosu (WMBC geri-okuma):
+
+| Mod | CRAF(0x57) | TENF(0x67) | ADJF(0x6A) | FANB(0x71) |
+|---|---|---|---|---|
+| 0/1 | 1* | 0 | 0 | 0 |
+| 2 | 1* | 0 | 0 | **1** |
+| 3 | 1* | **1** | 0 | 0 |
+| 5 | 1* | **1** | **1** | 0 |
+
+- EC firmware bitleri poll edip KENDİ ROM tablolarından birini seçiyor:
+  FANB→oyun tablosu, (0x57 yazma olayı)→sessiz tablosu, hiçbiri→normal.
+- TENF/ADJF bitleri yazılıyor ve kalıcı ama bu firmware build'inde tüketici
+  kodu yok → custom/fixed ölü. Değer taşıyan register'lar (XFNW, FLVL,
+  FAN1/2, FDTY/GDTY) da aynı sebeple etkisiz.
+- (*) CRAF her modda 1: EC'nin sahiplendiği durum biti; host'un 0 yazması
+  kalıcı olmuyor. Sessiz↔normal farkı ölçüldüğüne göre 0x57 yazımı
+  kenar-tetikli komut gibi işleniyor (bit seviyesi değil).
+
+## Faz D+E sonuçları — dGPU güç zinciri ÇÖZÜLDÜ + FNKS sürprizi (2026-07-05)
+
+### dGPU: +25W Dynamic Boost kilidi açıldı 🎯
+- Taban: RTX 5060 tavanı **50 W'ta sıkışık** (Min 5 / Max 85); `nvidia-powerd`
+  yok; NPCF.ACBT (boost bütçesi) = **0** çünkü GCC'nin boot init'i (0xED)
+  Linux'ta hiç koşmuyor.
+- **Çalışan zincir:** `WMBD 0x4C 10` → NPCF.ACBT=0x50 (80 W) → `nvidia-powerd`
+  başlat → **Current Power Limit 50 → 75 W** (dinamik, yükle 85'e kadar).
+  Kalıcılaştırma: acpi_call + boot/AC-geçiş yazması + `hardware.nvidia.
+  dynamicBoost.enable`.
+- **BIOS yazım hatası keşfi:** `PEGP.GPS` metodu `\_SB.PC00.AMW0.LTGP` arıyor
+  (doğrusu PCI0!) → GPS/_DSM her dGPU uyanışında AE_NOT_FOUND ile çöküyor
+  (dmesg'de NVRM PSHAREPARAMS hatası). Bu yüzden: **0x4B (TGP) tamamen ölü**,
+  0x4A (AMAT) yazılsa da GPS üzerinden tüketilemiyor. NVPCF yolu (ACBT/DBAC)
+  sağlam — powerd o yoldan çalışıyor. Olası ileri proje: initrd DSDT override
+  ile PC00→PCI0 düzeltmesi (GPS onarımı; NVRM log kirliliği de biter).
+- `gpu_boost` (0x51) gerçeği: arg1 = `ACBT=LCBT` ama Linux'ta LCBT=0 →
+  gpu_boost 1 de İŞE YARAMAZ; servisteki AC=2 zaten no-op. Doğru araç 0x4C.
+- NPCF durumu (acpi_call ile okunabilir): ATPP=0x168(360), AMAT=0x78(120),
+  DBAC/DBDC=0. 0x4A-0x4C'nin Get'i yok; `\_SB.NPCF.<alan>` doğrudan okunuyor.
+
+### FNKS (0xC9): "Fn ayarı" değil — DAHİLİ KLAVYE ANA ŞALTERİ
+FNKS=0 → dahili klavye USB'de kalıyor ama TÜM raporlar kesiliyor ('a' dahil;
+hidraw ham yakalama ile kanıtlı). FNKS=1 → anında geri. Çıplak Fn/F20
+davranışını DEĞİŞTİRMİYOR (hwdb fix'i yerinde kalıyor). Kullanım fikri:
+harici klavye modu / temizlik kilidi. WMBC 0xC9'dan okunabilir, kalıcı test
+edilmedi (muhtemelen reboot'ta 1'e döner).
+
+### Yan gözlem
+Çıplak Fn basımında hidraw2'de consumer-page olayları da görüldü (mute/vol
+kodları) — Fn'in ikincil rapor kanalı olabilir, derinleşilmedi.
+
 ## Uygulama planı
 
-1. ~~Eğri canlı testi~~ YAPILDI (2026-07-05): tüm override yolları ölü;
-   yalnız preset modlar çalışıyor. Eğri projesi Windows yakalamasına ertelendi.
-2. **gpu_boost düzeltmesi**: 0x51'e AC'de 2 yazmak no-op (DSDT'de case yok);
-   pilde 0 sonrası boost'u geri açan yok → AC'de 1 yazılmalı. Faz D'de
-   nvidia-smi ile doğrulanıp `gigabyte-power-profile`'a işlenecek.
-3. **Faz D — dGPU watt testi (0x4A-0x4C, acpi_call)**: oyun kapalıyken,
-   her yazma tek tek onaylı, nvidia-smi ile alan eşleşmesi; kalıcılaştırma yok.
-4. **Faz E — FNKS (0xC9) testi**: WMBC ile oku → tersini yaz → libinput ile
-   çıplak Fn gözle → geri al. hwdb fix'i yerinde kalıyor.
+TAMAMLANDI (2026-07-05): eğri testi (ölü), preset karakterizasyonu, mod
+mekanizması, Faz D (dGPU boost zinciri çözüldü + KALICI yapıldı: AC'de
+fan_mode 2 + ACBT 80W + nvidia-powerd), Faz E (FNKS=klavye ana şalteri),
+upstream taslağı (`docs/upstream-gigabyte-wmi-report.md`), acpi_call kalıcı.
+
+### Gelecek işler (kullanıcı onaylı, ayrı oturumlar)
+1. **DSDT override projesi**: initrd ACPI override ile `PEGP.GPS`'teki
+   PC00→PCI0 yazım hatasını düzelt → GPS/PSHAREPARAMS onarımı, NVRM log
+   temizliği, belki 0x4A/0x4B canlanır. (iasl yeniden derleme riski: orta)
+2. **FNKS klavye kilidi aracı**: dahili klavyeyi kapat/aç komutu
+   (WMBD 0xC9 0/1) — harici klavye modu / temizlik kilidi.
+3. **0xF1-F3 CPU watt deneyleri**: SPL/SPPT/FPPT'yi EC'den ayarla (mW
+   hassasiyet), RAPL/ryzen_smu ile doğrula; sessiz/serin profillere malzeme.
+4. **Fn+F9 touchpad toggle**: Windows'ta çalışıyordu, Linux'ta işlevsiz —
+   tuş olayını yakala (hidraw2 consumer kanalı şüpheli) ve Hyprland'de
+   touchpad enable/disable'a bağla.
 5. Windows kurulunca: GCC'nin fan kanalını yakala (RWEverything/WMIExplorer,
-   ERCD komutlarına odaklan), preset eğri değerlerini ve 0x4A-0x4C/0xF1-0xF3
-   kullanımını referans al; EC çipini HWiNFO ile kesinleştir.
-6. Upstream raporu: `docs/upstream-gigabyte-wmi-report.md` (issue taslağı) —
-   byte-swap RPM bug'ı, ölü fan yolları (Issue #35 ailesi), 0x51 tehlikesi
-   (3 = dGPU eject!), MOF ad düzeltmeleri, model çalışıyor raporu.
-7. acpi_call GEÇİCİ — Faz D/E sonrası kaldır/kalıcılaştır kararı kullanıcıda.
+   ERCD komutlarına odaklan); preset eğri ve 0xED/0xF1-F3 kullanım
+   değerlerini referans al; EC çipini HWiNFO ile kesinleştir.
+6. Upstream issue'yu gönder (taslak hazır).
