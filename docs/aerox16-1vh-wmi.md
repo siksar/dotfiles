@@ -347,6 +347,35 @@ Ek bulgular:
 - Test için eklenen **acpi_call GEÇİCİ** (gigabyte-wmi.nix'te işaretli) —
   Faz D/E bitince kaldırılıp kaldırılmayacağı sorulacak.
 
+## Preset mod eğrileri — ölçülmüş karakterizasyon (2026-07-05)
+
+Kullanıcı gözlemi ("oyunda mod değişince davranış değişiyor") doğrulandı;
+soğuma taraması + sabit yük noktalarıyla üç modun gerçek eğrisi çıkarıldı
+(değerler FDTY/GDTY duty% — EC'nin kendi PWM çıkışları; RPM ≈ duty×~110):
+
+| CPU °C | Mod 0 normal | Mod 1 sessiz | Mod 2 oyun |
+|---|---|---|---|
+| <48 | 0/0 (fan-stop) | 0/0 (fan-stop) | 0/0 |
+| 48-49 | 16/15 | 16/16 | 0/0 (**fan-stop ≤53-54'e kadar!**) |
+| 50-59 | 19-20/20 | **16/16** (58°C'de 18/17) | 54-55°C: 16/16 |
+| ~83 | 21/23 | 21/23 | **28/32** |
+| 95 (tavan) | 21-24/23-27 | 21-23/23-27 | **32-33/35** |
+
+Okumalar:
+- **Sessiz vs normal fark yalnız ~50-60°C bandında** (%16 vs %19-20 ≈
+  1880/1900 vs 2160-2330 RPM — duyulur); ≥~80°C'de birleşiyorlar.
+  Pilde mod 1 tercihi doğruymuş.
+- **Oyun modu iki uçta da farklı:** ≤53°C fan-stop (normalden GEÇ susmuyor,
+  erken susuyor → hafif kullanımda EN sessiz mod!) ve ≥~70°C'de +7-12 puan
+  agresif. 55-65°C bandında da normalden sessiz/eşit. AC profili için güçlü
+  aday.
+- **Hiçbir mod %35 duty üstüne çıkmıyor**; EC her modda CPU'yu 95°C SMU
+  tavanında bırakıyor (2 çekirdek yük bile tavana dayanıyor). Fanların
+  gerçek kapasitesi (%100 duty) hiç kullanılmıyor — GCC'nin custom
+  eğrisinin değeri de burada olacak.
+- EC duty geçişleri yavaş/histerezisli (~30-60 sn oturma; skin sensörü
+  SKTC etkili olabilir — SKTC okuması ara ara 0 dönüyor, güvenilmez).
+
 ## Uygulama planı
 
 1. ~~Eğri canlı testi~~ YAPILDI (2026-07-05): tüm override yolları ölü;
