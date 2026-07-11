@@ -192,10 +192,13 @@ reproduce from a clean state every time (idle, fans at 0 RPM, so any spin-up is 
 override; tested on battery and AC):
 
 - `fan_custom_speed` (0x6B) is written and reads back correctly from the EC, but
-  **the EC's fixed mode ignores it**: entering `fan_mode 5` ramps both fans to max
-  (~6900 RPM; duty telemetry briefly reads 100) whether the register holds 10, 25,
-  50 or 229. Changing it while inside mode 5 does nothing either. So on this
-  firmware "fixed speed" is effectively a max-blast toggle, exactly as you said.
+  **the EC's fixed mode ignores it**. Full sweep: for each value 10, 20, … 100 I
+  exited to `fan_mode 0`, let the fans stop, wrote the value, re-entered mode 5 and
+  sampled after 10 s — every single value lands in the same ~6500-6900 RPM max band
+  (duty telemetry 84-86), zero correlation with the register (which faithfully reads
+  back each value). Changing it while inside mode 5 does nothing either. So on this
+  firmware "fixed speed" is effectively a max-blast toggle, exactly as you said —
+  including at 50%.
 - What fooled me: the EC's duty telemetry (WMBC `0x46`/`0x47`) is a slow, filtered
   value — after the max ramp it decays 100→94→88→87 over ~20 s. My two test values
   (229, then 90) were read at different points of that decay (6800 vs 6400 RPM),

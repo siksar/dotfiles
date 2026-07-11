@@ -536,6 +536,8 @@ fanlar 0 RPM, pil; yamalı modül canlı — srcversion 1B10..., "Newer model de
 | Deney | Sonuç |
 |---|---|
 | E1: cs=50 ÖNCE yaz → mod 5 | Duty 0→**100** → ~6900 RPM (max). FAN1 değeri OKUNMUYOR |
+| E7: TAM TARAMA cs=10..100 (onar, her değerde temiz 0→5 girişi) | HEPSİ aynı: ~6500-6900 RPM, FDTY 84-86. Değer↔RPM korelasyonu SIFIR |
+| E8: E7 tekrarı, her değerde 20 sn / 2 sn'de 1 örnek (10 örnek × 10 değer) | Desen HER cs için birebir aynı: t=2s'de ~5900, t=4-6s'de tepe ~6900-7300 (ilk hızlanma sıçraması), t=20s'ye kadar ~6250-6520'ye oturuyor. cs=10 ile cs=100 arasında fark YOK — sayı değil, "mod 5'e giriş" tetikliyor. Tam log: `/tmp/.../scratchpad/fanlog/sweep2.txt` |
 | E2: mod 5 içinde cs=25 | Max devam (mod içi değişim de etkisiz) |
 | E3: mod 5 → 0 çıkışı | Fanlar 0, bitler temiz (çıkış sağlam) |
 | E4: TEMİZ mod 3 | Hiçbir şey — TENF tek başına etkisiz (eğri zaten ölü) |
