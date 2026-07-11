@@ -560,3 +560,67 @@ fanlar 0 RPM, pil; yamalı modül canlı — srcversion 1B10..., "Newer model de
 - Konfig etkisi: Süper+M döngüsündeki "Turbo" (mod 5) etiketi fiilen DOĞRU (max
   demek); cs yazmak anlamsız. **Mod 4 hiçbir otomasyonda kullanılmamalı** (fan
   kapatma davranışı). Döngü 5→0 çıkışı temiz (E3).
+## EC iç RAM araştırması — ERCD komut kanalı KAPALI ÇIKTI (2026-07-11)
+
+Kullanıcı sorusu: "neden custom fan speed ayarlanamıyor / neden turboya
+kilitleniyor". Kök neden araştırması: WMI'nin yazdığı her şey (ADJF, FAN1,
+XFNW, FLVL) yalnızca **eSPI paylaşımlı bellek AYNASI** (PECM @ 0xFC7E0800).
+EC'nin gerçek fan karar döngüsü bu aynayı okumuyor (E1-E8'de zaten kanıtlı).
+Daha derin bir yol var mı diye DSDT'de EC'nin **iç RAM'ine** erişen ayrı bir
+komut kanalı bulundu: `ERCD` mailbox metodu (`\_SB.PCI0.SBRG.EC0.ERCD`,
+dsdt.dsl:8485) — `ERRD(addr)` (opcode 0xB0, salt-okuma) ve `ERWT(addr,val)`
+(opcode 0xB1, yazma) sarmalayıcılarıyla. Bu, WMI'nin hiç dokunmadığı,
+donanıma daha yakın bir katman.
+
+### Referans harita denendi — TUTMADI
+nbfc `Gigabyte Aero16.json` + a15kb (Aorus 15, ITE EC) ikisi de aynı ITE iç
+RAM reçetesini veriyor: `0x0D.7`=custom-on, `0x06.4`=fixed-submode,
+`0x08.6`=eco-kapat, `0xB0`/`0xB1`=fan1/fan2 duty (0-229). Bu adresler bizim
+makinede **sıcaklık aynası** çıktı: `0xB0/0xB1/0xB4` idle/oyun/turbo'da
+51→51→48-49 okundu — yani turbo fanların soğutma etkisiyle DÜŞÜYOR, duty
+değil. 2019-nesli Intel-EC haritası bu 2025 AMD/eSPI çipe taşınmıyor
+(genel port-EC uyarısı zaten dokümandaydı; şimdi ERCD kanalı için de geçerli
+olduğu kanıtlandı).
+
+### Tam 256 bayt diff (idle/oyun/turbo) — 7 değişen bayt, hiçbiri "duty kontrolü" değil
+`0x00-0xFF` tam dökümü üç durumda alınıp karşılıklı diff'lendi. Değişen
+tek adresler: `0x13,0x14,0x15,0x16,0x25,0x26,0x2C`. `0x25`/`0x26` zaten
+bildiğimiz FDTY/GDTY duty-yüzdesiyle (21→84, 24→85) neredeyse birebir
+örtüşüyor → bunlar **EC'nin kendi hesapladığı çıktının bir başka aynası**,
+host'un yazacağı bir girdi değil.
+
+### İzole yazma testleri — SONUÇ TUTARSIZ (kontrol edilebilir DEĞİL)
+`0x2C`/`0x14`/`0x16` hedef alındı (en "durum bayrağı"ymış gibi duran adaylar):
+- **1. deneme (bileşik, art arda):** `0x2C=0x0C` yazımı idle RPM'i (2380/2654)
+  anında turbo'ya (6500-7300) fırlattı, **10+ sn boyunca kendiliğinden
+  düzelmedi** (FDTY'nin ~20 sn'de kendini toparlamasından farklı davranış).
+  `fan_mode` sysfs yazması (0→1) da baytları sıfırlamadı; RPM ancak mod 1
+  (sessiz)'in kendi override'ıyla susturuldu. Baytı elle `0x00`'a geri
+  yazmak + mod 0 → **temiz 18 sn idle** ile tam kurtarma doğrulandı.
+- **2. deneme (temiz, tek-değişkenli, minimal değer):** AYNI üç bayta
+  ayrı ayrı `değer=1` yazmak **turbo TETİKLEMEDİ** (0x2C=1 hatta RPM'i
+  düşürdü; 0x14/0x16=1 ihmal edilebilir etki). Temizlik sonrası `0x16`
+  benim yazdığım 0'da KALMADI, kendiliğinden 7'ye kaydı — **EC bu baytın
+  üstüne kendi döngüsünde hâlâ yazıyor**.
+
+**Yorum:** Bu baytlar host'un dial edeceği bir "duty ayarla" register'ı
+DEĞİL — EC'nin kendi hesapladığı telemetri/durum bayrakları. Üstüne yazmak
+bazen etkisiz, bazen (muhtemelen EC'nin kendi güncelleme döngüsüyle yazma
+anının çakışmasından) geçici ve öngörülemez bir "maksimum soğutmaya kaç"
+tepkisi tetikliyor — güvenlik açısından İYİ huylu yön (EC şüpheli durumda
+AZ değil ÇOK soğutmayı seçiyor, termal risk yaratmıyor) ama **kontrol
+kanalı olarak KULLANILAMAZ** (deterministik değil).
+
+### Sonuç — ERCD/iç RAM yolu KAPALI, Faz 3 (entegrasyon) İPTAL
+Generic peek/poke komutu (opcode 0xB0/0xB1) GCC'nin kullandığı gerçek fan
+setpoint arayüzü DEĞİL. DSDT'de tek "semantik, adrese değil anlama göre
+yazan" komut CPU güç limitleri içindi (0x45/ECPT, bkz. 0xF1-F3). Fan için
+böyle özel bir opcode DSDT'de görünmüyor — GCC muhtemelen ya farklı/
+keşfedilmemiş bir ERCD opcode'u ya da ERCD'nin tamamen dışında bir yol
+(SMBus'a bağlı ayrı bir fan kontrolcüsü çipi, ESMC/SBAT ailesi — kapsam
+dışı bırakıldı) kullanıyor. **NixOS'a fan-set aracı EKLENMEDİ** — bu kanal
+güvenilmez/riskli. Gerçek yol hâlâ yalnız Windows/GCC trafik yakalaması.
+
+Test sırasında sistem her an güvendeydi (sıcaklık 44-48°C bandında,
+termal risk sıfır); tek yan etki geçici gereksiz fan gürültüsüydü, mod 1
+(sessiz)'e geçişle anında ve güvenilir şekilde susturuldu.
