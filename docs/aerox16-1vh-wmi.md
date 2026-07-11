@@ -624,3 +624,52 @@ güvenilmez/riskli. Gerçek yol hâlâ yalnız Windows/GCC trafik yakalaması.
 Test sırasında sistem her an güvendeydi (sıcaklık 44-48°C bandında,
 termal risk sıfır); tek yan etki geçici gereksiz fan gürültüsüydü, mod 1
 (sessiz)'e geçişle anında ve güvenilir şekilde susturuldu.
+
+## Tam ACPI taraması — "BIOS'a özel mesajlar" hipotezi test edildi (2026-07-11)
+
+Kullanıcı itirazı: turbo kilidi/duty'nin yok sayılması EC'nin BIOS'a özel
+mesajlar yolladığı bambaşka bir yoldan olabilir, bunlar da araştırılmalı.
+Haklı bir itiraz — önceki tur yalnız DSDT'ye bakmıştı; **33 SSDT hiç
+incelenmemişti**. Hepsi çıkarılıp (`iasl`/`acpixtract`, salt-okuma)
+decompile edildi ve fan/thermal/GPU-power açısından tarandı.
+
+### Bulgular
+1. **`ThermalZone TZ01` var (SSDT22, "THERMAL0")** ama yalnız **pasif**
+   soğutma tanımlı (`_PSL` → 24 CPU çekirdeği throttle listesi). `_AC0`-
+   `_AC9` (aktif/fan soğutma) YOK. Windows'un native ACPI thermal
+   driver'ı bile bu laptopta fanı kontrol etmiyor — bu hipotez de elendi.
+2. **`ERCD` mailbox gerçekten çok-amaçlı bir dispatcher** — SSDT4
+   (USB-C/UCSI tablosu) aynı kanalı **opcode 0x59** ile kullanıyor
+   (bildiğimiz 0xB0 RAM-oku/0xB1 RAM-yaz/0x45 CPU-watt'a ek üçüncü
+   opcode). Ama fan'a özel bir opcode hiçbir ACPI/SSDT kodunda
+   çağrılmıyor — varsa yalnız Windows sürücüsü doğrudan bilir.
+3. **NVIDIA'nın İKİ resmi arayüzü de tam okundu:**
+   - Eski `PEGP.GPS` (`\_SB.PCI0.GPP9.PEGP.GPS`, SSDT9): `GPSP` buffer'ında
+     `SFAN` (offset 0x10, muhtemelen "fan RPM'i GPU sürücüsüne bildir")
+     alanı var — ama **hiçbir ASL kodu SFAN'a yazmıyor**, sürekli 0.
+     Ayrıca bu metodun `PSH0=2` dalı bizim zaten bildiğimiz PC00/PCI0
+     yazım hatasını (`TGPU = \_SB.PC00.AMW0.LTGP`) içeriyor — 0x4B/TGP
+     ölümünün ikinci kanıtı.
+   - Modern `NPCF._DSM` → `NPCF()` metodu (Dynamic Boost, UUID
+     `36b49710-2483-11e7-9598-0800200c9a66`): 6 alt-fonksiyon (0-5) tam
+     okundu — TGPA/TGPD/MAGA/MIGA/CUSL/CUCT hepsi CPU/GPU watt bütçesi;
+     **fan'la hiçbir ilgisi yok**, SFAN'dan bahsetmiyor bile.
+4. **4. WMI GUID çözüldü:** Canlı sistemde `ABBC0F6C/6F/72/75` kayıtlı
+   (doc'ta yalnız 3'ü izleniyordu). `_WDG` tablosu byte-byte decode
+   edildi: `6C`→ObjectID "AC"→zaten bilinen `WQAC` (sabit 1 döndüren
+   taslak), `6F`→"BC"→`WMBC`, `75`→"BD"→`WMBD`, **`72`→Flags=Event
+   (Method/Data DEĞİL)**→bilinen `Notify(AMW0,0xD2)` dock/donanım-
+   değişikliği kanalı. Gizli 5. sınıf yok — 4'ü de zaten haritalıydı.
+
+### Sonuç
+34 ACPI tablosunun (DSDT + 33 SSDT) TAMAMI artık taranmış durumda. BIOS'un
+gerçekten çok-kanallı bir mesaj mimarisi var (ERCD çok-opcode'lu, iki ayrı
+NVIDIA _DSM arayüzü, WMI event kanalı) — kullanıcının sezgisi bu noktada
+doğruydu ve önceki turun taşımadığı gerçek yapıyı ortaya çıkardı. Ama fan
+eğrisi/duty için kullanılan mesaj **ACPI'nin hiçbir köşesinde görünmüyor**.
+İki olasılık kalıyor: (a) GCC'nin Windows sürücüsü ERCD'ye ACPI-dışı,
+doğrudan bir opcode ile gidiyor (bizim göremediğimiz), (b) EC'ye tamamen
+ACPI-dışı bir yoldan (ham SMBus/port I/O) erişiyor. İkisi de yalnız
+Windows tarafında trafik yakalamayla (RWEverything/WMIExplorer, plandaki
+mevcut adım) çözülebilir — NixOS/Linux tarafında ACPI-görünür başka
+keşfedilecek yol kalmadı.
