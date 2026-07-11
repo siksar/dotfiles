@@ -7,6 +7,10 @@
 
 ---
 
+> **Disclosure:** this investigation and write-up were produced with AI assistance
+> (Claude). The findings are from real measurements on my machine, but please take them
+> as a starting point and verify anything you'd act on.
+
 The driver already binds on this machine — the `GIGABYTE AERO` family is in
 `gigabyte_laptop_known_working_platforms` (the `// 16X, why` entry, `aorus-laptop.c:760`),
 GUIDs `ABBC0F6F`/`72`/`75` are all present, and the platform + hwmon devices come up.
@@ -104,29 +108,30 @@ unhandled selector shouldn't mean "old"). How strongly this firmware acts on `0x
 separate question — see §3; the gaming preset (`0x71`) is the one with a clearly audible
 effect here.
 
-## 3. All *custom* fan paths are ignored by this EC firmware (not a driver bug)
+## 3. Fixed-speed fan control **works**; the custom *curve* does not
 
-Preset switching works — `fan_mode 2` (`0x71`, "gaming") audibly ramps the fans within
-seconds. But everything user-defined is accepted at the WMI/ACPI level (no errors,
-registers latch) and then never consumed by the EC's control loop:
+Correction to an earlier read of mine: fixed-speed mode is fully functional here. Both
+the preset modes and the fixed-speed path drive the fans; only the 15-point curve and the
+raw per-fan duty writes are ignored. Measured on this machine (idle, ~40 °C, fan-stop
+region — so any spin-up is the override, not the temperature):
 
-| Path | What happens |
+| Path | Result |
 |---|---|
-| `fan_curve_index`/`fan_curve_data` (`0x68`, XFNW) | Writes succeed; reading back via WMBC `0x68` (index → `speed<<8\|temp` after the EC's ~100 ms latch) returns `0` for every slot — the EC never copies XFNW into its curve table. No RPM effect even with custom mode (TENF=1) active. |
-| `fan_mode 3` (`0x67`, TENF) | Bit sets and reads back `1`, no behavioral change. |
-| `fan_mode 5` + `fan_custom_speed` (`0x6A` ADJF + `0x6B` FLVL) | No RPM effect. |
-| `fan_mode 4` (`0x70`, FAN1=FAN2=speed, GFAN=1) | The FAN1 register holds the value (readable via WMBC `0x70`) but the actual PWM outputs (FDTY/GDTY, WMBC `0x46`/`0x47`) stay on the EC's own values. |
-| Raw WMBD `0x46`/`0x47` (FDTY/GDTY direct, via `acpi_call`) | Register holds ~20 s, then the EC's periodic refresh overwrites it. RPM never follows. |
-| Raw WMBD `0x7D` (TFAN flag) | Sets fine, no effect. |
+| **`fan_mode 5` + `fan_custom_speed`** (`0x6A` SetFixedFanStatus + `0x6B` SetFixedFanSpeed) | **Works.** From `0` RPM it drives **both** fans (CPU *and* GPU) to ~**6900 RPM** at idle, and tracks the value (e.g. `229`→~90 % duty/6800 RPM, `90`→~6400 RPM). Verified on **AC and battery**. Note: the two fans move together (single speed), and `cs=0` doesn't stop them — you exit fixed mode (`fan_mode 0/1`) to spin down. So the driver's fixed-speed attributes already give real manual control, including the GPU fan. |
+| `fan_mode 2` (`0x71`, "gaming") | Works — audibly ramps within seconds. |
+| `fan_curve_index`/`fan_curve_data` (`0x68`, XFNW) | **Dead.** Writes succeed; reading back via WMBC `0x68` (index → `speed<<8\|temp` after the ~100 ms latch) returns `0` for every slot — the EC never copies XFNW into its curve table. No RPM effect even with `fan_mode 3` (TENF=1) active. |
+| `fan_mode 3` (`0x67`, TENF) | Bit sets and reads back `1`, no behavioral change (only matters for the dead curve). |
+| `fan_mode 4` (`0x70`, "auto-max") | Drives the fans to **0**, not max, on this firmware. |
+| Raw WMBD `0x46`/`0x47` (FDTY/GDTY direct, via `acpi_call`) | No clear effect — the EC's periodic refresh keeps its own values. (Fixed mode above supersedes this anyway.) |
 
-The 15-point curve table is even visible in plain shared memory (offsets `0x3C-0x59` of
-the `0xFC7E0800` window), but nothing in the DSDT programs it from XFNW. This matches the
-symptom family in #35 (Aero 16 XE5): on the 2025/2026 AMD AERO generation, Gigabyte
-Control Center almost certainly writes custom curves through the EC's buffer-command
-interface (the ACPI `ERCD` method — the same channel the DSDT uses for CPU power limits
-via selectors `0xF1`-`0xF3`), not through legacy XFNW. Nothing to fix in the driver here
-(the payload format `data<<8|index` already matches the DSDT's `speed<<16|temp<<8|index`);
-I can capture GCC's traffic once I have a Windows install and report back.
+So the actionable picture is narrower than "custom fan is dead": **fixed-speed control is
+usable today** (it's the full 0–100 % range the presets never touch), and only the
+*15-point curve* is unconsumed. That curve table is even visible in plain shared memory
+(offsets `0x3C-0x59` of the `0xFC7E0800` window), but nothing in the DSDT programs it from
+XFNW — matching the symptom in #35 (Aero 16 XE5). GCC most likely writes curves through
+the EC buffer-command interface (the ACPI `ERCD` method — the same channel the DSDT uses
+for CPU power limits via `0xF1`-`0xF3`), not legacy XFNW; I can capture that traffic once
+I have a Windows install.
 
 ## 4. `gpu_boost` value range is dangerous on this DSDT
 

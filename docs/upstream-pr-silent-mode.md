@@ -9,6 +9,10 @@
 
 ---
 
+> **Disclosure:** the investigation, the patch, and this write-up were produced with
+> AI assistance (Claude). I tested the change on my own machine (see *Testing* below),
+> but please review it carefully before merging.
+
 ## Problem
 
 On the 2025/2026 AMD AERO generation — verified on a **GIGABYTE AERO X16 1VH**
