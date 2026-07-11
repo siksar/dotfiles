@@ -1,7 +1,8 @@
 # Stylix çakışma güvenlik duvarı (home-manager)
-# Caelestia CLI bu hedeflerin config dosyalarını RUNTIME'da kendisi yazar
-# (tema geçişinde). Stylix/HM aynı dosyaları yönetirse symlink çakışması
-# ve çifte tema kaynağı oluşur — bu yüzden burada kapalılar.
+# Runtime tema motorları (Caelestia CLI, DMS matugen, Noctalia şablonları)
+# bu hedeflerin config dosyalarını RUNTIME'da kendileri yazar. Stylix/HM aynı
+# dosyaları yönetirse symlink çakışması ve çifte tema kaynağı oluşur — bu
+# yüzden ÜÇ kabukta da kapalılar (rice.shell'den bağımsız, koşulsuz).
 { ... }:
 
 {

@@ -14,9 +14,10 @@
     ./modules/hardware/power.nix
     ./modules/hardware/tlp.nix
     ./modules/hardware/gigabyte-wmi.nix
+    ./modules/hardware/gaming.nix
 
     # Desktop
-    ./modules/desktop/greetd.nix
+    ./modules/desktop/thyx.nix
     ./modules/desktop/stylix.nix
     ./modules/desktop/firefox.nix
 

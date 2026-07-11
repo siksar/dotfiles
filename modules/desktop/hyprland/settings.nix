@@ -32,7 +32,7 @@
       col.active_border = rgba($primarye6)
       col.inactive_border = rgba($onSurfaceVariant11)
       resize_on_border = false
-      allow_tearing = false
+      allow_tearing = false  # tearing isteğe bağlı: bkz. rules.nix + docs/gaming.md
       layout = dwindle
     }
 
@@ -129,7 +129,7 @@
       focus_on_activate = true
       anr_missed_pings = 3
       on_focus_under_fullscreen = 1
-      vrr = 0  # VRR kapalı: PSR ile çakışıyor; AC'de elle açılabilir
+      vrr = 0  # Boot varsayılanı; power-display-user AC'de 2 (tam ekran VRR), pilde 0 yapar
     }
 
     cursor {

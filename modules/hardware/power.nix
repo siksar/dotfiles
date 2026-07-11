@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ config, pkgs, ... }:
 
 {
   # Güç profili yönetimi — TLP tarafından devre dışı bırakılır (modules/hardware/tlp.nix)
@@ -61,4 +61,34 @@
 
   # Powertop auto-tune (boot sonrası tüm cihazları power save moduna al)
   powerManagement.powertop.enable = true;
+
+  # --- Suspend / Hibernate ---
+  # Disk swap 33,5G > 30,5G RAM → hibernate image'ı rahat sığar (zram ayrı,
+  # kernel resume= imajı doğrudan bu partisyona yazar, swap önceliğinden
+  # bağımsız). resumeDevice set edilmezse systemd-stage-1 initrd'de resume=
+  # kernel parametresi hiç eklenmiyor — /sys/power/resume "0:0" kalıp hibernate
+  # tamamen çalışmaz (ölçüldü). hardware-configuration.nix'teki tek
+  # swapDevices girdisini tekrar UUID yazmadan referans alıyoruz.
+  boot.resumeDevice = (builtins.head config.swapDevices).device;
+
+  # s2idle (mem_sleep_default=s2idle) kapak kapalıyken bile saatlerce yavaşça
+  # pil tüketir — "Modern Standby" gerçek sıfır güç değil. suspend-then-hibernate:
+  # önce s2idle'a gir (hızlı açılış), 1 saat sonra hâlâ uyanmadıysa gerçek
+  # hibernate'e düş (RAM diske yazılır, güç tamamen kesilebilir).
+  # HibernateOnACPower=false → fişteyken sayaç hiç başlamaz (zaten şarjda pil
+  # kaygısı yok), fiş çekilince geri sayım başlar.
+  systemd.sleep.settings.Sleep = {
+    HibernateDelaySec  = "1h";
+    HibernateOnACPower = false;
+  };
+
+  # Kapak kapama / suspend tuşu artık suspend-then-hibernate'e yönleniyor
+  # (fişte/pilde davranış farkı yukarıdaki HibernateOnACPower ile tek yerden
+  # yönetiliyor). Hibernate tuşu (varsa) systemd varsayılanıyla doğrudan
+  # hibernate'e düşmeye devam eder.
+  services.logind.settings.Login = {
+    HandleLidSwitch              = "suspend-then-hibernate";
+    HandleLidSwitchExternalPower = "suspend-then-hibernate";
+    HandleSuspendKey             = "suspend-then-hibernate";
+  };
 }

@@ -1,11 +1,61 @@
-{ lib, ... }:
+{ lib, config, ... }:
 
 let
+  shell = config.rice.shell;
+
+  # --- Kabuk-özel eylem haritası — tuşlar üç kabukta da aynı kalır ---
+  # caelestia: Quickshell global kısayolları; dms/noctalia: IPC exec'leri
+  cmd = {
+    caelestia = {
+      lock        = "global, caelestia:lock";
+      session     = "global, caelestia:session";
+      dashboard   = "exec, caelestia shell drawers toggle dashboard";
+      sidebar     = "global, caelestia:sidebar";
+      clearNotifs = "global, caelestia:clearNotifs";
+      restart     = "exec, systemctl --user restart caelestia";
+      briUp       = "global, caelestia:brightnessUp";
+      briDown     = "global, caelestia:brightnessDown";
+      shotRegion  = "global, caelestia:screenshotFreeze";
+      shotFull    = "exec, caelestia screenshot";
+      launcher    = null; # özel: SUPER-release bind'ı (aşağıda)
+      clipboard   = null; # launcher içinde (">clip")
+    };
+    dms = {
+      lock        = "exec, dms ipc call lock lock";
+      session     = "exec, dms ipc call powermenu toggle";
+      dashboard   = ''exec, dms ipc call dash toggle ""'';
+      sidebar     = "exec, dms ipc call notifications toggle";
+      clearNotifs = "exec, dms ipc call notifications clearAll";
+      restart     = "exec, systemctl --user restart dms";
+      briUp       = ''exec, dms ipc call brightness increment 5 ""'';
+      briDown     = ''exec, dms ipc call brightness decrement 5 ""'';
+      shotRegion  = "exec, dms screenshot";
+      shotFull    = "exec, dms screenshot full";
+      launcher    = "exec, dms ipc call spotlight toggle";
+      clipboard   = "exec, dms ipc call clipboard toggle";
+    };
+    noctalia = {
+      lock        = "exec, noctalia msg session lock";
+      session     = "exec, noctalia msg panel-toggle session";
+      dashboard   = "exec, noctalia msg panel-toggle control-center";
+      sidebar     = "exec, noctalia msg panel-toggle control-center notifications";
+      clearNotifs = "exec, noctalia msg notification-clear-active";
+      restart     = "exec, systemctl --user restart noctalia";
+      briUp       = "exec, noctalia msg brightness-up";
+      briDown     = "exec, noctalia msg brightness-down";
+      shotRegion  = "exec, noctalia msg screenshot-region";
+      shotFull    = "exec, noctalia msg screenshot-fullscreen";
+      launcher    = "exec, noctalia msg panel-toggle launcher";
+      clipboard   = "exec, noctalia msg panel-toggle clipboard";
+    };
+  }.${shell};
+
   # SUPER içeren her bind için otomatik "launcher iptal ikizi" üretilir:
   # aynı kombinasyona non-consuming (bindn) caelestia:launcherInterrupt eklenir.
   # Böylece SUPER+X kombinasyonlarından sonra SUPER bırakılınca menü AÇILMAZ
   # (Copilot=Meta+Shift+F23 dahil). catchall bu Hyprland'de submap dışında yasak.
-  needsTwin = mods: key: lib.hasInfix "SUPER" mods && key != "SUPER_L";
+  # Interrupt protokolü caelestia'ya özgü — diğer kabuklarda ikiz üretilmez.
+  needsTwin = mods: key: shell == "caelestia" && lib.hasInfix "SUPER" mods && key != "SUPER_L";
   twin = mods: key:
     lib.optional (needsTwin mods key)
       "bindn = ${mods}, ${key}, global, caelestia:launcherInterrupt";
@@ -16,6 +66,14 @@ let
   # Açıklamasız bind
   mk = flags: mods: key: action:
     [ "bind${flags} = ${mods}, ${key}, ${action}" ] ++ twin mods key;
+
+  # Launcher: caelestia'da SUPER-release (interrupt protokolüyle güvenli);
+  # dms/noctalia'da interrupt IPC'si yok → çıplak release-bind her SUPER
+  # kısayolundan sonra launcher açardı. Onlarda SUPER+SPACE kullanılır.
+  launcherBinds =
+    if shell == "caelestia"
+    then mkd "rd" "SUPER" "SUPER_L" "Launch apps" "global, caelestia:launcher"
+    else mkd "d" "SUPER" "SPACE" "Launch apps" cmd.launcher;
 
   # Çalışma alanları 1-10 (klavye code:10..19)
   wsBinds = lib.concatLists (map (i: let
@@ -34,17 +92,19 @@ let
     (mkd "d" "SUPER" "F" "File manager" "exec, nautilus")
     (mkd "d" "SUPER" "B" "Web browser" "exec, firefox")
     (mkd "d" "SUPER" "N" "Neovim" "exec, ghostty -e nvim")
-    (mkd "rd" "SUPER" "SUPER_L" "Launch apps" "global, caelestia:launcher")
+    launcherBinds
     # Copilot tuşu = Meta+Shift+F23 (libinput ile doğrulandı)
     (mkd "d" "SUPER SHIFT" "F23" "Claude Desktop" "exec, claude-desktop")
 
-    # --- Caelestia Shell ---
-    (mkd "d" "SUPER" "L" "Lock screen" "global, caelestia:lock")
-    (mkd "d" "SUPER" "X" "Session menu" "global, caelestia:session")
-    (mkd "d" "SUPER" "D" "Dashboard" "exec, caelestia shell drawers toggle dashboard")
-    (mkd "d" "SUPER SHIFT" "N" "Notification sidebar" "global, caelestia:sidebar")
-    (mkd "d" "SUPER SHIFT" "C" "Clear notifications" "global, caelestia:clearNotifs")
-    (mkd "d" "SUPER CTRL SHIFT" "R" "Restart shell" "exec, systemctl --user restart caelestia")
+    # --- Shell (aktif rice.shell'in eylem haritası) ---
+    (mkd "d" "SUPER" "L" "Lock screen" cmd.lock)
+    (mkd "d" "SUPER" "X" "Session menu" cmd.session)
+    (mkd "d" "SUPER" "D" "Dashboard" cmd.dashboard)
+    (mkd "d" "SUPER SHIFT" "N" "Notification sidebar" cmd.sidebar)
+    (mkd "d" "SUPER SHIFT" "C" "Clear notifications" cmd.clearNotifs)
+    (mkd "d" "SUPER CTRL SHIFT" "R" "Restart shell" cmd.restart)
+    (lib.optionals (cmd.clipboard != null)
+      (mkd "d" "SUPER" "V" "Clipboard history" cmd.clipboard))
 
     # --- Pencere Yönetimi ---
     (mkd "d" "SUPER" "Q" "Close window" "killactive,")
@@ -102,9 +162,9 @@ let
     (mkd "eld" "ALT" "XF86AudioRaiseVolume" "Volume up precise" "exec, wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 1%+")
     (mkd "eld" "ALT" "XF86AudioLowerVolume" "Volume down precise" "exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 1%-")
 
-    # --- Parlaklık (Caelestia OSD'li) ---
-    (mkd "eld" "" "XF86MonBrightnessUp" "Brightness up" "global, caelestia:brightnessUp")
-    (mkd "eld" "" "XF86MonBrightnessDown" "Brightness down" "global, caelestia:brightnessDown")
+    # --- Parlaklık (kabuk OSD'li) ---
+    (mkd "eld" "" "XF86MonBrightnessUp" "Brightness up" cmd.briUp)
+    (mkd "eld" "" "XF86MonBrightnessDown" "Brightness down" cmd.briDown)
     (mkd "eld" "SHIFT" "XF86MonBrightnessUp" "Brightness maximum" "exec, brightnessctl set 100%")
     (mkd "eld" "SHIFT" "XF86MonBrightnessDown" "Brightness minimum" "exec, brightnessctl set 1%")
     (mkd "eld" "ALT" "XF86MonBrightnessUp" "Brightness up precise" "exec, brightnessctl set +1%")
@@ -114,16 +174,16 @@ let
     # NOT: F20 bind'ı kaldırıldı — F20'yi Fn+F11 değil ÇIPLAK Fn gönderiyormuş
     # (hwdb ile susturuldu, bkz. gigabyte-wmi.nix). Bölge screenshot: PRINT
     # veya SUPER+SHIFT+S.
-    (mkd "d" "" "PRINT" "Screenshot region" "global, caelestia:screenshotFreeze")
-    (mkd "d" "SUPER SHIFT" "S" "Screenshot region" "global, caelestia:screenshotFreeze")
-    (mkd "d" "SHIFT" "PRINT" "Screenshot full" "exec, caelestia screenshot")
+    (mkd "d" "" "PRINT" "Screenshot region" cmd.shotRegion)
+    (mkd "d" "SUPER SHIFT" "S" "Screenshot region" cmd.shotRegion)
+    (mkd "d" "SHIFT" "PRINT" "Screenshot full" cmd.shotFull)
 
     # --- Kapak Anahtarı ---
     (mk "l" "" "switch:on:Lid Switch" "exec, hyprctl dispatch dpms off eDP-1")
     (mk "l" "" "switch:off:Lid Switch" "exec, hyprctl dispatch dpms on eDP-1")
 
     # --- Güç ---
-    (mkd "ld" "" "XF86PowerOff" "Power menu" "global, caelestia:session")
+    (mkd "ld" "" "XF86PowerOff" "Power menu" cmd.session)
 
     # --- Fare ---
     (mk "" "SUPER" "mouse_down" "workspace, e+1")

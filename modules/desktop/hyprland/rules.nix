@@ -27,5 +27,14 @@
       match:tag = default-opacity
       opacity = 0.97 0.9
     }
+
+    # --- Tearing (VARSAYILAN KAPALI — VRR yolu tercih edildi) ---
+    # En düşük gecikme isteyen esports oyunları için: aşağıdaki bloğun yorumunu
+    # kaldır VE settings.nix'te general:allow_tearing = true yap. docs/gaming.md.
+    # windowrule {
+    #   name = steam-tearing
+    #   match:class = ^(steam_app_.*)$
+    #   immediate = true
+    # }
   '';
 }

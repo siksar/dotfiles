@@ -2,8 +2,14 @@
 { pkgs, ... }:
 
 {
-  # Steam (32-bit GL/Vulkan dahil)
-  programs.steam.enable = true;
+  # Steam (32-bit GL/Vulkan dahil) — perf altyapısı: modules/hardware/gaming.nix,
+  # kullanım: docs/gaming.md (launch options: gamerun %command%)
+  programs.steam = {
+    enable = true;
+    # GE-Proton: ntsync varsayılan açık + güncel dxvk-nvapi (DLSS 4.5 override)
+    extraCompatPackages = [ pkgs.proton-ge-bin ];
+    protontricks.enable = true;
+  };
 
   # Mullvad VPN (GUI dahil)
   services.mullvad-vpn = {
@@ -28,7 +34,7 @@
 
   # Vesktop/Bitwarden token saklama (Secret Service)
   services.gnome.gnome-keyring.enable = true;
-  security.pam.services.greetd.enableGnomeKeyring = true;
+  security.pam.services.sddm.enableGnomeKeyring = true; # girişte keyring kilidi açılır
 
   # Cowork için KVM erişimi
   users.users.zixar.extraGroups = [ "kvm" ];

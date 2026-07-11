@@ -38,16 +38,18 @@ let
     export HYPRLAND_INSTANCE_SIGNATURE="$HYPR_SIG"
 
     if [ "$AC" = "0" ]; then
-      # Pil: 60Hz + render yükünü azalt → PSR/IPS residency artar
+      # Pil: 60Hz + render yükünü azalt + VRR kapalı (PSR çakışması) → residency artar
       "$HYPRCTL" --batch "\
         keyword monitor eDP-1,2560x1600@60,0x0,1 ; \
+        keyword misc:vrr 0 ; \
         keyword decoration:blur:enabled false ; \
         keyword decoration:shadow:enabled false ; \
         keyword animations:enabled false"
     else
-      # AC: 165Hz + tam görsel kalite
+      # AC: 165Hz + tam görsel kalite + VRR yalnız tam ekran (oyun; panel 48-165Hz)
       "$HYPRCTL" --batch "\
         keyword monitor eDP-1,2560x1600@165,0x0,1 ; \
+        keyword misc:vrr 2 ; \
         keyword decoration:blur:enabled true ; \
         keyword decoration:shadow:enabled true ; \
         keyword animations:enabled true"
@@ -57,6 +59,10 @@ in
 {
   # TLP — AC/BAT-aware pil yöneticisi; power-profiles-daemon ile çakışır
   services.power-profiles-daemon.enable = false;
+
+  # UPower — batarya telemetrisini D-Bus'a sunar (Caelestia bar/dashboard buradan okur)
+  # TLP ile çakışmaz: sadece okuyucu; idle maliyeti ihmal edilebilir
+  services.upower.enable = true;
 
   services.tlp = {
     enable = true;
