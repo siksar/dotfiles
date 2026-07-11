@@ -176,3 +176,44 @@ limits), `0xED` (four performance profiles bundling CPU SPL/SPPT/FPPT + dGPU TGP
 `0xF1`/`0xF2`/`0xF3` (CPU power limits in mW through the EC `ERCD` command `0x45`).
 
 Full annotated table + DSDT dump available on request.
+
+---
+
+# Follow-up: DADA30000 cevabı için taslak (2026-07-11)
+
+> Durum: kullanıcı gönderecek (issue #22'ye yanıt). §3'ün "tracks the value"
+> iddiasını geri çeker; E1-E6 matrisi `docs/aerox16-1vh-wmi.md`'de.
+
+---
+
+@DADA30000 You're right, and thanks for pushing back — I re-tested with a clean
+state machine and **I'm retracting the "tracks the value" part of §3**. What I can
+reproduce from a clean state every time (idle, fans at 0 RPM, so any spin-up is the
+override; tested on battery and AC):
+
+- `fan_custom_speed` (0x6B) is written and reads back correctly from the EC, but
+  **the EC's fixed mode ignores it**: entering `fan_mode 5` ramps both fans to max
+  (~6900 RPM; duty telemetry briefly reads 100) whether the register holds 10, 25,
+  50 or 229. Changing it while inside mode 5 does nothing either. So on this
+  firmware "fixed speed" is effectively a max-blast toggle, exactly as you said.
+- What fooled me: the EC's duty telemetry (WMBC `0x46`/`0x47`) is a slow, filtered
+  value — after the max ramp it decays 100→94→88→87 over ~20 s. My two test values
+  (229, then 90) were read at different points of that decay (6800 vs 6400 RPM),
+  which looked like tracking. It wasn't. Sorry for the noise.
+- Why modes 3/4 can *look* like max too: the driver's transitions leave ADJF set.
+  `echo 3 > fan_mode` while in mode 5 hits the `"Custom mode is already enabled"`
+  early-return (`aorus-laptop.c:357`) — the sysfs value changes but ADJF stays 1,
+  so "mode 3" keeps blasting; 3→4 doesn't clear ADJF either. If you always pass
+  through `fan_mode 0` (or 1/2) between the custom-family modes, the clean per-mode
+  behavior is:
+  - mode 3 (TENF=1): no behavioral change (curve table dead, as in the report);
+  - mode 4 (`0x70`): fans go to **0** at idle on this firmware — worth a warning,
+    under load that's a thermal hazard, not "auto-max";
+  - mode 5 (ADJF=1): max, value ignored.
+
+So the corrected summary for FB0A / EC 3.10: the only working WMI fan controls are
+the presets (`0x71` gaming clearly audible; `0x57` silent nominal) plus
+"mode 5 = max". Value-level control presumably lives behind the EC's ERCD command
+channel that GCC uses on Windows; I'll capture that traffic when I get Windows onto
+this machine and report back here. I'd rather keep the comparison public on GitHub
+so the next X16 owner finds it — happy to keep digging together in this issue.

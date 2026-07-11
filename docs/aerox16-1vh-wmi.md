@@ -526,3 +526,35 @@ sessiz selector `0x57`'yi doğrudan yokluyor (`ret==0` ise yeni model). Wire:
 - Uyarı: fix ID'yi düzeltir; `0x57`'nin bu firmware'de duyulur sessizlik yaratıp
   yaratmadığı hâlâ doğrulanmadı (thermal test null, AC + yük gerekli). Riski yok
   (donanıma yazma yok; `0x57` iyi huylu, `fan_mode 0` ile geri alınır).
+
+## Fixed mod DÜZELTMESİ — DADA30000 haklı çıktı (2026-07-11, E1-E6 matrisi)
+
+Issue #22'de başka bir X16 1VH sahibi (DADA30000) §3'e itiraz etti ("mod 5 = max,
+custom speed etkisiz"). Temiz-durum deney matrisiyle yeniden ölçüldü (idle 34-45°C,
+fanlar 0 RPM, pil; yamalı modül canlı — srcversion 1B10..., "Newer model detected"):
+
+| Deney | Sonuç |
+|---|---|
+| E1: cs=50 ÖNCE yaz → mod 5 | Duty 0→**100** → ~6900 RPM (max). FAN1 değeri OKUNMUYOR |
+| E2: mod 5 içinde cs=25 | Max devam (mod içi değişim de etkisiz) |
+| E3: mod 5 → 0 çıkışı | Fanlar 0, bitler temiz (çıkış sağlam) |
+| E4: TEMİZ mod 3 | Hiçbir şey — TENF tek başına etkisiz (eğri zaten ölü) |
+| E5: 3→5 geçişi | ADJF=1 → max ✔ |
+| E6: TEMİZ mod 4 (cs=50) | **Fanlar 0!** (max değil, kapatıyor — yük altında TEHLİKELİ) |
+
+Çıkarımlar:
+- **Rapor §3'ün "tracks the value" iddiası GERİ ÇEKİLDİ.** Yanıltan mekanizma:
+  FDTY/GDTY telemetrisi yavaş süzülen bir değer — max rampası sonrası ~20 sn'de
+  100→94→88→87 iniyor; §3'teki 229 (→6800) ve 90 (→6400) okumaları bu inişin farklı
+  anlarına denk gelip "değeri izliyor" yanılsaması yaratmış.
+- Kullanıcının "3/4/5 hepsi max" gözleminin sebebi sürücünün KİRLİ GEÇİŞLERİ:
+  mod 5'teyken `echo 3` → `"Custom mode is already enabled"` erken dönüşü
+  (aorus-laptop.c:357): sysfs 3 gösterir ama ADJF=1 kalır → "mod 3" max üfler;
+  3→4 geçişi de ADJF'yi temizlemez → "mod 4" max. Custom-ailesi modlar arasında
+  daima 0 (veya 1/2) üzerinden geçilmeli.
+- Net tablo (FB0A / EC 3.10): çalışan WMI fan kontrolleri = presetler (0x71 kesin
+  duyulur, 0x57 nominal) + "mod 5 = max üfleme" (değersiz). Watt/duty/eğri bazlı
+  kontrol tamamen ERCD arkasında → Windows/GCC yakalaması tek yol (değişmedi).
+- Konfig etkisi: Süper+M döngüsündeki "Turbo" (mod 5) etiketi fiilen DOĞRU (max
+  demek); cs yazmak anlamsız. **Mod 4 hiçbir otomasyonda kullanılmamalı** (fan
+  kapatma davranışı). Döngü 5→0 çıkışı temiz (E3).
