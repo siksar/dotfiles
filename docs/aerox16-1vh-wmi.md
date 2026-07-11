@@ -453,3 +453,76 @@ upstream taslağı (`docs/upstream-gigabyte-wmi-report.md`), acpi_call kalıcı.
    ERCD komutlarına odaklan); preset eğri ve 0xED/0xF1-F3 kullanım
    değerlerini referans al; EC çipini HWiNFO ile kesinleştir.
 6. Upstream issue'yu gönder (taslak hazır).
+
+## Deneysel 0xED / 0xF1–F3 logu (oyun projesi Faz E — iskelet, 2026-07-05)
+
+Protokol: `docs/gaming.md` "Faz E" bölümü. Kural: tek yazım → ölç → logla →
+revert. Ortam: AC + fan_mode 2 + sabit yük. Geri-okuma: 0xED → NPCF alanları
+(ACBT/AMAT); 0xF1–F3 → RAPL davranışı (Get yok).
+**YASAK:** 0x51 (3=dGPU eject) · CMOS'a yazan 0x63/0x87/0x88/0xA3/0xE6
+(reboot ile sıfırlanmaz).
+Taban (2026-07-06, stress-ng 16T, AC): RAPL sustained **21W** (SPL≈20 — GCC
+init'i yok, profil 0 varsayılanı doğrulandı) · fan duty 18/17 @64°C · ACBT 80W
+(bizim servis) → dGPU boşta tavan 60W · fan mod 2 · platform_profile=performance
+(TLP; PMF kaydırıcısı zaten maksimumda — SPL'yi o yükseltmiyor).
+
+| Tarih | Seçici | Yazılan | NPCF/ACBT yan etki | RAPL Δ | GPU Δ | Frametime | Hüküm | Revert |
+|---|---|---|---|---|---|---|---|---|
+| 07-06 | 0xED | 1 | görünür değişim yok (ACBT zaten 80) | 21→22W (gürültü) | tavan 60W sabit | — | nötr; bizim manuel kurulum ≈ profil 1 | üzerine 0xED 2 |
+| 07-06 | 0xED | 2 | **ACBT 80→160** (boşta tavan 60→70W) | 22W (SPL DEĞİŞMEDİ — ECPT→SMU köprüsü yok?) | **KCD: 38W → 62-83W sustained** (86-87°C'de ~70W ort); **fan duty 32-35% → 46/49%** (4400/4700 RPM) — profil fan eğrisini de yükseltiyor! | GPU clock 2200-2600 sabit, util %100 | **BÜYÜK KAZANÇ — Windows farkının kaynağı buydu** | KALICI: game-perf.service start=profil 2 (AC'de) / stop=profil 0 + ACBT restore (2026-07-06) |
+| — | 0xED | 3 | | | | | | reboot |
+| — | 0xF1 (SPL) | 25000 | | | | | | reboot |
+| — | 0xF2 (SPPT) | 65000 | | | | | | reboot |
+| — | 0xF3 (FPPT) | 80000 | | | | | | reboot |
+
+## Faz F — sürücü bulgu doğrulama + upstream rapor kesinleşti (2026-07-11)
+
+Pinlenen sürücü kaynağı (`912b4e9`, `aorus-laptop.c`) satır satır okundu + Part 1
+salt-okuma ölçümü yapıldı (`docs/aerox16-1vh-test-plan.md`). İki iddia netleşti — ikisi de
+eski taslaktakinden FARKLI çıktı:
+
+### 1. RPM "byte-swap bug"ı — sebep TERS: sürücü fazladan swap'lıyor
+Ham WMBC `0xE4 -> 2970` (0x0B9A), `0xE5 -> 3333` (0x0D05) = **zaten doğru sıra**. Ama
+hwmon `fan1_input=39435` (0x9A0B = swab16(2970)), `fan2_input=1293` (0x050D = swab16(3333)).
+Yani EC değeri doğru veriyor, sürücünün `convert_fan_rpm` (`rol16 8`, `aorus-laptop.c:178-182`)
+çağrısı BOZUYOR. Bu çağrı `"GIGABYTE GAMING"` dışındaki tüm ailelere uygulanıyor
+(`:249-252`); bizim aile `"GIGABYTE AERO"` → yanlışlıkla swap yiyor. **Düzeltme: swap
+EKLEMEK değil, bu nesil (AMD/eSPI) için KALDIRMAK** — `GIGABYTE AERO`'yu no-swap dalına
+al. (Önceki notun "doğru okuma swab" ifadesi gözlem olarak doğruydu ama sebebi yanlış
+atfediyordu.)
+
+### 2. Sessiz mod (`fan_mode 1`) sürücüde ÖLÜ — misdetect zinciri kanıtlandı
+dmesg: **"Older model detected, using old ID"**. Mekanizma (uninitialized DEĞİL,
+deterministik): probe `get_devstate(0xFA)` çağırıyor; X16 WMBC'de `Case(0xFA)` yok →
+**0 döndürüyor** (ölçüldü: `0xFA->0`, `0xFC->0`, karşı-örnek `0x57->1`). Sürücünün
+`if (output < 0)` kontrolü (`:779-790`) 0'ı "eski cihaz" sanıyor → `fan_modes[1]=0xFA`.
+Sonra `echo 1 > fan_mode` = WMBD boş `Case(0xFA){}` (`dsdt.dsl:9105`) = **hiçbir şey**.
+Doğru selector `0x57` (okunuyor, →1). Düzeltme önerisi: `GIGABYTE AERO` ailesi için
+`fan_silent_method = FAN_SILENT_MODE (0x57)` zorla, ya da probe yalnız kesin-negatif
+dönüşü "eski" saysın. (Not: bu, defterin preset karakterizasyonundaki "sessiz≠normal"
+farkının sürücü üzerinden GELMEDİĞİNİ doğruluyor — o fark ancak ham `0x57` veya histerezis
+kaynaklıydı; sürücünün `fan_mode 1`'i no-op.)
+
+### 3. Yan doğrulamalar
+- `fan3/fan4_input=0` (yalnız 2 tach), `temp3_input=0` (`ec_read(0x62)` port-EC bu eSPI'de
+  boş, `:234`). Sıcaklıklar (`temp1=95`, `temp2=67`) swap edilmiyor, doğru.
+- "Dual fan speed control required" hiç basılmadı → `ec_read(0xB0/0xB1)` (`:846-852`) boş.
+
+### Çıktılar
+- Upstream rapor **kesinleştirildi**: `docs/upstream-gigabyte-wmi-report.md` (issue #22
+  yorumu; §1 ters-swap, §2 silent misdetect, §3 custom-fan ölü, §4 gpu_boost=3 eject).
+- Manuel test planı: `docs/aerox16-1vh-test-plan.md` (Part 1 salt-okuma = yukarıdaki
+  ölçüm; Part 2 korumalı yazma testleri, gpu_boost 3 yasak kutusu dahil).
+
+### Uygulanan local fix — sessiz mod misdetect'i (2026-07-11)
+Seçenek B (heuristik düzeltmesi, feature-detect) local patch olarak uygulandı:
+`modules/hardware/aorus-laptop-silent-0x57.patch` — probe artık `0xFA` yerine yeni
+sessiz selector `0x57`'yi doğrudan yokluyor (`ret==0` ise yeni model). Wire:
+`gigabyte-wmi.nix` içine `patches = [ ... ]`. `nixos-rebuild build` + `switch` yapıldı
+(exit 0); yamalı modül `current-system`'de (srcversion `BE0D63F8…` → `1B107436…`).
+**Reboot BEKLİYOR** — canlı çekirdekte hâlâ eski modül.
+- Post-reboot doğrulama: `dmesg | grep "model detected"` → **"Newer model detected"**
+  olmalı; `fan_mode 1` artık WMBD `0x57`'ye gider (boş `0xFA` değil).
+- Uyarı: fix ID'yi düzeltir; `0x57`'nin bu firmware'de duyulur sessizlik yaratıp
+  yaratmadığı hâlâ doğrulanmadı (thermal test null, AC + yük gerekli). Riski yok
+  (donanıma yazma yok; `0x57` iyi huylu, `fan_mode 0` ile geri alınır).

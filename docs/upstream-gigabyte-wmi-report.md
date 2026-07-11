@@ -1,106 +1,173 @@
-# Draft issue for tangalbert919/gigabyte-laptop-wmi
+# Draft comment for tangalbert919/gigabyte-laptop-wmi — issue #22 ("Support for Aero 16X")
 
-> Durum: TASLAK — kullanıcı gönderecek. Tek issue olarak ya da bölünerek
-> (bug raporları ayrı, model raporu ayrı) gönderilebilir.
+> Durum: kullanıcı gönderecek. İçerik pinlenen sürücü sürümü `912b4e9`'a ve canlı
+> salt-okuma testine (`docs/aerox16-1vh-test-plan.md` Part 1) göre doğrulandı.
+> Ham kanıt: `docs/aerox16-1vh-wmi.md`. Aşağıdaki gövde (---'den sonra) İngilizce,
+> olduğu gibi yorum olarak yapıştırılabilir.
 
 ---
 
-**Title:** AERO X16 1VH (2026, EG61VH): model report — hwmon works (with RPM
-byte-swap), all custom-fan paths ignored by EC, gpu_boost=3 triggers dGPU
-eject on this DSDT
+The driver already binds on this machine — the `GIGABYTE AERO` family is in
+`gigabyte_laptop_known_working_platforms` (the `// 16X, why` entry, `aorus-laptop.c:760`),
+GUIDs `ABBC0F6F`/`72`/`75` are all present, and the platform + hwmon devices come up.
+Here's a full model report for the **AERO X16 1VH** so #22 can be closed with the
+specifics: what works, three concrete bugs (RPM scaling, silent-mode misdetection,
+`gpu_boost` range), and why custom fan control is dead here (it's the EC firmware, not
+the driver). I decompiled the DSDT and cross-checked every WMBC/WMBD selector against the
+GB_WMIACPI MOF dump (from the archived `s-h-a-d-o-w/alfc` project), then live-tested.
+Happy to share the full DSDT dump and the annotated selector table.
 
 ## Hardware
 
 | | |
 |---|---|
 | Model | GIGABYTE AERO X16 1VH (SKU EG61VH, DMI product family `GIGABYTE AERO`) |
-| CPU/GPU | AMD Ryzen AI 7 350 + RTX 5060 Laptop |
+| CPU / GPU | AMD Ryzen AI 7 350 (Krackan Point) + NVIDIA RTX 5060 Laptop |
 | BIOS / EC | FB0A (AMI, 2026-05-28) / EC firmware 3.10 |
-| Driver rev | 912b4e9 |
-| WMI GUIDs | ABBC0F6F / ABBC0F72 / ABBC0F75 all present, driver binds fine |
+| EC access | eSPI shared-memory windows (`PECM` @ `0xFC7E0800`); the classic port-EC region is nearly empty on this chassis |
+| Driver rev tested | `912b4e9` (out-of-tree build, kernel 7.1.1) |
 
-I decompiled the DSDT and cross-checked every WMBC/WMBD selector against the
-GB_WMIACPI MOF dump (from the archived alfc project), then live-tested the
-fan paths. Happy to share the full DSDT dump and a complete selector table.
+## 1. `fan1_input`/`fan2_input` are byte-swapped — the driver over-swaps (bug)
 
-## 1. Fan RPM values are byte-swapped (bug)
+On this platform the WMI/eSPI read path already returns RPM in native order, but
+`convert_fan_rpm()` swaps it anyway, so hwmon ends up wrong. Measured on the live machine:
 
-`fan1_input`/`fan2_input` return e.g. `39435` (0x9A0B) while the real speed
-is 0x0B9A = 2970 RPM. On this platform the EC exposes RPM in the eSPI shared
-memory region as big-endian u16 (`RPM1`/`RPM2` @ offsets 0x13/0x15 of the
-0xFC7E0800 window). A `swab16()` fixes it. Also only two tachometers exist
-on this hardware — `fan3_input`/`fan4_input` always read 0.
+| Source | fan1 | fan2 |
+|---|---|---|
+| Raw WMBC `0xE4`/`0xE5` (via `debug_method`, no conversion) | `2970` (`0x0B9A`) | `3333` (`0x0D05`) |
+| hwmon `fanN_input` (after `convert_fan_rpm`) | `39435` (`0x9A0B`) | `1293` (`0x050D`) |
 
-## 2. All custom-fan control paths are ignored by this EC firmware
+`39435 = swab16(2970)` and `1293 = swab16(3333)` — the hwmon values are exactly the
+byte-swapped raw values. The raw `0x0B9A = 2970` / `0x0D05 = 3333` RPM are the physically
+correct speeds (fans spinning up at 95 °C load); `39435` RPM is impossible.
 
-Everything is accepted at the WMI/ACPI level (no errors, registers latch),
-but the EC's fan control loop never consumes any of it:
+The cause is `gigabyte_laptop_hwmon_read()`:
+
+```c
+// aorus-laptop.c:248-252
+if (!strcmp(dmi_get_system_info(DMI_PRODUCT_FAMILY),"GIGABYTE GAMING"))
+    *val = output;                   // no swap
+else
+    *val = convert_fan_rpm(output);  // rol16(v,8) == swab16  <-- applied to AERO
+```
+
+`convert_fan_rpm` (`aorus-laptop.c:178-182`) was presumably added for older port-EC
+AERO/AORUS models that store the tach big-endian, but this 2025/2026 AMD generation
+(eSPI shared memory) returns it little-endian. So **`GIGABYTE AERO` belongs in the
+no-swap branch** alongside `GIGABYTE GAMING` (or the swap should be keyed to the EC
+access generation rather than a single family string). Only two tachometers exist here,
+so `fan3_input`/`fan4_input` correctly read `0`.
+
+## 2. Silent fan mode (`fan_mode 1`) is misrouted to an empty selector (bug)
+
+`dmesg` on this machine:
+
+```
+aorus_laptop: Older model detected, using old ID
+aorus_laptop: Using old light sensor method
+```
+
+The detection in `gigabyte_laptop_probe()`:
+
+```c
+// aorus-laptop.c:779-790
+ret = gigabyte_laptop_get_devstate(FAN_SILENT_OLD, &output);   // FAN_SILENT_OLD = 0xFA
+if (output < 0) {  // -1 on newer devices
+    gigabyte->fan_silent_method = FAN_SILENT_MODE;   // 0x57
+} else {           // 0 on older devices
+    gigabyte->fan_silent_method = FAN_SILENT_OLD;    // 0xFA
+}
+fan_modes[1] = gigabyte->fan_silent_method;
+```
+
+The heuristic assumes newer devices return a **negative** value for WMBC `0xFA`. On the
+X16, WMBC has no `Case (0xFA)` and returns **`0`** for it (verified: `debug_method 0xFA`
+→ `0`, same as the also-unhandled `0xFC` → `0`, while a handled selector like
+`0x57` → `1`). `0` is not `< 0`, so it takes the "older" branch and sets
+`fan_modes[1] = 0xFA`.
+
+Then `echo 1 > fan_mode` (silent) evaluates **WMBD `0xFA`, which is an empty case** on
+this DSDT:
+
+```asl
+// dsdt.dsl:9105-9107, Method (WMBD, ...)
+Case (0xFA)
+{
+}
+```
+
+So silent mode does nothing on this model. The intended selector `0x57`
+(`FAN_SILENT_MODE`) *is* present and readable here (WMBC `0x57` → `1`). Suggested fix:
+for the `GIGABYTE AERO` (AMD, 2025+) family force `fan_silent_method = FAN_SILENT_MODE`,
+or make the probe treat only a strictly-negative return as "older" (a `0` from an
+unhandled selector shouldn't mean "old"). How strongly this firmware acts on `0x57` is a
+separate question — see §3; the gaming preset (`0x71`) is the one with a clearly audible
+effect here.
+
+## 3. All *custom* fan paths are ignored by this EC firmware (not a driver bug)
+
+Preset switching works — `fan_mode 2` (`0x71`, "gaming") audibly ramps the fans within
+seconds. But everything user-defined is accepted at the WMI/ACPI level (no errors,
+registers latch) and then never consumed by the EC's control loop:
 
 | Path | What happens |
 |---|---|
-| `fan_curve_index`/`fan_curve_data` (0x68, XFNW) | Writes succeed; reading back via WMBC 0x68 (XFNR/XFN1) returns 0 for every slot — the EC never copies XFNW into its curve table. No RPM effect with custom mode (TENF=1) active. |
-| `fan_mode 3` (0x67 TENF) | Bit sets and reads back 1, no behavioral change. |
-| `fan_mode 5` + `fan_custom_speed` (0x6A ADJF + 0x66 FLVL) | No RPM effect. |
-| `fan_mode 4` (0x70, writes FAN1=FAN2=speed, GFAN=1) | FAN1 register holds the value (readable via WMBC 0x70) but the actual PWM outputs (FDTY/GDTY, readable via WMBC 0x46/0x47) stay on the EC's own values. |
-| Raw WMBD 0x46/0x47 (FDTY/GDTY direct, via acpi_call) | Register holds ~20 s, then the EC's periodic refresh overwrites it. RPM never follows. |
-| Raw WMBD 0x7D (TFAN flag) | Sets fine, no effect. |
+| `fan_curve_index`/`fan_curve_data` (`0x68`, XFNW) | Writes succeed; reading back via WMBC `0x68` (index → `speed<<8\|temp` after the EC's ~100 ms latch) returns `0` for every slot — the EC never copies XFNW into its curve table. No RPM effect even with custom mode (TENF=1) active. |
+| `fan_mode 3` (`0x67`, TENF) | Bit sets and reads back `1`, no behavioral change. |
+| `fan_mode 5` + `fan_custom_speed` (`0x6A` ADJF + `0x6B` FLVL) | No RPM effect. |
+| `fan_mode 4` (`0x70`, FAN1=FAN2=speed, GFAN=1) | The FAN1 register holds the value (readable via WMBC `0x70`) but the actual PWM outputs (FDTY/GDTY, WMBC `0x46`/`0x47`) stay on the EC's own values. |
+| Raw WMBD `0x46`/`0x47` (FDTY/GDTY direct, via `acpi_call`) | Register holds ~20 s, then the EC's periodic refresh overwrites it. RPM never follows. |
+| Raw WMBD `0x7D` (TFAN flag) | Sets fine, no effect. |
 
-The **preset modes do work**: 0x71 ("gaming" in the driver) audibly ramps
-fans within seconds; 0x57 (driver "silent") switches too. So mode switching
-is fine — only user-defined speeds/curves are dead. This looks like the same
-family of symptoms as #35 (Aero 16 XE5): on the 2025/2026 AMD AERO
-generation, Gigabyte Control Center presumably programs custom fan curves
-through the EC's buffer command interface (the ACPI `ERCD` method — the same
-channel the DSDT uses for CPU power limits via selectors 0xF1-0xF3), not
-through the legacy XFNW path. The 15-temperature / 15-speed curve table is
-actually visible in plain shared memory (offsets 0x3C-0x59 of the
-0xFC7E0800 window), but nothing in the DSDT writes it.
+The 15-point curve table is even visible in plain shared memory (offsets `0x3C-0x59` of
+the `0xFC7E0800` window), but nothing in the DSDT programs it from XFNW. This matches the
+symptom family in #35 (Aero 16 XE5): on the 2025/2026 AMD AERO generation, Gigabyte
+Control Center almost certainly writes custom curves through the EC's buffer-command
+interface (the ACPI `ERCD` method — the same channel the DSDT uses for CPU power limits
+via selectors `0xF1`-`0xF3`), not through legacy XFNW. Nothing to fix in the driver here
+(the payload format `data<<8|index` already matches the DSDT's `speed<<16|temp<<8|index`);
+I can capture GCC's traffic once I have a Windows install and report back.
 
-Suggestion: nothing to fix in the driver for this (the payload format
-`data<<8|index` exactly matches the DSDT's `speed<<16|temp<<8|index`); this
-is EC-firmware behavior. I can capture GCC's traffic once I have a Windows
-install and report back.
+## 4. `gpu_boost` value range is dangerous on this DSDT
 
-## 3. `gpu_boost` value range is dangerous on this DSDT
-
-WMBD 0x51 on this machine:
+WMBD `0x51` on this machine (`dsdt.dsl:9375-9410`):
 
 | Arg | Effect |
 |---|---|
-| 0 | NPCF.ACBT = 0 (dynamic boost off) |
-| 1 | NPCF.ACBT = saved boost value (dynamic boost on) |
-| 2 | **nothing** (no case in the DSDT switch) |
-| 3 | **Notify(PEGP, 3) — dGPU eject request(!)** |
+| 0 | `NPCF.ACBT = 0` (dynamic boost off) |
+| 1 | `NPCF.ACBT = LCBT` (saved boost value; but `LCBT = 0` under Linux → no-op) |
+| 2 | **nothing** (no case in the switch) |
+| 3 | **`Notify (^^GPP9.PEGP, 0x03) // Eject Request`** — asks ACPI to eject the dGPU |
 | 4 | dGPU power-on / bus recheck |
 
-So on this model `echo 3 > gpu_boost` asks ACPI to eject the dGPU. Maybe
-worth a note in USAGE.md, or a per-model clamp, since on older models 0-3
-were plain boost levels.
+`gpu_boost_store()` clamps to `mode <= 3` (`aorus-laptop.c:552`), so `echo 3 > gpu_boost`
+is allowed and triggers the eject on this model. Worth a note in USAGE.md or a per-model
+clamp, since on older models `0-3` were plain boost levels. (For reference, the working
+way to move the dynamic-boost budget here is raw WMBD `0x4C`, `NPCF.ACBT = arg*8`.)
 
-## 4. Small driver nits
+## 5. Small nits / eSPI-specific gotchas
 
-- `fan_curve_data_show()` returns the driver's cached values, never the EC
-  state; using `gigabyte_laptop_get_devstate2(FAN_INDEX_VALUE, index, ...)`
-  (WMBC 0x68 takes the index as Arg2 and returns `speed<<8|temp` after the
-  EC's ~100 ms latch) would give true readback and would have made the dead
-  XFNW path visible immediately.
-- `fan_curve_data_store()` does `fan_curve.temperature[index] = data;`
-  with u16 `data` — works only because the array element is u8; an explicit
-  `data & 0xFF` would be clearer.
-- `debug_method` was invaluable for diagnosing all of this (thanks!). A
-  variant that also takes an Arg2, and/or a WMBD counterpart guarded behind
-  a config option, would make model bring-up much easier.
+- `fan_curve_data_show()` returns the driver's cached values, never the EC state. Using
+  `gigabyte_laptop_get_devstate2(FAN_INDEX_VALUE, index, ...)` (WMBC `0x68`) for readback
+  would have made the dead XFNW path in §3 obvious immediately.
+- Several probe reads use the legacy port-EC, which is empty on this eSPI chassis, so they
+  silently misfire: `ec_read(0x62)` for the motherboard temp → `temp3_input` reads `0`
+  (`aorus-laptop.c:234`); `ec_read(0xB0/0xB1)` for the dual-fan check → never triggers
+  "Dual fan speed control required" (`aorus-laptop.c:846-852`); `ec_read(0xD)` for the
+  auto-max mode bit (`aorus-laptop.c:812`).
+- `debug_method` was invaluable for all of the above (thanks!). A variant that also takes
+  an Arg2, and/or a guarded WMBD counterpart, would make model bring-up much easier.
 
-## Extra: verified selector map for this model (DSDT + MOF cross-check)
+## Appendix: verified selector map for this model (DSDT + MOF cross-check)
 
-Working/verified: 0x57 CRAF (silent), 0x64/0x65 BCPS/BCPC (charge policy —
-works, we run 80% limit), 0x66 FLVL, 0x67 TENF, 0x68 XFNW/XFNR+XFN1,
-0x6A ADJF, 0x6B/0x70 FAN1(+FAN2/GFAN), 0x71 FANB (gaming), 0x7D TFAN,
-0xE1 CTMP, 0xE2=0xE3 SKTC (same field twice), 0xE4/0xE5 RPM1/RPM2 (BE),
-0x46/0x47/0x50 FDTY/GDTY duty telemetry, 0xC9 FNKS (Fn key), 0xF6 KBLL,
-0x61 BHEA, plus AMD-generation extras with no MOF names: 0x4A/0x4B/0x4C
-(NVIDIA NPCF watt limits), 0xED (4 performance profiles setting CPU
-SPL/SPPT/FPPT + dGPU TGP as a bundle), 0xF1/0xF2/0xF3 (CPU power limits in
-mW through the EC ERCD command 0x45).
+Working / verified on X16 1VH: `0x57` CRAF (intended silent ID, readable), `0x64`/`0x65`
+BCPS/BCPC (charge policy — works, we run an 80% limit), `0x66` FLVL, `0x67` TENF,
+`0x68` XFNW / XFNR+XFN1, `0x6A` ADJF, `0x6B` FLVL/`0x70` FAN1(+FAN2/GFAN), `0x71` FANB
+(gaming, works), `0x7D` TFAN, `0xE1` CTMP, `0xE2`(=`0xE3`) SKTC (same field twice),
+`0xE4`/`0xE5` RPM1/RPM2, `0x46`/`0x47`/`0x50` FDTY/GDTY (duty telemetry), `0xC9` FNKS
+(this is the internal-keyboard master switch, not just "Fn key"), `0xF6` KBLL, `0x61`
+BHEA. Plus AMD-generation extras with no MOF names: `0x4A`/`0x4B`/`0x4C` (NVIDIA NPCF watt
+limits), `0xED` (four performance profiles bundling CPU SPL/SPPT/FPPT + dGPU TGP),
+`0xF1`/`0xF2`/`0xF3` (CPU power limits in mW through the EC `ERCD` command `0x45`).
 
 Full annotated table + DSDT dump available on request.

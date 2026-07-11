@@ -18,6 +18,14 @@ let
       hash  = "sha256-AoPKhoPk0/lJ+f+YJZPFpJEZjeY/2CY8WnZ0VmfrJ8A=";
     };
 
+    # Sessiz mod (fan_mode 1) düzeltmesi: sürücünün model-yaşı yoklaması bu
+    # 2025 AMD şasisini yanlışlıkla "eski" sanıp fan_modes[1]=0xFA (boş WMBD
+    # case) yapıyordu → sessiz mod no-op. Patch, yoklamayı 0xFA yerine yeni
+    # sessiz selector 0x57'yi doğrudan feature-detect edecek şekilde değiştirir
+    # (0x57 çalışıyorsa yeni model). Ölçüm/gerekçe: docs/aerox16-1vh-wmi.md
+    # "Faz F" + docs/aerox16-1vh-test-plan.md. Upstream'e de önerildi (issue #22).
+    patches = [ ./aorus-laptop-silent-0x57.patch ];
+
     nativeBuildInputs = kernel.moduleBuildDependencies;
     hardeningDisable  = [ "pic" ];
 
