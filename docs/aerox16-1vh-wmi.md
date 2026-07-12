@@ -439,9 +439,9 @@ fan_mode 2 + ACBT 80W + nvidia-powerd), Faz E (FNKS=klavye ana şalteri),
 upstream taslağı (`docs/upstream-gigabyte-wmi-report.md`), acpi_call kalıcı.
 
 ### Gelecek işler (kullanıcı onaylı, ayrı oturumlar)
-1. **DSDT override projesi**: initrd ACPI override ile `PEGP.GPS`'teki
-   PC00→PCI0 yazım hatasını düzelt → GPS/PSHAREPARAMS onarımı, NVRM log
-   temizliği, belki 0x4A/0x4B canlanır. (iasl yeniden derleme riski: orta)
+1. ~~**DSDT override projesi**~~ → **YAPILDI (2026-07-12)**: SSDT9 binary
+   patch + initrd table upgrade (iasl recompile'a hiç gerek kalmadı — riski
+   sıfırlandı). Bkz. "SSDT9 PC00→PCI0 düzeltmesi" bölümü (dosya sonu).
 2. **FNKS klavye kilidi aracı**: dahili klavyeyi kapat/aç komutu
    (WMBD 0xC9 0/1) — harici klavye modu / temizlik kilidi.
 3. **0xF1-F3 CPU watt deneyleri**: SPL/SPPT/FPPT'yi EC'den ayarla (mW
@@ -673,3 +673,88 @@ ACPI-dışı bir yoldan (ham SMBus/port I/O) erişiyor. İkisi de yalnız
 Windows tarafında trafik yakalamayla (RWEverything/WMIExplorer, plandaki
 mevcut adım) çözülebilir — NixOS/Linux tarafında ACPI-görünür başka
 keşfedilecek yol kalmadı.
+
+## SSDT9 PC00→PCI0 düzeltmesi — initrd ACPI table upgrade (2026-07-12)
+
+Yukarıdaki "Gelecek işler #1" uygulandı. Modül: `modules/hardware/acpi-override.nix`.
+
+### Sorun (özet)
+SSDT9 (`OptRf2`/`Opt2Tabl`, OemRev 0x1000, 13612 B) içindeki NVIDIA legacy
+GPS metodu (`\_SB.PCI0.GPP9.PEGP.GPS`, PSHAREPARAMS/0x2A) `\_SB.PC00.AMW0.LTGP`
+okuyor — PC00 Intel şablon artığı, doğrusu PCI0. Tam 2 geçiş (bayt ofsetleri
+**1305** = `External` deklarasyonu, **8030** = `TGPU = ...LTGP` okuması, PSH0=2
+dalı). GPS LTGP'yi yalnız OKUR. dmesg imzası (bu boot'ta 32 kayıt vardı):
+`ACPI Error: Aborting method \_SB.PCI0.GPP9.PEGP._DSM ... (AE_NOT_FOUND)` +
+`NVRM: GPU0 pfmreqhndlrCallACPI: Unable to retrieve PFM_REQ_HNDLR_PSHAREPARAMS
+... rc = 59`. Sonuç: NVRM log spam + WMBD 0x4B (TGP set, 75–87 W) işlevsiz.
+
+### Faz A — configfs shim ile reboot'suz kanıt (2026-07-12, BAŞARILI)
+`CONFIG_ACPI_CONFIGFS=m` ile küçük ek SSDT (`ZIXAR`/`Pc00Shim`: hayalet
+`\_SB.PC00.AMW0` + `Name(LTGP, Zero)`; iasl 6141 için `_ADR` gerekti, `_HID`
+bilerek yok) canlıya yüklendi. Üç kollu kanıt:
+- `\_SB.PC00.AMW0.LTGP` → `0x0` (shim öncesi bu yol AE_NOT_FOUND'du)
+- negatif kontrol `\_SB.PC00.AMW0.XXXX` → `AE_NOT_FOUND` (düzenek sağlam)
+- **GPS uçtan uca**: doğrudan `GPS 0 0x200 0x2A {0x02,0,0,0}` çağrısı →
+  GPSP buffer döndü: `RETN=0x0102, VRV1=0x00010000, TGPU=0` — abort YOK.
+  (GPS guard'ı yalnız `Arg1==0x0200`; PSH0 = Arg3'ün ilk 4 biti.)
+Not: configfs tablosu reboot'a kadar sökülemez; taint 'A' + hayalet düğüm
+reboot'la gider. Shim kalıcı çözüm DEĞİL (ayrı `LTGP` kopyası — WMBD'nin
+yazdığı gerçek LTGP'yi göstermez); kalıcı çözüm tablonun kendisini düzeltmek.
+
+### Kalıcı fix — binary patch + initrd upgrade
+- **iasl recompile YOK**: 'PC00' AML'de 4-baytlık NameSeg → yerinde
+  `'PC00'→'PCI0'` (×2) + checksum. Patcher: `modules/hardware/acpi/patch-ssdt9.py`
+  (boy/imza/OemId/OemTableId/geçiş-sayısı/OemRev guard'ları — biri tutmazsa
+  build FAIL). Pristine dump: `modules/hardware/acpi/ssdt9-pristine.dat`
+  (sha256 `03b2207e...cb01dd`, modülde sabit; 2026-07-11 dökümü = bugünkü
+  firmware, cmp ile doğrulandı).
+- **Kernel eşleşme kuralı** (drivers/acpi/tables.c, kaynaktan doğrulandı):
+  imza+OemId+OemTableId eşleşmeli **VE yeni OemRev KESİN büyük** olmalı
+  (`existing >= new → skip`). Eşit kalsaydı override olmaz, tablo scan'de
+  **duplicate** SSDT olarak yüklenirdi (AE_ALREADY_EXISTS fırtınası) →
+  OemRev 0x1000→**0x1001**. Checksum 0xC4→**0x91**; kernel initrd tablosunun
+  checksum'ını ayrıca doğrular (bozuksa tabloyu düşürür → status quo, güvenli).
+- **initrd**: sıkıştırmasız newc cpio (`kernel/firmware/acpi/ssdt9-pc00fix.aml`,
+  bsdtar — nixpkgs microcode-amd deseni) `boot.initrd.prepend` ile eklenir;
+  amd-ucode `mkOrder 1` ile önde kalır (doğrulandı: initrd'de microcode ofset
+  110 < acpi 307310). `Opt2Tabl` 33 SSDT içinde benzersiz → eşleşme şaşmaz.
+- Çalışma zamanı ayak izi SIFIR (yalnız initrd içeriği) → 4.28W idle tabanı
+  yapısal olarak korunur.
+
+### Reboot sonrası doğrulama (Faz C — İLK BOOT'TA KOŞ)
+1. `sudo dmesg | grep -i 'table upgrade'` → `override [SSDT-OptRf2-Opt2Tabl]`
+   görünmeli. **`install [SSDT-...]` görünürse** rev eşleşmesi başarısız =
+   duplicate yüklendi → önceki Limine generation'a dön. `Bad table checksum`
+   da kabul edilemez. Microcode erken yükleme satırı hâlâ durmalı.
+2. İçerik: `sudo grep -la Opt2Tabl /sys/firmware/acpi/tables/SSDT*` → o dosyayı
+   `/nix/store/llxgbia85wxld0v0qizsmjfpz0c7a4jc-acpi-ssdt9-pc00fix/ssdt9-pc00fix.aml`
+   ile `cmp` (veya `xxd -l 28`: ofset 9 = 0x91, ofset 24 = `01 10 00 00`).
+3. Spam: dGPU (0000:64:00.0) `runtime_status` suspended iken 3× `nvidia-smi`
+   ile uyandır → `journalctl -kb --grep 'PSHAREPARAMS|AE_NOT_FOUND'` boş.
+   (Not: TLP AC profili `control=on` yapıyor; D3cold döngüsü için pile geç
+   veya `echo auto > .../power/control` + dGPU istemcilerini kapat.)
+4. 0x4B fonksiyonel test: `nvidia-powerd` durdur → `WMBD 0 0x4B 80` →
+   `nvidia-smi -q -d POWER` limit hareketi → `0x4B 87` ile bitir (0x4B
+   `NLIM=1`'i reboot'a kadar açık bırakır) → powerd'yi geri başlat.
+5. Idle: yapısal sıfır etki; istenirse tek `power_now` spot ölçümü.
+
+Rollback: override yalnız generation'ın initrd'sinde yaşar — önceki Limine
+generation'ı boot etmek anında geri alır. Kalıcı kaldırma = configuration.nix'ten
+tek import satırı.
+
+### BIOS güncelleme politikası (staleness)
+BIOS güncellemesinden sonra İLK iş `dmesg | grep -i 'table upgrade'`:
+- `override` satırı VARSA: mekanizma hâlâ eşleşiyor; ama BIOS SSDT9 içeriğini
+  kimlikleri koruyarak değiştirdiyse bizim 0x1001 tablomuz yeni firmware
+  içeriğini **maskeler** — ve sysfs artık BİZİM tabloyu gösterdiğinden saf
+  yeniden dump kendini kandırır! → import'u kapat, temiz boot'ta yeniden dump
+  al, diff'le.
+- `install` satırı / `AE_ALREADY_EXISTS` gürültüsü VARSA: kimlikler değişmiş,
+  tablomuz duplicate yüklenmiş (gürültülü ama tehlikesiz) → import'u kapat.
+Her iki durumda da sha256 guard + patcher guard'ları, sabitler bilinçli
+yenilenmeden build'i zaten durdurur.
+
+### Kazanç ve sonraki adım
+NVRM log hijyeni + 0x4B TGP kanalı (75–87 W, `NLIM=1` + `Notify(PEGP,0xC0)` →
+sürücü GPS/PSHAREPARAMS'tan okur). Oyun projesi için ACBT'ye (0x4C) ek ince
+sustained-TGP kolu; game-perf entegrasyonu ayrı iş (ölçümle).

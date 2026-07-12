@@ -125,6 +125,11 @@ Amaç: GCC'nin Windows'ta kullandığı iki denenmemiş kolu ölçümle keşfetm
 (SPL/SPPT/FPPT, mW). Ayrıntılı protokol ve log tablosu: `docs/aerox16-1vh-wmi.md`
 "Deneysel 0xED / 0xF1–F3 logu" bölümü.
 
+Yeni kol (2026-07-12): SSDT9 PC00→PCI0 düzeltmesiyle **`0x4B` (dGPU TGP set,
+75–87 W)** artık canlı — ACBT'nin (0x4C) yanına ince sustained-TGP ayarı;
+ayrıntı `docs/aerox16-1vh-wmi.md` "SSDT9 PC00→PCI0 düzeltmesi". game-perf
+entegrasyonu ölçüm ister, henüz bağlanmadı.
+
 **Güvenlik kartı:**
 - EC bu makinede **uçucu**: şarj limiti/fan/ACBT her boot yeniden uygulanıyor →
   kötü değerde **reboot = temiz sayfa**; ACBT için `systemctl start gigabyte-power-profile`.

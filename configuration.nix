@@ -15,6 +15,7 @@
     ./modules/hardware/tlp.nix
     ./modules/hardware/gigabyte-wmi.nix
     ./modules/hardware/gaming.nix
+    ./modules/hardware/acpi-override.nix
 
     # Desktop
     ./modules/desktop/thyx.nix
