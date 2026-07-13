@@ -28,7 +28,7 @@ nixos-rebuild build --flake /home/zixar/nixos-zixar#nixos
 nh os switch
 
 # Standalone Home Manager switch — use when only iterating on the HM tree
-# (e.g. rice.shell shell-swap); reads the SAME home.nix as the embedded HM,
+# (dconf keybindings, app dotfiles); reads the SAME home.nix as the embedded HM,
 # so there's no drift between the two paths. Aliased to `hms` in the user shell.
 nh home switch -b hm-backup
 
@@ -49,11 +49,11 @@ by a build passing.
 ## Architecture
 
 **Two entry points sharing one Home Manager tree** (`flake.nix`):
-- `nixosConfigurations.nixos` — the real system: `configuration.nix` + Stylix + thyx
-  (SDDM theme) + `home-manager.nixosModules.home-manager` with
+- `nixosConfigurations.nixos` — the real system: `configuration.nix` + Stylix +
+  `home-manager.nixosModules.home-manager` with
   `home-manager.users.zixar = import ./home.nix`.
 - `homeConfigurations."zixar"` — a standalone HM path over the *same* `home.nix`, used
-  only to iterate on desktop-shell config faster via `hms` without a full system rebuild.
+  only to iterate on HM-side config faster via `hms` without a full system rebuild.
   Stylix is imported by hand here (`modules/desktop/stylix-standalone.nix`) since there's
   no NixOS module to propagate it.
 
@@ -64,35 +64,36 @@ HM config that only one of the two entry points can see.
 base, apps, networking/locale/audio/users. Look there first to find where a given system
 concern lives.
 
-**`home.nix`** does the same for the user/HM side — desktop shell modules, apps, dotfiles.
+**`home.nix`** does the same for the user/HM side — GNOME dconf settings, apps, dotfiles.
 
-### Desktop shell: pick one, all three ship
+### Desktop: GNOME + GDM, themed by Stylix
 
-`modules/desktop/shells/choice.nix` defines `rice.shell` (`"caelestia" | "dms" |
-"noctalia"`), set in `home.nix`. All three shell modules
-(`modules/desktop/{caelestia,dms,noctalia}/`) are always imported; each wraps its actual
-config in `lib.mkIf (config.rice.shell == "<name>")`. Swapping is a one-line change in
-`home.nix` + `hms` — no rebuild-breaking required. `modules/desktop/shells/common.nix`
-holds the parts that are shell-independent (cliphist, wallpaper source, GTK/icon themes,
-the Hyprland scheme-fallback file — all shells assume Hyprland underneath).
+The desktop is stock GNOME (`modules/desktop/gnome.nix`: `services.desktopManager.gnome`
++ GDM, a lean `environment.gnome.excludePackages` list) with user-side dconf settings in
+`modules/desktop/gnome-hm.nix` (a minimal keybinding set — SUPER+Enter terminal, SUPER+M
+fan cycle, SUPER+Q close, SUPER+1..9 workspaces, Copilot key → Claude Desktop — plus the
+mutter `variable-refresh-rate` experimental feature and the wallpaper symlink). The
+previous Hyprland + Caelestia/dms/noctalia + SDDM rice lives on the `rice/caelestia`
+branch if it's ever needed again.
 
-Caelestia is the active/maintained shell. Its runtime theme engine (the `caelestia`
-CLI) repaints the whole system live via `caelestia scheme set` — **no rebuild needed for
-a theme change**. Custom color schemes live as flat files in
-`modules/desktop/caelestia/schemes/*.txt` and get copied into the CLI package's data dir
-at build time (see the `postUnpack` override in `caelestia/default.nix`). Stylix
-(`modules/desktop/stylix.nix` / `stylix-base.nix`) only supplies build-time
-fonts/cursor/fallback colors; it is a substrate under the runtime engine, not the source
-of truth for colors.
+**Stylix is the single source of truth for colors** (`modules/desktop/stylix.nix` /
+`stylix-base.nix`). Custom base16 palettes live in `modules/desktop/schemes/*.yaml`
+(`zixar-main` active, `ergenekon` alternate — converted from the old Caelestia schemes);
+switching palette is a one-line change of `palette` in `stylix-base.nix` + rebuild.
+Stylix targets auto-theme GTK/GNOME, ghostty, helix, vesktop, starship, etc. — don't set
+per-app colors manually.
 
-Runtime-written, HM-managed config files (`shell.json` for Caelestia, similar for
-Vesktop) need the "mutable-copy trick": after `linkGeneration`, the HM symlink is
-replaced with a writable copy so the shell can write to it at runtime, and stale
-`*.hm-backup` files are cleaned *before* `checkLinkTargets` runs (it errors on them if
-they're stale). See the `home.activation.caelestia*` blocks in
-`modules/desktop/caelestia/default.nix` for the working pattern — replicate it exactly if
-adding a new runtime-mutated config elsewhere; getting the activation-script ordering
-wrong is the most common way this repo's `hms`/rebuild breaks.
+One critical GNOME-specific rule: a udev rule in `gnome.nix` tags the NVIDIA DRM device
+`mutter-device-ignore` so mutter never opens the dGPU node — an open fd would block RTD3
+D3cold and regress the idle power budget. PRIME offload (`gamerun`) is unaffected.
+
+Runtime-written, HM-managed config files (Vesktop's `settings.json`) need the
+"mutable-copy trick": after `linkGeneration`, the HM symlink is replaced with a writable
+copy so the app can write to it at runtime, and stale `*.hm-backup` files are cleaned
+*before* `checkLinkTargets` runs (it errors on them if they're stale). See the
+`home.activation.vesktop*` blocks in `modules/apps/vesktop.nix` for the working pattern —
+replicate it exactly if adding a new runtime-mutated config elsewhere; getting the
+activation-script ordering wrong is the most common way this repo's `hms`/rebuild breaks.
 
 ### Power management — the 4.28W idle budget is a hard constraint
 

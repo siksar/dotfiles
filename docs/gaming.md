@@ -23,8 +23,9 @@ Steam (iGPU'da açılır)
 
 Donanım tarafı zaten AC'ye bağlı otomatik: fiş takılıyken fan modu 2 ("oyun") +
 NPCF.ACBT 80W → nvidia-powerd dGPU'yu 75–85W bandına çıkarır
-(`modules/hardware/gigabyte-wmi.nix`). VRR AC'de otomatik açılır (yalnız tam ekran,
-`misc:vrr 2`), pilde kapanır (PSR çakışması).
+(`modules/hardware/gigabyte-wmi.nix`). VRR mutter'ın `variable-refresh-rate` deneysel
+özelliğiyle açık (`modules/desktop/gnome-hm.nix`); mutter VRR'ı yalnız tam ekranda
+devreye sokar. Pilde panel zaten 60Hz'e çekilir (`power-display-user`, tlp.nix).
 
 **Pilde oyun:** tasarım gereği kısıtlı — CPU 2GHz tavan + boost kapalı + ACBT 0.
 Tam performans için fişe tak. Pil/idle tabanı (4.28W) bu kurulumdan etkilenmez:
@@ -90,7 +91,7 @@ groups                            # "gamemode" görünmeli (yoksa re-login)
 ls -l /dev/ntsync                 # crw-rw-rw-
 swapon --show                     # zram0 prio 5 + nvme prio -1
 sysctl vm.max_map_count           # 2147483642
-hyprctl getoption misc:vrr        # AC'de 2, pilde 0
+gsettings get org.gnome.mutter experimental-features  # 'variable-refresh-rate' içermeli
 
 # Oyun sırasında (AC'de):
 cat /sys/kernel/sched_ext/state /sys/kernel/sched_ext/root/ops   # enabled + scx_lavd
@@ -112,9 +113,9 @@ cat /sys/devices/system/cpu/cpufreq/policy0/scaling_governor     # TLP profiline
 - `GR_WL=1` (Proton Wayland) Steam Overlay ve Steam Input'u bozar — yalnız test için.
 - GE-Proton bazı oyunlarda ntsync'i bilinçli kapatır (per-game blocklist);
   `gamerun` `PROTON_USE_NTSYNC=1`'i zorlar → sorun görürsen `PROTON_USE_NTSYNC=0`.
-- Tearing (en düşük gecikme, VRR yerine): `modules/desktop/hyprland/rules.nix`
-  içindeki `steam-tearing` bloğunun yorumunu kaldır + `settings.nix`'te
-  `general:allow_tearing = true`. Görsel yırtılma pahasına ~yarım kare gecikme kazancı.
+- Tearing: mutter Wayland'de tearing (async page flip) sunmuyor — en düşük gecikme
+  yolu VRR (deneysel özellik açık). Hyprland'deki `allow_tearing` seçeneğinin
+  karşılığı yok (eski kurulum: rice/caelestia dalı).
 - gamescope `capSysNice` NVIDIA'da kapalı tutuluyor (bilinen sorunlar).
 - Renice (-10) ilk kurulumdan sonra **re-login** ister (gamemode grubu).
 

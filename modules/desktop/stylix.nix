@@ -1,6 +1,6 @@
-# Stylix — taban tema katmanı (system)
-# Renklerin asıl runtime motoru aktif kabuğun tema motorudur (ör. Caelestia CLI);
-# Stylix font, imleç ve build-time varsayılan renkleri sağlar.
+# Stylix — tema katmanı (system): renklerin TEK kaynağı.
+# Palet + font + imleç buradan tüm hedeflere (GTK/GNOME, ghostty, helix,
+# vesktop, starship...) dağılır; palet değişimi = stylix-base.nix + rebuild.
 # Taban değerler stylix-base.nix'te — standalone HM (nh home switch) ile ortak.
 { pkgs, ... }:
 

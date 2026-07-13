@@ -1,7 +1,7 @@
 # Terminal deneyimi: starship prompt + fastfetch karşılama
 # Renkler bilinçli olarak ANSI adlarıyla (blue, cyan...) — hex DEĞİL.
-# Caelestia her tema geçişinde terminal paletini OSC ile canlı boyadığı için
-# ikisi de otomatik olarak aktif şemaya uyar (açık terminallerde bile).
+# Terminal paletini Stylix boyar (ghostty hedefi); palet değişiminde
+# ikisi de otomatik olarak aktif şemaya uyar.
 { ... }:
 
 {
@@ -76,7 +76,6 @@
   };
 
   # Fastfetch her yeni terminalde (iç içe kabuklarda ve SSH'ta değil).
-  # NOT: sequences.txt cat'i ghostty.nix'te — bash initExtra tanımları birleşir.
   programs.bash.initExtra = ''
     if [[ $- == *i* ]] && [ "$SHLVL" -eq 1 ] && [ -z "$SSH_CONNECTION" ] \
        && [ -n "$WAYLAND_DISPLAY$DISPLAY" ]; then

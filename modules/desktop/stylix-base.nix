@@ -3,15 +3,24 @@
 # bunu tüketir. Modül DEĞİL, saf fonksiyon — target ayarları tüketicilerde.
 { pkgs }:
 
+let
+  # Aktif palet — "zixar-main" | "ergenekon" (değiştir + rebuild)
+  palette = "zixar-main";
+
+  # Palete eşlik eden duvar kağıdı (GNOME arka planı + build-time türetmeler)
+  wallpaper = {
+    zixar-main = ./wallpapers/kanagawa.png;
+    ergenekon = ./wallpapers/bonfire.png;
+  };
+in
 {
   enable = true;
   polarity = "dark";
 
-  # Everforest — Caelestia'nın varsayılan şemasıyla (everforest/medium/dark) uyumlu
-  base16Scheme = "${pkgs.base16-schemes}/share/themes/everforest-dark-medium.yaml";
+  # Kişisel paletler — eski Caelestia şemalarından base16'ya çevrildi (schemes/)
+  base16Scheme = ./schemes + "/${palette}.yaml";
 
-  # Varsayılan duvar kağıdı (kabuk çizer; stylix build-time türetmeler için kullanır)
-  image = ./wallpapers/everforest.png;
+  image = wallpaper.${palette};
 
   fonts = {
     monospace = {

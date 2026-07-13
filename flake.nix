@@ -14,38 +14,12 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # Caelestia — shell (bar/launcher/lock) + cli (runtime tema motoru)
-    caelestia-shell = {
-      url = "github:caelestia-dots/shell";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.caelestia-cli.follows = "caelestia-cli";
-    };
-    caelestia-cli = {
-      url = "github:caelestia-dots/cli";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.caelestia-shell.follows = "caelestia-shell";
-    };
-
     # nixpkgs'te olmayan uygulamalar
-    # Zen browser (Firefox tabanlı → Pywalfox canlı teması çalışır)
+    # Zen browser (Firefox tabanlı)
     zen-browser = {
       url = "github:0xc000022070/zen-browser-flake";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
-    # Deneme kabukları — rice.shell ile seçilir (home.nix)
-    dms = {
-      url = "github:AvengeMedia/DankMaterialShell/stable";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    noctalia = {
-      url = "github:noctalia-dev/noctalia-shell";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    # SDDM greeter teması (Cinder video preset) — Qt bağımlılıkları kendi
-    # lock'uyla test edildiğinden nixpkgs follows bilerek yok
-    thyx.url = "github:rccyx/thyx";
 
     # Yerel AI: NPU (XDNA2/FastFlowLM) + iGPU (Vulkan) + Lemonade sunucusu
     # DİKKAT: nixpkgs follows EKLEME — binary cache hash'leri pinli nixpkgs'e göre
@@ -71,7 +45,6 @@
           { nixpkgs.config = nixpkgsConfig; }
           ./configuration.nix
           stylix.nixosModules.stylix
-          inputs.thyx.nixosModules.default
           home-manager.nixosModules.home-manager
           {
             home-manager.useGlobalPkgs = true;

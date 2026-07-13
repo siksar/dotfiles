@@ -1,0 +1,23 @@
+# ergenekon — sıcak toprak/demir tonları (Bozkır mavisi/Altın/Bakır kızılı)
+# Kaynak: eski Caelestia şeması (rice/caelestia dalı,
+# modules/desktop/caelestia/schemes/ergenekon.txt) — Catppuccin→base16 eşlemesi:
+# base00=base 01=mantle 02=surface1 03=overlay0 04=subtext0 05=text 06=rosewater
+# 07=term15 08=red 09=peach 0A=yellow 0B=green 0C=teal 0D=blue 0E=mauve 0F=maroon
+scheme: "ergenekon"
+author: "zixar"
+base00: "2a2018"
+base01: "201812"
+base02: "4a3625"
+base03: "6b5942"
+base04: "b39d78"
+base05: "ede0c8"
+base06: "f2ddc4"
+base07: "f5ecd9"
+base08: "c1442c"
+base09: "d97d3d"
+base0A: "dcb24a"
+base0B: "7a8c4a"
+base0C: "4a9a8a"
+base0D: "3d6fa3"
+base0E: "9c6b8a"
+base0F: "9a3624"

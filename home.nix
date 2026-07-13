@@ -2,13 +2,7 @@
 
 {
   imports = [
-    ./modules/desktop/shells/choice.nix
-    ./modules/desktop/shells/common.nix
-    ./modules/desktop/hyprland/default.nix
-    ./modules/desktop/caelestia/default.nix
-    ./modules/desktop/caelestia/stylix-hm.nix
-    ./modules/desktop/dms/default.nix
-    ./modules/desktop/noctalia/default.nix
+    ./modules/desktop/gnome-hm.nix
     ./modules/desktop/ghostty.nix
     ./modules/desktop/shell.nix
     ./modules/apps/vesktop.nix
@@ -19,10 +13,6 @@
     ./modules/apps/gaming.nix
     ./modules/apps/opencode.nix
   ];
-
-  # Aktif kabuk — caelestia | dms | noctalia
-  # Değiştir + `hms` (nh home switch) → eski kabuk durur, yenisi başlar
-  rice.shell = "caelestia";
 
   home.username      = "zixar";
   home.homeDirectory = "/home/zixar";

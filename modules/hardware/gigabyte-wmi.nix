@@ -100,13 +100,13 @@ in
   '';
 
   # Süper+M fan modu döngüsü (0→1→2→5). fan_mode sysfs'i root gerektirir; bu root
-  # oneshot servis yazar, sonra Caelestia pop-up'ını zixar oturumuna runuser +
-  # kullanıcı DBus'ı üzerinden gönderir. Hyprland'den polkit ile ŞİFRESİZ
-  # tetiklenir (bkz. binds.nix "Fan mode cycle"). ACBT'ye DOKUNMAZ — dGPU boost
+  # oneshot servis yazar, sonra masaüstü bildirimini zixar oturumuna runuser +
+  # kullanıcı DBus'ı üzerinden gönderir. GNOME kısayolundan polkit ile ŞİFRESİZ
+  # tetiklenir (bkz. gnome-hm.nix "Fan mode cycle"). ACBT'ye DOKUNMAZ — dGPU boost
   # ayrı (AC/oyun profili yönetir). Modlar: 0=Dengeli·1=Sessiz·2=Gaming·5=Turbo.
   # (Not: Fn+F7 denendi ama Linux'a güvenilir input/ACPI olayı olarak ulaşmıyor.)
   systemd.services.fan-mode-cycle = {
-    description = "aorus-laptop fan modunu döndür (0→1→2→5) + Caelestia bildirimi";
+    description = "aorus-laptop fan modunu döndür (0→1→2→5) + masaüstü bildirimi";
     after = [ "systemd-modules-load.service" ];
     serviceConfig = {
       Type = "oneshot";

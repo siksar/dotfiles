@@ -17,50 +17,40 @@ let
       echo 1 > /sys/bus/usb/devices/1-1/authorized 2>/dev/null || true
     fi
 
-    # Kullanıcı oturumu varsa Hyprland adaptasyon servisini tetikle
+    # Kullanıcı oturumu varsa GNOME adaptasyon servisini tetikle
     systemctl --user -M zixar@.host start power-display-user.service 2>/dev/null || true
   '';
 
-  # --- Kullanıcı servisi: Hyprland refresh rate + pil render profili ---
+  # --- Kullanıcı servisi: GNOME refresh rate + pil render profili ---
+  # gnome-randr mutter'ın org.gnome.Mutter.DisplayConfig D-Bus API'sini kullanır;
+  # oturum yoksa sorgu düşer, sessizce çıkılır. Gerçek mod adları (59.994 vb.)
+  # panele göre değiştiğinden regex ile sorgu çıktısından seçilir.
   powerDisplayUserScript = pkgs.writeShellScript "power-display-user" ''
     AC=$(cat /sys/class/power_supply/ACAD/online 2>/dev/null || echo 1)
 
-    # Hyprland çalışmıyorsa sessizce çık
-    HYPR_SIG=$(ls "$XDG_RUNTIME_DIR/hypr/" 2>/dev/null | head -1)
-    [ -z "$HYPR_SIG" ] && exit 0
-
-    HYPRCTL=$(command -v hyprctl \
-              || ls /etc/profiles/per-user/zixar/bin/hyprctl \
-                    /run/current-system/sw/bin/hyprctl \
-              2>/dev/null | head -1)
-    [ -z "$HYPRCTL" ] && exit 0
-
-    export HYPRLAND_INSTANCE_SIGNATURE="$HYPR_SIG"
+    GR=${pkgs.gnome-randr}/bin/gnome-randr
+    MODES=$("$GR" 2>/dev/null) || exit 0
 
     if [ "$AC" = "0" ]; then
-      # Pil: 60Hz + render yükünü azalt + VRR kapalı (PSR çakışması) → residency artar
-      "$HYPRCTL" --batch "\
-        keyword monitor eDP-1,2560x1600@60,0x0,1 ; \
-        keyword misc:vrr 0 ; \
-        keyword decoration:blur:enabled false ; \
-        keyword decoration:shadow:enabled false ; \
-        keyword animations:enabled false"
+      # Pil: 60Hz + animasyonlar kapalı → residency artar
+      MODE=$(printf '%s\n' "$MODES" | grep -oE '2560x1600@(59|60)(\.[0-9]+)?' | head -1)
+      ANIM=false
     else
-      # AC: 165Hz + tam görsel kalite + VRR yalnız tam ekran (oyun; panel 48-165Hz)
-      "$HYPRCTL" --batch "\
-        keyword monitor eDP-1,2560x1600@165,0x0,1 ; \
-        keyword misc:vrr 2 ; \
-        keyword decoration:blur:enabled true ; \
-        keyword decoration:shadow:enabled true ; \
-        keyword animations:enabled true"
+      # AC: 165Hz + animasyonlar açık (VRR mutter experimental; yalnız tam ekran)
+      MODE=$(printf '%s\n' "$MODES" | grep -oE '2560x1600@16[45](\.[0-9]+)?' | head -1)
+      ANIM=true
     fi
+
+    [ -n "$MODE" ] && "$GR" modify eDP-1 --mode "$MODE" || true
+    ${pkgs.glib}/bin/gsettings set org.gnome.desktop.interface \
+      enable-animations "$ANIM" 2>/dev/null || true
   '';
 in
 {
   # TLP — AC/BAT-aware pil yöneticisi; power-profiles-daemon ile çakışır
   services.power-profiles-daemon.enable = false;
 
-  # UPower — batarya telemetrisini D-Bus'a sunar (Caelestia bar/dashboard buradan okur)
+  # UPower — batarya telemetrisini D-Bus'a sunar (GNOME kabuğu buradan okur)
   # TLP ile çakışmaz: sadece okuyucu; idle maliyeti ihmal edilebilir
   services.upower.enable = true;
 
@@ -142,9 +132,9 @@ in
     };
   };
 
-  # Kullanıcı servisi — Hyprland oturumu açılınca otomatik koşar (UWSM graphical-session)
+  # Kullanıcı servisi — GNOME oturumu açılınca otomatik koşar (graphical-session.target)
   systemd.user.services.power-display-user = {
-    description = "AC/BAT Hyprland refresh rate + render profile adaptation";
+    description = "AC/BAT GNOME refresh rate + render profile adaptation";
     wantedBy = [ "graphical-session.target" ];
     after    = [ "graphical-session.target" ];
     partOf   = [ "graphical-session.target" ];

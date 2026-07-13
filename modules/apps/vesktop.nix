@@ -1,6 +1,6 @@
 # Vesktop — Vencord gömülü Discord istemcisi
-# Caelestia CLI tema geçişinde caelestia.theme.css'i canlı günceller
-# (enableDiscord=true); diğer kabuklarda CSS son yazılan halinde kalır.
+# Tema Stylix'ten otomatik gelir (stylix targets.vesktop: stylix.css'i
+# üretir ve enabledThemes'e kendisi ekler) — burada tema AYARLAMA.
 { lib, ... }:
 
 {
@@ -11,14 +11,13 @@
       minimizeToTray = true;
     };
     vencord.settings = {
-      enabledThemes = [ "caelestia.theme.css" ];
       useQuickCss = false;
     };
   };
 
   # Vesktop settings.json'larını runtime'da kendisi de yazar → HM symlink'i
   # yerine mutable-copy (nixy deseni), bayat backup'lar checkLinkTargets'tan
-  # önce silinir. Kabuktan bağımsız — her rice altında gerekli.
+  # önce silinir.
   home.activation.vesktopCleanBackups = lib.hm.dag.entryBefore [ "checkLinkTargets" ] ''
     run rm -f "$HOME/.config/vesktop/settings.json.hm-backup" \
               "$HOME/.config/vesktop/settings/settings.json.hm-backup"

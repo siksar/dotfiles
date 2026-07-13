@@ -18,7 +18,7 @@
     ./modules/hardware/acpi-override.nix
 
     # Desktop
-    ./modules/desktop/thyx.nix
+    ./modules/desktop/gnome.nix
     ./modules/desktop/stylix.nix
     ./modules/desktop/firefox.nix
 
@@ -34,16 +34,10 @@
   ];
 
 
-  # Caelestia'nın GTK/ikon teması yazmaları (dconf write) için gerekli
+  # HM dconf ayarları (GNOME kısayolları, gnome-hm.nix) için gerekli
   programs.dconf.enable = true;
 
-  # Hyprland — iGPU-only Wayland compositor (SDDM session + UWSM desteği)
-  programs.hyprland = {
-    enable   = true;
-    withUWSM = true;
-  };
-
-  # Waybar için JetBrainsMono Nerd Font (pil/ağ ikonları)
+  # JetBrainsMono Nerd Font (terminal/starship glif ikonları)
   fonts.packages = with pkgs; [ nerd-fonts.jetbrains-mono ];
 
   programs.nh = {
@@ -65,10 +59,8 @@
     git
     gh
 
-    # Hyprland araçları
-    brightnessctl     # klavye kısayoluyla parlaklık
-    grim              # Wayland ekran görüntüsü
-    slurp             # alan seçici (grim ile)
+    # Masaüstü araçları (ekran görüntüsü GNOME yerleşik: PrintScreen)
+    brightnessctl     # CLI parlaklık (script/servisler)
     wl-clipboard      # wl-copy / wl-paste
     pavucontrol       # PulseAudio / PipeWire GUI
 

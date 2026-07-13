@@ -34,7 +34,7 @@
 
   # Vesktop/Bitwarden token saklama (Secret Service)
   services.gnome.gnome-keyring.enable = true;
-  security.pam.services.sddm.enableGnomeKeyring = true; # girişte keyring kilidi açılır
+  security.pam.services.gdm-password.enableGnomeKeyring = true; # girişte keyring kilidi açılır
 
   # Cowork için KVM erişimi
   users.users.zixar.extraGroups = [ "kvm" ];

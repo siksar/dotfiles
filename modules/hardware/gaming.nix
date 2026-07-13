@@ -45,9 +45,9 @@ in
       general = {
         renice = 10; # oyun süreci nice -10
         ioprio = 0;  # IO best-effort en yüksek öncelik
-        # org.freedesktop.ScreenSaver sağlayıcısı yok (Caelestia idle kendi
-        # inhibit mantığını kullanıyor) → dbus hata gürültüsünü önle
-        inhibit_screensaver = 0;
+        # GNOME org.freedesktop.ScreenSaver sağlar → oyun sırasında ekran
+        # kararması/kilidi bastırılır (yalnız oyun oturumunda, idle maliyeti yok)
+        inhibit_screensaver = 1;
       };
       custom = {
         start = "${gameStart}";

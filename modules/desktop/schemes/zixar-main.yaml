@@ -1,0 +1,23 @@
+# zixar-main — Kanagawa esinli kişisel palet (Türkuaz/Safran/Bakır)
+# Kaynak: eski Caelestia şeması (rice/caelestia dalı,
+# modules/desktop/caelestia/schemes/zixar-main.txt) — Catppuccin→base16 eşlemesi:
+# base00=base 01=mantle 02=surface1 03=overlay0 04=subtext0 05=text 06=rosewater
+# 07=term15 08=red 09=peach 0A=yellow 0B=green 0C=teal 0D=blue 0E=mauve 0F=maroon
+scheme: "zixar-main"
+author: "zixar"
+base00: "1a1c23"
+base01: "15161c"
+base02: "2f3244"
+base03: "454858"
+base04: "9a9683"
+base05: "e6e1cf"
+base06: "f2e2d2"
+base07: "f0ecdb"
+base08: "d9484f"
+base09: "d97b4f"
+base0A: "dcb85c"
+base0B: "8ba674"
+base0C: "3fa9a0"
+base0D: "3a6ea5"
+base0E: "a778b4"
+base0F: "b23a41"
