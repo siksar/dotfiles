@@ -65,7 +65,13 @@
   };
 
   # secrets/opencode.env yoksa (ör. taze clone) sessizce atlanır.
+  # if-formu bilinçli: hm-setup-env login'i `bash -el` (errexit) açar,
+  # &&-zincirinin son komutu düşerse aktivasyonu öldürür.
   programs.bash.profileExtra = ''
-    [ -f /etc/nixos/secrets/opencode.env ] && set -a && source /etc/nixos/secrets/opencode.env && set +a
+    if [ -f /etc/nixos/secrets/opencode.env ]; then
+      set -a
+      source /etc/nixos/secrets/opencode.env
+      set +a
+    fi
   '';
 }

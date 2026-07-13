@@ -1,4 +1,4 @@
-{ ... }:
+{ lib, pkgs, ... }:
 
 {
   imports = [
@@ -29,4 +29,19 @@
       export PATH="$PATH:$HOME/.local/share/JetBrains/Toolbox/scripts"
     '';
   };
+
+  # HM'nin ürettiği .bash_profile, .bashrc'yi koşulsuz source eder; .bashrc'nin
+  # `[[ $- == *i* ]] || return` koruması etkileşimsiz kabukta 1 döndürür.
+  # hm-setup-env aktivasyonu `bash -el` (login + errexit) açtığından bu,
+  # home-manager-zixar.service'i çıktısız öldürüyordu (üstakım activation
+  # driver-v1 regresyonu). .bashrc'yi yalnız etkileşimli kabukta içer.
+  # NOT: modül .bash_profile'ı `source` ile tanımlar; `text` mkDefault'a
+  # çevrildiğinden text'i force'lamak YETMEZ — source force'lanmalı.
+  home.file.".bash_profile".source = lib.mkForce (pkgs.writeText "bash_profile" ''
+    # include .profile if it exists
+    if [[ -f ~/.profile ]]; then . ~/.profile; fi
+
+    # include .bashrc if it exists — YALNIZ etkileşimli kabukta
+    if [[ $- == *i* && -f ~/.bashrc ]]; then . ~/.bashrc; fi
+  '');
 }
