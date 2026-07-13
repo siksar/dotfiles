@@ -13,6 +13,9 @@
       window-padding-x = 8;
       window-padding-y = 8;
       confirm-close-surface = false;
+      # Yeni pencere/sekme varsayılan olarak flake köküyle açılsın (claude/opencode
+      # de dolayısıyla oradan başlar) — yeni sekmeler yine önceki cwd'yi devralır.
+      working-directory = "/home/zixar/nixos-zixar";
     };
   };
 

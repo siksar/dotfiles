@@ -57,11 +57,13 @@ in
      KEYBOARD_KEY_7006f=reserved
   '';
 
-  # AC/BAT'a göre fan modu + dGPU Dynamic Boost bütçesi (ölçümler:
-  # docs/aerox16-1vh-wmi.md). fan_mode 2 (oyun) AC'de: ≤53°C fan-stop
-  # (normalden bile sessiz) + yükte +7-12 puan soğutma. ACBT (0x4C, ×8W):
-  # AC'de 80W → nvidia-powerd GPU tavanını 50→75W+ yapar; pilde 0 (verim).
-  # gpu_boost (0x51) yazılMIYOR: bu DSDT'de 2=no-op, 3=dGPU eject!
+  # AC/BAT'a göre otomatik fan modu + dGPU Dynamic Boost bütçesi (ölçümler:
+  # docs/aerox16-1vh-wmi.md). Varsayılan: BAT=1 (sessiz), AC=0 (dengeli) —
+  # kullanıcı tercihi (eski AC=2/oyun'dan değişti). Fan modu ayrıca Süper+M ile
+  # canlı döndürülebiliyor (0→1→2→5, bkz. aşağıdaki fan-mode-cycle servisi);
+  # AC/uyku değişimi bu otomatik varsayılanı yeniden uygular (manuel geçici). ACBT
+  # (0x4C, ×8W): AC'de 80W → nvidia-powerd GPU tavanını 50→75W+ yapar; pilde 0
+  # (verim). gpu_boost (0x51) yazılMIYOR: bu DSDT'de 2=no-op, 3=dGPU eject!
   systemd.services.gigabyte-power-profile = {
     description = "AC/BAT fan modu + dGPU boost bütçesi (aorus-laptop WMI)";
     wantedBy = [ "multi-user.target" ];
@@ -76,7 +78,7 @@ in
           echo 1 > "$P/fan_mode"   # sessiz
           ACBT=0                   # pilde boost bütçesi kapalı
         else
-          echo 2 > "$P/fan_mode"   # oyun: hafifte fan-stop, yükte agresif
+          echo 0 > "$P/fan_mode"   # AC: dengeli (kullanıcı tercihi; eski: 2=oyun)
           ACBT=10                  # 10×8 = 80W Dynamic Boost bütçesi
         fi
         if [ -w /proc/acpi/call ]; then
@@ -95,6 +97,51 @@ in
   services.udev.extraRules = ''
     ACTION=="change", SUBSYSTEM=="power_supply", KERNEL=="ACAD", \
       RUN+="${pkgs.systemd}/bin/systemctl start --no-block gigabyte-power-profile.service"
+  '';
+
+  # Süper+M fan modu döngüsü (0→1→2→5). fan_mode sysfs'i root gerektirir; bu root
+  # oneshot servis yazar, sonra Caelestia pop-up'ını zixar oturumuna runuser +
+  # kullanıcı DBus'ı üzerinden gönderir. Hyprland'den polkit ile ŞİFRESİZ
+  # tetiklenir (bkz. binds.nix "Fan mode cycle"). ACBT'ye DOKUNMAZ — dGPU boost
+  # ayrı (AC/oyun profili yönetir). Modlar: 0=Dengeli·1=Sessiz·2=Gaming·5=Turbo.
+  # (Not: Fn+F7 denendi ama Linux'a güvenilir input/ACPI olayı olarak ulaşmıyor.)
+  systemd.services.fan-mode-cycle = {
+    description = "aorus-laptop fan modunu döndür (0→1→2→5) + Caelestia bildirimi";
+    after = [ "systemd-modules-load.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = pkgs.writeShellScript "fan-mode-cycle" ''
+        P=/sys/devices/platform/aorus_laptop/fan_mode
+        [ -w "$P" ] || exit 0
+        cur=$(${pkgs.coreutils}/bin/cat "$P" 2>/dev/null || echo 0)
+        case "$cur" in
+          0) next=1; name="Sessiz"  ;;
+          1) next=2; name="Gaming"  ;;
+          2) next=5; name="Turbo"   ;;
+          5) next=0; name="Dengeli" ;;
+          *) next=0; name="Dengeli" ;;   # beklenmedik okuma → başa dön
+        esac
+        echo "$next" > "$P"
+        uid=$(${pkgs.coreutils}/bin/id -u zixar 2>/dev/null || echo 1000)
+        ${pkgs.util-linux}/bin/runuser -u zixar -- \
+          ${pkgs.coreutils}/bin/env \
+            DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+            XDG_RUNTIME_DIR="/run/user/$uid" \
+          ${pkgs.libnotify}/bin/notify-send -a Fan -u low -t 2000 \
+            "Mevcut Mod $next" "$name" >/dev/null 2>&1 || true
+      '';
+    };
+  };
+
+  # zixar, fan-mode-cycle.service'i şifresiz start edebilsin (Süper+M keybind)
+  security.polkit.extraConfig = ''
+    polkit.addRule(function(action, subject) {
+      if (action.id == "org.freedesktop.systemd1.manage-units" &&
+          action.lookup("unit") == "fan-mode-cycle.service" &&
+          subject.user == "zixar") {
+        return polkit.Result.YES;
+      }
+    });
   '';
 
   # Şarj limiti %80 (pil ömrü) — EC'nin reboot sonrası hatırlaması garanti değil,

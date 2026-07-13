@@ -110,6 +110,22 @@ in
     };
   };
 
+  # tlp-sleep.service yalnızca Before=sleep.target ile sıralı geliyor — bu da
+  # systemd-suspend/hibernate ile PARALEL çalışabildiği anlamına geliyor.
+  # `tlp suspend` bir PCI cihazının power/control sysfs yazısında kernel
+  # mutex'inde bloke olabiliyor (task:tlp state:D, control_store), tam da
+  # kernel freezer'ın userspace'i dondurmaya çalıştığı anda — freezer 20sn
+  # bekleyip vazgeçiyor, 2 denemeden sonra suspend-then-hibernate tamamen
+  # "Failed" oluyor (ölçüldü: journalctl, 2026-07-11/12, "refusing to freeze"
+  # → task:tlp, 32/40 olay). Fix: tlp-sleep'i asıl uyku servislerinden KESİN
+  # ÖNCE bitmeye zorla, race'i systemd ordering'de yok et.
+  systemd.services.tlp-sleep.unitConfig.Before = [
+    "systemd-suspend.service"
+    "systemd-hibernate.service"
+    "systemd-hybrid-sleep.service"
+    "systemd-suspend-then-hibernate.service"
+  ];
+
   # udev: AC adaptör bağlantısı değişince sistem servisini tetikle
   services.udev.extraRules = ''
     ACTION=="change", SUBSYSTEM=="power_supply", KERNEL=="ACAD", \

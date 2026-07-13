@@ -17,6 +17,7 @@
     ./modules/apps/media.nix
     ./modules/apps/helix.nix
     ./modules/apps/gaming.nix
+    ./modules/apps/opencode.nix
   ];
 
   # Aktif kabuk — caelestia | dms | noctalia

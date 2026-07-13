@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(journalctl *)",
+      "Bash(nix flake show *)",
+      "Bash(nix flake metadata *)",
+      "Bash(nix search *)",
+      "Bash(systemctl cat *)",
+      "Bash(systemctl status *)",
+      "Bash(sensors *)",
+      "Bash(lsmod *)"
+    ]
+  }
+}

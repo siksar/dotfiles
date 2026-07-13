@@ -106,6 +106,9 @@ let
     (lib.optionals (cmd.clipboard != null)
       (mkd "d" "SUPER" "V" "Clipboard history" cmd.clipboard))
 
+    # --- Fan modu döngüsü (aorus-laptop WMI) — 0→1→2→5, bkz. gigabyte-wmi.nix ---
+    (mkd "d" "SUPER" "M" "Fan mode cycle" "exec, systemctl start --no-block fan-mode-cycle.service")
+
     # --- Pencere Yönetimi ---
     (mkd "d" "SUPER" "Q" "Close window" "killactive,")
     (mkd "d" "SUPER" "T" "Toggle window floating" "togglefloating,")

@@ -9,14 +9,20 @@ with an AMD Ryzen AI 7 350 (Krackan Point, Zen 5) + Radeon 860M iGPU + NVIDIA RT
 Max-Q dGPU (hybrid graphics). Full hardware profile lives in `CONTEXT.md`. One user
 (`zixar`), one host (`nixos`). Comments and commit messages are in Turkish.
 
+The flake lives at `/home/zixar/nixos-zixar` (a plain user-owned git repo, not root's
+`/etc/nixos`). `/etc/nixos` is kept as a symlink to it for tooling that still assumes
+the traditional path (bare `nixos-rebuild switch` with no `--flake` resolves through the
+symlink), but the canonical, git-tracked location — and the one `nh`, Helix's nixd, and
+this file's commands point at — is `/home/zixar/nixos-zixar`.
+
 ## Commands
 
 ```bash
 # Rebuild and switch (system + embedded Home Manager) — asks for sudo
-sudo nixos-rebuild switch --flake /etc/nixos#nixos
+sudo nixos-rebuild switch --flake /home/zixar/nixos-zixar#nixos
 
 # Build only, no activation (fast sanity check before switching)
-nixos-rebuild build --flake /etc/nixos#nixos
+nixos-rebuild build --flake /home/zixar/nixos-zixar#nixos
 
 # Preferred day-to-day driver (wraps nixos-rebuild, does GC bookkeeping)
 nh os switch

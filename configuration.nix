@@ -50,7 +50,7 @@
     enable = true;
     clean.enable = true;
     clean.extraArgs = "--keep-since 4d --keep 3";
-    flake = "/etc/nixos";
+    flake = "/home/zixar/nixos-zixar";
   };
 
   programs.direnv = {
@@ -87,6 +87,7 @@
     antigravity
     claude-code
     codex
+    opencode
   ];
 
   system.stateVersion = "26.05";

@@ -1,2 +1,5 @@
 result
 power-audit*
+
+# API anahtarları / sırlar (opencode NVIDIA NIM vb.) — asla commit'lenmez
+secrets/

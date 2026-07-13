@@ -71,10 +71,10 @@
       language-server = {
         # nixd'yi BU flake'e bağla: option tamamlama + pkgs bilgisi + gd/gr
         nixd.config.nixd = {
-          nixpkgs.expr = ''import (builtins.getFlake "/etc/nixos").inputs.nixpkgs { }'';
+          nixpkgs.expr = ''import (builtins.getFlake "/home/zixar/nixos-zixar").inputs.nixpkgs { }'';
           options = {
-            nixos.expr = ''(builtins.getFlake "/etc/nixos").nixosConfigurations.nixos.options'';
-            home-manager.expr = ''(builtins.getFlake "/etc/nixos").nixosConfigurations.nixos.options.home-manager.users.type.getSubOptions [ ]'';
+            nixos.expr = ''(builtins.getFlake "/home/zixar/nixos-zixar").nixosConfigurations.nixos.options'';
+            home-manager.expr = ''(builtins.getFlake "/home/zixar/nixos-zixar").nixosConfigurations.nixos.options.home-manager.users.type.getSubOptions [ ]'';
           };
         };
         yaml-language-server.config.yaml = {
