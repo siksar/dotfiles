@@ -43,8 +43,9 @@ nix search nixpkgs <term>
 There is no test suite. Validation is `nixos-rebuild build` succeeding, followed by
 `switch` and manual verification (rebooting/relogging, checking a systemd unit, watching
 a sensor file under `/sys`, etc.). Changes to power/thermal/WMI behavior are validated by
-measurement (`powertop`, `/sys/class/power_supply/BAT1/power_now`, MangoHud overlay), not
-by a build passing.
+measurement (`powertop`, MangoHud overlay, battery draw — the firmware reports charge
+units, there is no `power_now`; compute W as `current_now × voltage_now / 1e12` from
+`/sys/class/power_supply/BAT1/`), not by a build passing.
 
 ## Architecture
 

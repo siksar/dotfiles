@@ -26,7 +26,13 @@ in
       close = [ "<Super>q" ];
     } // wsSwitch;
 
-    "org/gnome/shell/keybindings" = appClear;
+    "org/gnome/shell/keybindings" = appClear // {
+      # GNOME yerleşiği SUPER+M'yi bildirim/takvim paneline verir ve gsd
+      # custom kısayolundan ÖNCE yutar → yalnız SUPER+V'de kalsın; SUPER+M
+      # fan döngüsüne boşalır. (Fn+F7 EC'de yutuluyor, OS'e olay düşmüyor —
+      # bkz. gigabyte-wmi.nix hwdb notu; bu yüzden fan SUPER+M'de.)
+      toggle-message-tray = [ "<Super>v" ];
+    };
 
     # VRR (oyun; panel 48-165Hz) — bkz. docs/gaming.md
     "org/gnome/mutter" = {
