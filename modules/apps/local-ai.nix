@@ -4,7 +4,7 @@
 # - Vulkan backend: NPU'ya sığmayan modeller için iGPU (Radeon 860M) yolu
 # - ROCm kapalı: gfx1152 (Krackan) desteği belirsiz; Vulkan hem destekli hem
 #   üst modül sahibinin ölçümlerinde gfx115x'te daha hızlı
-{ inputs, ... }:
+{ inputs, lib, ... }:
 
 {
   imports = [ inputs.nix-amd-ai.nixosModules.default ];
@@ -34,4 +34,16 @@
 
   # NPU (/dev/accel) ve iGPU erişimi
   users.users.zixar.extraGroups = [ "video" "render" ];
+
+  # lemond boot'ta OTOMATİK BAŞLAMASIN — elle başlatılan servis.
+  # Upstream (amd-npu.nix) wantedBy=multi-user.target veriyor; mkForce ile
+  # o bağı koparıyoruz (gaming.nix'teki game-perf.service ile aynı desen).
+  # Unit tanımı ve `systemctl start lemond` yeteneği KALIR; sadece açılışta
+  # tetiklenmez. Neden:
+  #  - idle güç: sürekli açık lemond ~137 task tutuyor, 4.28W tabanı riske atar
+  #  - shutdown: lemond kapanışta SIGINT'ten sonra ~4-6 sn takılıyor ve
+  #    network-online.target'a bağlı olduğu için tüm kapanışı geciktiriyordu;
+  #    çalışmıyorsa bu vergi hiç oluşmaz.
+  # Kullanım: AI'a ihtiyaç olunca `systemctl start lemond`, iş bitince `stop`.
+  systemd.services.lemond.wantedBy = lib.mkForce [ ];
 }
