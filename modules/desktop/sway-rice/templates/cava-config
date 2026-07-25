@@ -1,0 +1,7 @@
+# noctalia user-template çıktısı → ~/.config/cava/colors (hm.nix'te programs.cava
+# extraConfig'i include eder). post_hook cava'ya SIGUSR2 gönderip yeniden çizdirir.
+[color]
+gradient = 1
+gradient_count = 2
+gradient_color_1 = '#{{ colors.primary.default.hex }}'
+gradient_color_2 = '#{{ colors.tertiary.default.hex }}'
