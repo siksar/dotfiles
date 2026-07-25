@@ -1,0 +1,32 @@
+# matugen şablonu → çıktı: ~/.config/theme-switcher/sequences (ELLE DÜZENLENMEZ)
+# Terminal ANSI paletini OSC escape dizileriyle canlı boyar (pywal deseni):
+# theme-sequences-apply bu dosyayı '#' satırlarını atıp \n'siz tek satır olarak
+# printf %b ile PTY'lere basar. \033/\a BİLEREK metin — %b çözer (OSC sonlandırıcı: BEL; ST "\033\\" matugen backslash yuttuğu için kullanılamaz).
+#
+# Eşleme (semantik korunur, tema uyarlanır):
+#   fg/bg/cursor     → on_surface / surface / primary
+#   0,8 siyah/gri    → surface_container_highest / outline
+#   1,9 kırmızı      → error (matugen'de her zaman kırmızı ailesi)
+#   2,10 yeşil       → primary'nin 140°'ye çevrilmiş hali (tema kromalı yeşil)
+#   3,11 sarı        → 65° · 4,12 mavi → PRIMARY (tema aksanı — starship'in
+#   "bold blue" dizini böylece temayla boyanır) · 5,13 magenta → 320° ·
+#   6,14 cyan → 190° · 7,15 beyaz → on_surface_variant / on_surface
+\033]10;{{colors.on_surface.default.hex}}\a
+\033]11;{{colors.surface.default.hex}}\a
+\033]12;{{colors.primary.default.hex}}\a
+\033]4;0;{{colors.surface_container_highest.default.hex}}\a
+\033]4;1;{{colors.error.default.hex}}\a
+\033]4;2;{{colors.primary.default.hex | set_hue: 140.0}}\a
+\033]4;3;{{colors.primary.default.hex | set_hue: 65.0}}\a
+\033]4;4;{{colors.primary.default.hex}}\a
+\033]4;5;{{colors.primary.default.hex | set_hue: 320.0}}\a
+\033]4;6;{{colors.primary.default.hex | set_hue: 190.0}}\a
+\033]4;7;{{colors.on_surface_variant.default.hex}}\a
+\033]4;8;{{colors.outline.default.hex}}\a
+\033]4;9;{{colors.error.default.hex}}\a
+\033]4;10;{{colors.primary.default.hex | set_hue: 140.0}}\a
+\033]4;11;{{colors.primary.default.hex | set_hue: 65.0}}\a
+\033]4;12;{{colors.primary.default.hex}}\a
+\033]4;13;{{colors.primary.default.hex | set_hue: 320.0}}\a
+\033]4;14;{{colors.primary.default.hex | set_hue: 190.0}}\a
+\033]4;15;{{colors.on_surface.default.hex}}\a

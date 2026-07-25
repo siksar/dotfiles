@@ -129,6 +129,9 @@ in
             XDG_RUNTIME_DIR="/run/user/$uid" \
           ${pkgs.libnotify}/bin/notify-send -a Fan -u low -t 2000 \
             "Mevcut Mod $next" "$name" >/dev/null 2>&1 || true
+        # Waybar'daki custom/fan modülünü tazele (signal=8, hyprland-rice/hm.nix)
+        # — modül interval="once" ile çalışır, bu sinyal olmadan güncellenmez.
+        ${pkgs.procps}/bin/pkill -SIGRTMIN+8 -u zixar waybar 2>/dev/null || true
       '';
     };
   };

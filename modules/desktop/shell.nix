@@ -1,7 +1,3 @@
-# Terminal deneyimi: starship prompt + fastfetch karşılama
-# Renkler bilinçli olarak ANSI adlarıyla (blue, cyan...) — hex DEĞİL.
-# Terminal paletini Stylix boyar (ghostty hedefi); palet değişiminde
-# ikisi de otomatik olarak aktif şemaya uyar.
 { ... }:
 
 {
