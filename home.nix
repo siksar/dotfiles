@@ -3,15 +3,21 @@
 {
   imports = [
     ./modules/desktop/gnome-hm.nix
+    ./modules/desktop/hyprland-rice/hm.nix
+    ./modules/desktop/sway-rice/hm.nix
+    ./modules/desktop/fish.nix
     ./modules/desktop/ghostty.nix
     ./modules/desktop/shell.nix
     ./modules/apps/vesktop.nix
     ./modules/apps/zen.nix
     ./modules/apps/claude-desktop.nix
     ./modules/apps/media.nix
-    ./modules/apps/helix.nix
     ./modules/apps/gaming.nix
+    ./modules/apps/minecraft.nix
     ./modules/apps/opencode.nix
+    ./modules/apps/vscodium.nix
+    ./modules/apps/tui.nix
+    ./modules/apps/music.nix
   ];
 
   home.username      = "zixar";
@@ -22,13 +28,7 @@
   # Standalone HM switch kısayolu (-b: gömülü HM'nin backupFileExtension eşleniği)
   home.shellAliases.hms = "nh home switch -b hm-backup";
 
-  programs.bash = {
-    enable = true;
-    profileExtra = ''
-      # JetBrains Toolbox
-      export PATH="$PATH:$HOME/.local/share/JetBrains/Toolbox/scripts"
-    '';
-  };
+  programs.bash.enable = true;
 
   # HM'nin ürettiği .bash_profile, .bashrc'yi koşulsuz source eder; .bashrc'nin
   # `[[ $- == *i* ]] || return` koruması etkileşimsiz kabukta 1 döndürür.

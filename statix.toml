@@ -1,0 +1,10 @@
+# statix kural filtresi — gerekçe: CLAUDE.md "Lint / inspection tooling".
+#
+# repeated_keys: her dosyadaki boot/services/programs bloklarını tek attrset'te
+#   birleştirmemizi ister. Bu config konu başlıklı Türkçe yorumlarla gruplanmış
+#   (bkz. modules/networking.nix), birleştirmek o organizasyonu yok eder.
+# empty_pattern: `{ ... }:` yerine `_:` önerir — kozmetik ve NixOS modül
+#   konvansiyonuna aykırı.
+#
+# Bu ikisi kapalıyken repo 0 bulgu veriyor; dolayısıyla ÇIKAN HER UYARI GERÇEKTİR.
+disabled = ["repeated_keys", "empty_pattern"]
