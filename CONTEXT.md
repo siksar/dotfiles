@@ -66,7 +66,7 @@
 - **Phase 5 (NVIDIA Configuration)**: Pending
 - **Phase 6 (amdgpu Power Configuration)**: Pending
 - **Phase 7 (CPU Power Configuration)**: Pending
-- **Phase 8 (WiFi Power Save)**: Pending
+- **Phase 8 (WiFi Power Save)**: Completed (2026-07-20). Regdomain `00`→`TR` (cfg80211 modprobe, `iw`/`ethtool` eklendi); WiFi power_save AC/BAT-uyarlamalı (AC kapalı = en düşük gecikme/kararlı rtw89, BAT açık = 4.28W bütçesi) — mevcut `power-display` udev(ACAD)+boot oneshot deseni içine; ağ yığını `bbr`+`fq`+TFO; DNS systemd-resolved önbellek (Mullvad uyumlu, DoT yok); kablo takılınca WiFi oto-kapanır (NM dispatcher + boot oneshot arbiter, `eno1/carrier`). Bkz. `modules/networking.nix`, `modules/hardware/power-display.nix`.
 - **Phase 9 (Hardware Video Decode)**: Pending
 - **Phase 10 (Baseline Measurement)**: Pending
 - **Phase 11 (Config Cleanup)**: Pending
