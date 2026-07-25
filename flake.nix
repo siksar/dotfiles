@@ -24,8 +24,30 @@
     # Yerel AI: NPU (XDNA2/FastFlowLM) + iGPU (Vulkan) + Lemonade sunucusu
     # DİKKAT: nixpkgs follows EKLEME — binary cache hash'leri pinli nixpkgs'e göre
     nix-amd-ai.url = "github:noamsto/nix-amd-ai";
+
+    # Proton-CachyOS: Blackwell-sertleştirilmiş Proton (VK_EXT_descriptor_heap → Xid 109 fix,
+    # vkd3d-proton #2914; DX12 donma #2793 workaround'u da burada test edilmiş). nixpkgs'de
+    # paketli DEĞİL. DİKKAT: nixpkgs follows EKLEME — nix-amd-ai ile aynı gerekçe (binary cache
+    # hash'leri chaotic'in pinli nixpkgs'ine göre; follows onları kaçırır).
+    chaotic.url = "github:chaotic-cx/nyx/nyxpkgs-unstable";
     # claude-desktop artık resmî Linux .deb'inden yerel pakette:
     # modules/apps/claude-desktop-pkg.nix
+
+    # noctalia-shell — opt-in Sway rice'ının bar/bildirim/kontrol merkezi/launcher/
+    # kilit ekranı/duvar kağıdı katmanı (docs/sway-rice.md). nixpkgs'te paket var ama
+    # resmî Home Manager modülü (programs.noctalia, build-time config validate) sadece
+    # upstream flake'te olduğundan input olarak alınıyor.
+    noctalia = {
+      url = "github:noctalia-dev/noctalia-shell";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    # toofan — vyrx-dev'in typing TUI'si (sway rice Mod+Shift+T). nixpkgs'te YOK,
+    # kendi flake'i buildGoModule ile packages.default veriyor.
+    toofan = {
+      url = "github:vyrx-dev/toofan";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = inputs @ { nixpkgs, home-manager, stylix, ... }:
@@ -34,7 +56,10 @@
       nixpkgsConfig = {
         allowUnfree = true;
         permittedInsecurePackages = [
+          # İki electron uygulaması iki farklı sürüm pinliyor (ör. vesktop vs
+          # claude-desktop); nixpkgs güncellemesiyle biri 40'a çıktı, diğeri 39'da.
           "electron-39.8.10"
+          "electron-40.10.5"
         ];
       };
     in {
@@ -52,6 +77,7 @@
             home-manager.extraSpecialArgs = { inherit inputs; };
             # Kabukların runtime'da yazdığı config'ler için güvenlik ağı
             home-manager.backupFileExtension = "hm-backup";
+            home-manager.sharedModules = [ inputs.noctalia.homeModules.default ];
             home-manager.users.zixar = import ./home.nix;
           }
         ];
@@ -62,11 +88,20 @@
       # Stylix burada elle import edilir (gömülüde NixOS modülünden propagate olur).
       homeConfigurations."zixar" = home-manager.lib.homeManagerConfiguration {
         pkgs = import nixpkgs { inherit system; config = nixpkgsConfig; };
-        extraSpecialArgs = { inherit inputs; };
+        # osConfig: gömülü HM'de home-manager NixOS modülü otomatik geçirir;
+        # standalone yolda YOK → rice/hm.nix'in `osConfig.rice.hyprland.enable
+        # or false` varsayılanı false'a düşüp TÜM hypr dosyalarını jenerasyondan
+        # atıyordu (17 Tem gecesi hms sonrası Hyprland config'siz kaldı).
+        # Sistem config'ini burada elle geçir → iki yol aynı bayrağı görür.
+        extraSpecialArgs = {
+          inherit inputs;
+          osConfig = inputs.self.nixosConfigurations.nixos.config;
+        };
         modules = [
           ./home.nix
           stylix.homeModules.stylix
           ./modules/desktop/stylix-standalone.nix
+          inputs.noctalia.homeModules.default
         ];
       };
     };
