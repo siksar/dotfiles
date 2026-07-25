@@ -90,14 +90,15 @@ Bu, "henüz bulamadık" değil, **Linux mimarisinde kapalı kapı**:
 - `amd_pmf` modülü yüklü, `AMDI0107:00` platform cihazına **bağlı**
   (`tee` + `amd_sfh` + `button` bağımlı). AMD Platform Management Framework.
 - **`platform_profile`'ı O sağlıyor** (`performance / balanced / low-power`).
-- **TLP bunu aktif sürüyor:** `modules/hardware/tlp.nix` →
-  `PLATFORM_PROFILE_ON_AC = performance`, `..._ON_BAT = low-power`.
+- **Bunu artık PPD sürüyor** (2026-07-18, TLP→power-profiles-daemon geçişi):
+  seçili PPD profili (performance/balanced/power-saver) `platform_profile`'a yazılır.
+  Eskiden TLP `PLATFORM_PROFILE_ON_AC/BAT` ile yapıyordu — mekanizma aynı, sürücü değişti.
 
 **Somut risk:** amd-pmf'in "Static Slider" katmanı, seçili platform_profile'a
 göre STAPM/fast/slow (SPPT/FPPT) güç limitlerini **kendi preset değerlerine
 uygular**. Dolayısıyla ryzenadj ile elle yazılan STAPM/PPT limitleri şu
 olaylarda **sessizce eski haline döndürülür**:
-- Her AC↔BAT geçişi (TLP profil değiştirir → pmf preset'i basar),
+- Her PPD profil değişimi / AC↔BAT geçişi (platform_profile değişir → pmf preset'i basar),
 - amd-pmf'in kendi politika motoru (Smart PC / CnQF, TEE üzerinden) termal/güç
   olayında yeniden uygularsa (AMDI0107 nesli bu politikayı destekliyor olabilir;
   aktif olup olmadığı dmesg ile doğrulanacak — root gerekti, bekliyor).
@@ -109,7 +110,7 @@ dokunmaz → CO, STAPM'den daha kalıcı olabilir. Ancak amd-pmf'in TEE tabanlı
 Smart PC politikası teorik olarak SMU'ya dokunabilir → **joker bu.** Kesin
 cevap ölçümle: CO yaz → AC/BAT geçişi yaptır → CO hâlâ duruyor mu kontrol et.
 
-**Kurtarma her durumda:** reboot → hem CO hem güç limiti sıfırlanır; TLP+pmf
+**Kurtarma her durumda:** reboot → hem CO hem güç limiti sıfırlanır; PPD+pmf
 boot preset'lerini yeniden uygular.
 
 ---
@@ -138,7 +139,7 @@ boot preset'lerini yeniden uygular.
    adım gözlem + stabilite testi (stress-ng + mangohud) + AC/BAT geçişiyle pmf
    revert testi. Her yazma onaylı, kurtarma = reboot.
 5. **pmf devre dışı bırakma seçeneği** (gerekirse): `platform_profile` kontrolünü
-   pmf yerine tamamen TLP'ye/manuel bırakmak, ya da CO'yu her profil değişiminde
+   pmf yerine PPD'ye/manuel bırakmak, ya da CO'yu her profil değişiminde
    yeniden uygulayan bir servis (fan/power-profile deseniyle udev ACAD tetikli).
 
 ## Açık sorular (2026-07-12 kampanyasıyla güncellendi)
@@ -154,6 +155,17 @@ boot preset'lerini yeniden uygular.
 - [ ] EC `0xF1-F3` (ECPT) CPU watt limiti vs pmf dayanıklılığı (CO-dışı kol, ayrı iş)
 - [ ] YENİ: Windows'ta (UXTU/GCC) CO bu laptopta çalışıyor mu? Tahmin: hayır
   (platform kilidi OS'ten bağımsız). Çalışırsa araştırma yeniden açılır.
+
+## Pratik sonuç: CO kilitli → oyunda "balanced" kolu (18 Tem 2026)
+
+CO undervolt kilitli olduğundan CPU'yu doğrudan soğutamıyoruz. Bunun yerine oyunda
+CPU'nun **güç iştahını** kısıyoruz: `game-perf` artık PPD'yi `performance` yerine
+**`balanced`** yapıyor (amd-pmf'in balanced STAPM preset'i performance'tan düşük →
+CPU paylaşımlı Dynamic Boost bütçesini daha az yer → dGPU beslenir). Bu, "CPU-güç
+limiti" kolunun (yukarıdaki matriste EC 0xF1-F3'e alternatif) PPD/amd-pmf üzerinden
+kanıtlanmış, düşük-riskli hâli — kesin watt-cap (ECPT) hâlâ açık iş kalemi.
+CPU-bound oyun için `GR_CPUMAX=1` performance'a döner. Ayrıntı: `docs/gaming.md`
+"GPU-öncelik" bölümü + `modules/hardware/gaming.nix`.
 
 ## İlgili
 - Idle güç bütçesi (4.28W) ve gaming kısıtları: değişiklikler bu tabanı bozmamalı

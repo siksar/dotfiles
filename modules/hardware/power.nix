@@ -1,8 +1,15 @@
 { config, pkgs, ... }:
 
 {
-  # Güç profili yönetimi — TLP tarafından devre dışı bırakılır (modules/hardware/tlp.nix)
-  # services.power-profiles-daemon.enable burada set edilmiyor; tlp.nix false yapar.
+  # Güç profili yönetimi: power-profiles-daemon (2026-07-18, TLP'den geçildi).
+  # amd-pstate=active + EPP/platform_profile'i PPD yönetir → GNOME güç kaydırıcısı
+  # (Performans/Dengeli/Güç tasarrufu) + uygulamaların D-Bus'tan performans istemesi.
+  # TLP kaldırıldı: CPU governor/EPP/platform_profile'i aynı anda set etmesi amd-pstate
+  # ile çatışıyordu (AMD/Limonciello uyarısı). Cihaz autosuspend'i artık powertop
+  # --auto-tune (aşağıda, boot) + kernel ASPM param'ı + EC üstleniyor; brightness/
+  # webcam/refresh AC-BAT adaptasyonu power-display.nix'te kaldı.
+  services.power-profiles-daemon.enable = true;
+
   services.printing.enable = false;
   systemd.oomd.enable = false;
 
@@ -18,6 +25,13 @@
   boot.initrd.verbose  = false;
 
   boot.kernelParams = [
+    # --- CPU güvenlik azaltmaları KAPALI (2026-07-18, kullanıcı onayı) ---
+    # Spectre/Meltdown/MDS vb. azaltmalarını devre dışı bırakır → oyun/CPU yükünde
+    # ~%3-7 kazanç (özellikle syscall-yoğun iş). BEDEL: spekülatif-yürütme
+    # açıklarına karşı savunma düşer — tek kullanıcılı, güvenilen kişisel laptop
+    # olduğundan kabul edildi. Geri almak istenirse bu satırı sil.
+    "mitigations=off"
+
     # --- AMD GPU / CPU ---
     "amd_pstate=active"            # Strix Point/Zen 5 EPP scaling
     "amdgpu.gfx_off=1"            # RDNA 3.5 iGPU sleep
