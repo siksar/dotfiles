@@ -76,6 +76,22 @@
   # Powertop auto-tune (boot sonrası tüm cihazları power save moduna al)
   powerManagement.powertop.enable = true;
 
+  # Girdi cihazları autosuspend'den muaf: powertop yukarıdaki auto-tune'da HER
+  # USB cihazını "auto"ya çeker — dahili klavyenin asıl HID arayüzü
+  # (GIGABYTE 0414:8104) bunun kurbanı olup gerçek `runtime_status=suspended`a
+  # düşüyor (uyanma gecikmesi = tuş girişinde gecikme). Fare (Glorious Model I,
+  # 22d4:1503) ve klavyenin ikinci arayüzü (BY Tech, 258a:0049) kernelin
+  # USB_QUIRK_NO_AUTOSUSPEND listesinde olduğu için zaten "on" geliyor, ama bu
+  # örtük davranışa güvenmek yerine üçünü de açıkça sabitliyoruz — birkaç mW
+  # için girdi gecikmesine değmez. `nixos-rebuild switch` sonrası zaten takılı
+  # cihazlara uygulanması için replug/reboot gerekir (yalnız yeni "add" olayında
+  # tetiklenir).
+  services.udev.extraRules = ''
+    ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="0414", ATTR{idProduct}=="8104", ATTR{power/control}="on"
+    ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="258a", ATTR{idProduct}=="0049", ATTR{power/control}="on"
+    ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="22d4", ATTR{idProduct}=="1503", ATTR{power/control}="on"
+  '';
+
   # --- Suspend / Hibernate ---
   # Disk swap 33,5G > 30,5G RAM → hibernate image'ı rahat sığar (zram ayrı,
   # kernel resume= imajı doğrudan bu partisyona yazar, swap önceliğinden

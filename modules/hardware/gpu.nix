@@ -17,9 +17,15 @@
     # pininden latest'e alındı — TEST: pinli 610.43.02'de nvidia-powerd Dynamic Boost'u
     # bu AMD+NVIDIA makinede kuramıyor, GPU 30W tabanda kilitli (enforced 30W < 50W
     # varsayılan; profil/PPD/TLP ölçümle elendi; bkz. NVIDIA open-gpu-kernel-modules
-    # #392/#966 + docs/aerox16-1vh-wmi.md). latest (610.43.03) DB regresyonunu düzeltiyor
-    # mu diye bakılıyor. NOT: 595 (beta/production) daha eski, bilinen oyun-donma sorunları
-    # (Tsushima, s2idle) — son çare. Geri pinlemek: mkDriver { version + hash }.
+    # #392/#966 + docs/aerox16-1vh-wmi.md). SONUÇ (31 Tem 2026): sürüm avcılığı gereksizmiş —
+    # nvidia-powerd canlıda sağlıklı (D-Bus bağlı, çökmüyor); tek yinelenen log satırı
+    # "SBIOS disable Dynamic Boost DC controller" (DC=pil; bu repo boost'u zaten yalnız
+    # AC'ye kilitlemiş, muhtemelen zararsız). Gerçek kanıt versiyon değil ÖLÇÜM: ACBT WMI
+    # yazımı (0x4C)→nvidia-powerd okuma→GPU tavanı zinciri KCD'de 38W→70-83W ölçüldü
+    # (gaming-performance-project belleği). #392 (AMD CPU'da DB, NVIDIA'da 2022'den beri
+    # açık/kabul edilmiş genel sınırlama) bu yüzden ilgisiz — kazanç o jenerik mekanizmadan
+    # değil WMI yan-kanalından geliyor. NOT: 595 (beta/production) daha eski, bilinen
+    # oyun-donma sorunları (Tsushima, s2idle) — son çare. Geri pinlemek: mkDriver { version + hash }.
     package = config.boot.kernelPackages.nvidiaPackages.latest;
     # nvidia-powerd: NPCF.ACBT bütçesini okuyup GPU tavanını 50W→75W+'a
     # çıkarır (Dynamic Boost). ACBT'yi gigabyte-power-profile yazar (0x4C).

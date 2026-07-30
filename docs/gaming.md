@@ -114,6 +114,19 @@ Proton-CachyOS + `GR_HEAP=1` dene — en güncel dxvk/vkd3d + VK_EXT_descriptor_
 - **HOI4 (ve diğer Paradox / native-OpenGL oyunları):** Steam → Özellikler → Uyumluluk →
   "Force GE-Proton (veya Proton-CachyOS)". Native Linux OpenGL yerine oyun D3D11→**DXVK→
   Vulkan** koşar (5060'ta daha stabil). Tek-thread sim → `GR_PIN=big gamerun %command%`.
+- **Paradox Launcher (launcher-v2) beyaz/boş pencere (30 Tem 2026):** yeni launcher
+  (Electron/CEF, `Paradox Launcher.exe --use-angle=gl`) Wine altında donanım hızlandırmalı
+  native OpenGL ile açılıyor; bu hibrit GPU'da (AMD iGPU + NVIDIA dGPU) + Wayland/Xwayland'de
+  GL context kompozisyona hiç düşmüyor → pencere kalıcı beyaz, ne uygulama logu ne Crashpad
+  raporu var (sessiz kompozisyon hatası — asıl oyunun kendi log/crash altyapısı bu yüzden
+  ipucu vermiyordu). HOI4 launch options: `LIBGL_ALWAYS_SOFTWARE=1 %command%` düzeltiyor
+  (Mesa'nın GL/GLX yolunu yazılığa zorlar). **Güvenli:** oyunun kendisi D3D11→DXVK→Vulkan
+  koşuyor (prefix'te taze `.dxvk.bin`/`.dxvk.lut` cache doğrulandı) — Vulkan bu env'den
+  etkilenmez, yalnız launcher'ın küçük arayüzü CPU'da render olur (önemsiz maliyet). Aynı
+  belirti başka Proton/Electron launcher'da (Epic, GOG Galaxy vb.) görülürse ilk şüpheli
+  bu. **Tuzak:** launcher'ın 127.0.0.1:11000 tek-örnek kilidi — takılı beyaz pencere
+  duruyorken tekrar "Play" o pencereyi öne getirir, yeni launch option'ı hiç görmez;
+  önce Steam'den Durdur (ya da `reaper SteamLaunch AppId=<id>` sürecini öldür).
 - **Minecraft:** vanilla LWJGL **OpenGL**'dir; **VulkanMod** (Fabric) native Vulkan render
   verir. Sistem env'i zaten destekler (offload `mc-run`→`gamerun`'dan miras;
   `__GL_THREADED_OPTIMIZATIONS=0` VulkanMod'da etkisiz-zararsız). Mod kurulumu Prism = kullanıcı.
@@ -242,6 +255,128 @@ gamescope `--mangoapp` coredump) → DXVK/VKD3D iletişimini sadeleştirmek içi
 - FG/MFG yalnız DLSS-FG içeren oyunlarda çalışır; içermeyenlerde `GR_SMOOTH=1`.
 - Frame gen çıktısı VRR ile en iyi sonucu verir (AC'de otomatik açık).
 
+## 860M (iGPU) FSR4 durumu — 30 Tem 2026 araştırması
+
+AMD'nin kendi resmi tutumu RDNA 3.5 entegre grafiklere (890M/880M/**860M**/840M) FSR 4.1
+için "planlamıyoruz" iken, pratikte Valve'in Proton-CachyOS'u (protonfixes'in
+`upscalers.py` + AMD'nin **kendi indirme sunucusundan** çektiği gerçek `amdxcffx64.dll`
+4.1.1) bunu zaten fiilen çalıştırıyor. Doğrulanan mekanizma:
+
+- **Native FSR4 oyunlar** (Resident Evil Requiem, PRAGMATA, KCD2 — `amd_fidelityfx_loader_dx12.dll`
+  + `amd_fidelityfx_upscaler_dx12.dll`'i kendi kurulum klasöründe taşıyanlar): hiçbir ek
+  ayar gerekmez, menüde "FSR 3.1.x" yazsa bile driver'ın FSR4 modeli sessizce araya giriyor
+  (AMD'nin "sessiz arka uç yükseltmesi" tasarımı — oyun kodu değişmeden).
+- **Native olmayan oyunlar** (KCD1, Ghost of Tsushima, Hogwarts Legacy — hiç FSR4 dosyası
+  yok ya da yalnız eski FSR 3.1 var): **OptiScaler** enjeksiyonuyla zorlanabiliyor —
+  `dxgi.dll` kılığına girip present zincirine giriyor, FSR4 paketini (`amdxcffx64.dll` ya
+  da `amd_fidelityfx_*_dx12.dll` üçlüsü) `umu/` altına indirip kullanıyor.
+
+**Çalışan tarif (yalnız upscale, FG olmadan) — hem native hem native-olmayan oyunda aynı:**
+```
+PROTON_USE_OPTISCALER=1 PROTON_FSR4_UPGRADE=1 PROTON_OPTISCALER_CONFIG="Spoofing.Dxgi=false" %command%
+```
+`Spoofing.Dxgi=false` şart — kapatılmazsa OptiScaler oyuna sahte bir GPU kimliği
+(gördüğümüz örnek: "AMD Radeon RX 6700 XT / 7.96GB VRAM") bildiriyor, oyun buna göre
+kaynak/doku yükleyip gerçek donanımla (860M, 512MB dedike VRAM carveout) uyuşmuyor.
+
+**`hidenvgpu` (STEAM_COMPAT_CONFIG) yanıltıcı — TAM gizlemiyor:** Wine seviyesinde
+`WINE_HIDE_NVIDIA_GPU=1` yalnızca DXGI/D3D cihaz listelemesini etkiliyor; oyunun kendisi
+NVAPI/Streamline üzerinden gerçek dGPU'yu doğrudan bulup **gerçekten kullanabiliyor**
+(kanıt: `nvidia-smi` bir "hidenvgpu" oturumunda `re9.exe`'nin RTX 5060'ta 5.8GB tuttuğunu
+gösterdi). Bu yüzden ilk FSR4 testlerindeki "harika" sonuçlar (RE Requiem 90 FPS, Tsushima
+60 FPS) **NVIDIA kirliliğiyle şişmişti**. dGPU'yu gerçekten devre dışı bırakmak için kernel
+modülü blacklist'i de yetmiyor (bazı servisler `modprobe`'u açıkça çağırıyor, blacklist
+yalnız udev'in otomatik yüklemesini engelliyor) — gereken: `boot.extraModprobeConfig`'de
+`install nvidia /bin/false` (+ diğer 3 modül) ve `nvidia-powerd.service`'i kapatmak, artı
+reboot (Hyprland oturum başında NVIDIA DRM cihazını açıp elinde tuttuğundan canlı sistemde
+`modprobe -r` hiç düşmüyor).
+
+**Doğrulanmış gerçek 860M performansı (NVIDIA çekirdekten tamamen kaldırılmış, temiz
+ölçüm, max ayarlar):** RE Requiem ve Tsushima **30-45 FPS** bandında — ilk (kirli) 90/60
+FPS değil. 12 CU'luk saf entegre grafikte AAA oyun için makul/oynanabilir ama dGPU'yla
+kıyaslanamaz; en baştaki teorik tahminle (3-6× çıplak güç farkı, FSR4 bunu kapatmaz yalnız
+oynanabilir kılar) tutarlı.
+
+**Frame Generation — ÇALIŞMIYOR, denenip vazgeçildi:** Aşağıdakilerin HİÇBİRİ FG'yi
+860M'de kararlı hale getirmedi (sırayla denendi, her biri farklı şekilde bozdu):
+- `Spoofing.StreamlineSpoofing=false` → hâlâ yanlış GPU + parlama (yalnız FG açıkken)
+- `FrameGen.fginput=fsrfg` (nukems/DLSSG-taklit yolundan kaçış) → ana menüden itibaren
+  parlama + oyuna girince tam çökme (Wine SEH/unwind, gerçek unhandled exception)
+- Wine prefix `Version=win11` + `PROTON_MLFG_UPGRADE=1` (OptiScaler wiki'nin resmi
+  gereksinimi) → çökme yerine 14-15 FPS'e çöküş
+- `FSR.Fsr4ForceEnableInt8=true` (RDNA3/3.5 mobil için FP8→INT8 zorlaması, OptiScaler'ın
+  kendi APU notu) → yine düzelmedi
+**Sonuç:** Bu donanım/yazılım yığınında (RDNA 3.5 iGPU + OptiScaler + Linux) FG şu an
+güvenilir değil — daha fazla ini ayarı denemek yerine yalnız upscale ile kalınıyor.
+
+## 31 Tem 2026 — donanım-performans denetimi (CPU/iGPU/dGPU/RAM/SSD/NPU)
+
+Kapsamlı "her parça maksimum potansiyelini kullanıyor mu" denetimi — araştırma + canlı
+doğrulama, spekülasyon değil. Sonuç: sistem parça başına zaten iyi ayarlanmış; aşağıda
+parça parça bulgular.
+
+**Kod temizliği:** `deadnix`/`statix` beklenen taban çizgisinde (tek deadnix hit'i
+hardware-configuration.nix, statix sıfır); grep ile GNOME/Sway kalıntısı arandı —
+bulunan HER referans ya tarihsel açıklama yorumu ya da hâlâ gerçekten kullanılan bileşen
+(`gnome-keyring` servisi, `swaync` bildirim daemonu — isimlerinde "gnome"/"sway" geçiyor
+ama masaüstü ortamlarıyla ilgisiz, bağımsız araçlar). 30 Tem'deki GNOME+Sway kaldırma işi
+temizmiş — silinecek gereksiz kod yok.
+
+**Radeon 860M / Mesa:** canlı sürücü **Mesa 26.1.5** (RADV KRACKAN1 — Krackan Point'i
+isimle tanıyor, olgun destek işareti). Mesa 26.0 (11 Şub 2026) RDNA3/3.5/4 ray-tracing
+performansına Wave32 shader yolu getirdi (RADV) — 860M'nin asıl darboğazı zaten RT değil
+ham CU sayısı (yukarıdaki FSR4 bulgusuyla birlikte okunmalı. 26.1.6 (29 Tem, 2 gün önce)
+yalnız bakım sürümü — kaçırılan bir şey yok, nixpkgs güncellemesiyle otomatik gelir.
+
+**RTX 5060 / Dynamic Boost — `gpu.nix`'teki eski açık soru kapandı:** nvidia-powerd
+canlıda sağlıklı (D-Bus bağlı, çökmüyor); tek yinelenen log satırı SBIOS'un "DC
+controller"ı (pil modu) kapatması — bu repo zaten tüm boost mantığını AC'ye kilitlediği
+için muhtemelen zararsız. Asıl kanıt versiyon numarası değil: ACBT WMI yazımı (0x4C,
+gigabyte-power-profile) → nvidia-powerd okuması → GPU tavanı zinciri KCD'de **38W→70-83W**
+ölçüldü (`gaming-performance-project` belleği) — bu, jenerik "Dynamic Boost AMD CPU'da
+çalışmıyor" sınırlamasından (NVIDIA/open-gpu-kernel-modules **#392**, 2022'den beri açık,
+"Feature Pending/NV-Triaged") bağımsız çalışıyor; bu makinedeki kazanç WMI yan-kanalından
+geliyor, nvidia-powerd'in kendi jenerik mekanizmasından değil. Sürüm avcılığına (latest
+vs pin) gerek yok.
+
+**CPU / amd-pstate prefcore:** `amd_pstate=active` (doğru), ama
+`/sys/devices/system/cpu/amd_pstate/prefcore` = **disabled**. Kernel/dmesg'de hata ya da
+açıklama yok — muhtemelen bu APU'nun CPPC tabloları çekirdek-başına silikon-kalite
+sıralaması sunmuyor (mobil/APU parçalarda yaygın, desktop parçalar gibi agresif binning
+yapılmıyor), yani devre dışı kalması bir regresyon değil "sıralanacak veri yok" durumu.
+scx_lavd zaten kendi latency-aware yerleşimini yapıyor; prefcore'un asıl etkilediği "aynı
+sınıf çekirdekler arası ince tercih" zaten scx_lavd + Zen5/Zen5c kapasite farkının altında
+ikincil kalır. Aksiyon gerektirmiyor, bilgi amaçlı.
+
+**NPU (XDNA2):** `amdxdna` sürücüsü tamamen AI/ML inference (kernel accel API) için;
+gaming/upscaling bağlamında (FSR4/DLSS gibi) hiçbir kullanım YOK — ikisi de shader/
+tensor-core üzerinden çalışıyor, NPU'ya hiç uğramıyor. `power.nix`'teki mevcut
+`boot.blacklistedKernelModules = [ "amdxdna" ]` **doğru karar**, değiştirilmedi.
+
+**DDR5 — doğrulandı, zaten optimal:** `sudo dmidecode` çıktısı (kullanıcı tarafından
+paylaşıldı): 2× 16GB Micron/Crucial `CT16G56C46S5` SODIMM, gerçek dual-channel (Kanal A +
+Kanal B, tek DIMM'de değil). **5600 MT/s @ 1.1V — bu parçanın kendi JEDEC anma hızı**,
+EXPO'yla açılan bir üst profil değil (laptop SODIMM'de EXPO/XMP pratik olarak hiç
+bulunmaz, masaüstü DIMM'e özgü bir kategori; bu Crucial serisi zaten JEDEC-only). OS'tan
+kolu yok (undervolt kilidiyle aynı kategori: donanım/firmware sınırı) ama burada zaten
+kapanacak bir şey de yok — RAM olabileceği en hızlı noktada. Fiziksel dizi 64GiB'a kadar
+büyüyebilir (32GiB kurulu) — donanım yükseltmesi isteği olursa headroom var, yazılım
+tarafında yapılacak bir şey değil. BIOS FB0A (28 May 2026)/EC 3.10 — bu makinede EC hand-
+reverse-engineered olduğundan (`docs/aerox16-1vh-wmi.md`) BIOS güncellemesi önerilmiyor.
+
+**NVMe:** `/sys/block/nvme0n1/queue/scheduler` = **none** (aktif) — NVMe için zaten doğru
+seçim (donanım kendi çoklu kuyruğunu yönetiyor, mq-deadline/kyber üstüne binen ek yalnız
+gecikme ekler). APST `power/control` = **auto**. İkisi de zaten optimal, değişiklik yok.
+
+**scx_lavd / GameMode (bilgi amaçlı, UYGULANMADI):** 2026'da bir topluluk kalıbı
+(blog.foulkes.cloud) GameMode kancalarıyla scx_lavd↔scx_rusty (oyun↔masaüstü) arasında
+otomatik geçiş yapıyor — bu repo zaten scx_lavd'ı yalnız oyunda çalıştırıyor (aynı
+felsefe), fark: oyun bitince EEVDF'e dönüyor, scx_rusty gibi ikinci bir "masaüstü"
+zamanlayıcıya geçmiyor. **Bilinçli olarak eklenmedi**: sürekli koşan (boşta bile) ikinci
+bir sched_ext daemon'ı 4.28W idle bütçesine yeni, ölçülmemiş bir risk ekler (`gaming.nix`
+tepesindeki "pil/idle tabanı GERİLEMEZ" kısıtı). İstenirse ayrı ölçümle (idle watt A/B)
+değerlendirilebilir — şu an öneri, karar kullanıcıda.
+
 ## Doğrulama komutları
 
 ```bash
@@ -296,6 +431,21 @@ Yeni kol (2026-07-12): SSDT9 PC00→PCI0 düzeltmesiyle **`0x4B` (dGPU TGP set,
 75–87 W)** artık canlı — ACBT'nin (0x4C) yanına ince sustained-TGP ayarı;
 ayrıntı `docs/aerox16-1vh-wmi.md` "SSDT9 PC00→PCI0 düzeltmesi". game-perf
 entegrasyonu ölçüm ister, henüz bağlanmadı.
+
+**SONUÇ (31 Tem 2026) — 0x4B ve 0xF1-F3 KAPANDI, bir daha denenmeyecek:**
+SSDT9 tablosu initrd'den sağlıklı yükleniyor (dmesg doğrulandı) ve beklenen
+faydalardan biri kanıtlandı: NVRM PSHAREPARAMS spam'i bitti (0 kayıt, eski
+baseline 32/boot). Ama kullanıcı hem `0x4B` (dGPU TGP) hem `0xF1/0xF2/0xF3`
+(CPU SPL/SPPT/FPPT) için şunu doğruladı: **EC yazılan değeri kendi otomatik
+geri alıyor** — kalıcı değil, bu ikisi çalışmıyor. Fark: `0xED`/`0x4C` (ACBT)
+EC'nin TANIDIĞI, kendi önceden tanımlı modları arasından seçim — EC bunu
+benimseyip tutuyor (KCD 38W→70-83W ölçümüyle kanıtlı). `0x4B`/`0xF1-F3` ham,
+EC'nin sürekli yeniden hesapladığı limit alanları — dışarıdan tek seferlik yazım
+tutmuyor. CPU'nun 21W sürdürülebilir kıskacının kaynağı hâlâ bilinmiyor ama bu
+selector'lar üzerinden açılamıyor; undervolt/CO kilidiyle (`docs/undervolt-curve-
+optimizer.md`) aynı tema — bu board'da OS'tan alınabilecek daha fazla güç-limiti
+kontrolü yok, mevcut 0xED/ACBT zinciri zaten en iyi kanıtlanmış kol. Ayrıntı:
+bellek `ec-power-limit-self-revert`.
 
 **Güvenlik kartı:**
 - EC bu makinede **uçucu**: şarj limiti/fan/ACBT her boot yeniden uygulanıyor →
