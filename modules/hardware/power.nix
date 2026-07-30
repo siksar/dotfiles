@@ -85,21 +85,34 @@
   # swapDevices girdisini tekrar UUID yazmadan referans alıyoruz.
   boot.resumeDevice = (builtins.head config.swapDevices).device;
 
-  # s2idle (mem_sleep_default=s2idle) kapak kapalıyken bile saatlerce yavaşça
-  # pil tüketir — "Modern Standby" gerçek sıfır güç değil. suspend-then-hibernate:
-  # önce s2idle'a gir (hızlı açılış), 1 saat sonra hâlâ uyanmadıysa gerçek
+  # s2idle kapak kapalıyken bile saatlerce yavaşça pil tüketir — "Modern Standby"
+  # gerçek sıfır güç değil. Bu makinede /sys/power/mem_sleep YALNIZCA [s2idle]
+  # listeler (deep/S3 hiç yok), yani "daha ucuz bir düz uyku" alternatifi mevcut
+  # değil → suspend-then-hibernate kozmetik değil, tek gerçek kaldıraç.
+  # Önce s2idle'a gir (hızlı açılış), 25 dk sonra hâlâ uyanmadıysa gerçek
   # hibernate'e düş (RAM diske yazılır, güç tamamen kesilebilir).
-  # HibernateOnACPower=false → fişteyken sayaç hiç başlamaz (zaten şarjda pil
-  # kaygısı yok), fiş çekilince geri sayım başlar.
+  #
+  # HibernateOnACPower=true (systemd 257+) → fişteyken de sayaç işler. false
+  # olsaydı geri sayım yalnız fiş çekildiğinde başlardı; bu, elektrik kesintisinde
+  # oturum kaybı ve fişte hiç 0W'a inmeme demekti.
   systemd.sleep.settings.Sleep = {
-    HibernateDelaySec  = "1h";
-    HibernateOnACPower = false;
+    HibernateDelaySec  = "25min";
+    HibernateOnACPower = true;
   };
 
-  # Kapak kapama / suspend tuşu artık suspend-then-hibernate'e yönleniyor
-  # (fişte/pilde davranış farkı yukarıdaki HibernateOnACPower ile tek yerden
-  # yönetiliyor). Hibernate tuşu (varsa) systemd varsayılanıyla doğrudan
-  # hibernate'e düşmeye devam eder.
+  # Kapak kapama / suspend tuşu suspend-then-hibernate'e yönleniyor; fişte-pilde
+  # davranış farkı yok (HibernateOnACPower=true). Hibernate tuşu (varsa) systemd
+  # varsayılanıyla doğrudan hibernate'e düşmeye devam eder.
+  #
+  # DİKKAT — yukarıdaki 25 dk'lık sayaç YALNIZCA uykuya `suspend-then-hibernate`
+  # olarak girildiyse başlar. Düz `systemctl suspend` çağıran her yol zinciri
+  # baypas eder ve s2idle'da sonsuza kalır; systemd'de düz suspend'i s2h'e
+  # yükseltmenin desteklenen bir yolu YOK (SuspendState= sadece /sys/power/state'e
+  # yazılan stringi değiştirir), yani çağıran tarafı düzeltmek tek çözüm.
+  # Yeni bir uyku tetikleyicisi eklerken `suspend-then-hibernate` yaz.
+  # Şu an bilinçli olarak kapsanmayanlar (GNOME/Sway yakında kaldırılacak):
+  #   - GNOME boşta-uyku (dconf enum'unda s2h yok; sleep-inactive-battery-type)
+  #   - modules/desktop/sway-rice/keybinds.nix — XF86PowerOff → düz suspend
   services.logind.settings.Login = {
     HandleLidSwitch              = "suspend-then-hibernate";
     HandleLidSwitchExternalPower = "suspend-then-hibernate";

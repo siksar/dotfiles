@@ -16,6 +16,25 @@
     pure_black_dark = false;
   };
 
+  # ── HAZIR ŞABLONLAR KAPALI — pazarlık konusu değil ────────────────────────
+  # noctalia varsayılan olarak `enable_builtin_templates = true` ile geliyor ve
+  # hazır şablon listesi Stylix'in/HM'nin YÖNETTİĞİ uygulamaları içeriyor:
+  # ghostty, gtk3, gtk4, qt, btop, fuzzel, helix, starship, cava, foot, kitty,
+  # alacritty, emacs. Bunların apply.sh'ları HM dosyalarını arkadan düzenliyor —
+  # ghostty'ninki tam olarak şunu yapıyor:
+  #     sed -i -E 's/^theme\s*=.*/theme = noctalia/' ~/.config/ghostty/config
+  # `sed -i` bir SYMLINK'İ DÜZ DOSYAYA ÇEVİRİR. HM'nin ghostty symlink'i böyle
+  # yok oldu; sonraki her aktivasyon "yolumda yabancı dosya var" deyip
+  # config.hm-backup'a yedekledi, ikinci seferde yedek çakıştı ve
+  # home-manager-zixar.service exit 1 ile öldü — `nh os test` de `hms` de
+  # bu yüzden düştü (26 Tem 01:26). btop/gtk-3.0/gtk-4.0/fuzzel'de de aynı
+  # hasarın .hm-backup kalıntıları bulundu.
+  #
+  # Stylix sınırı ancak bu bayrak false iken gerçek: noctalia sadece kendi
+  # UI'ını ve AŞAĞIDAKİ user şablonlarını boyar, HM'nin dosyalarına dokunmaz.
+  theme.templates.enable_builtin_templates = false;
+  theme.templates.enable_community_templates = false;
+
   theme.templates.user.sway = {
     input_path = "${cfgHome}/noctalia/templates/sway-colors";
     output_path = "~/.config/sway/colors";
@@ -104,11 +123,22 @@
     };
   };
 
-  # Pil düşük eşiği bildirimi — vyrx'in battery-monitor daemon'ının karşılığı.
-  # $NOCTALIA_BATTERY_PERCENT noctalia'nın hook ortamına koyduğu değişken;
-  # ''${...} Nix'in ''-string antiquotation'ını KAÇIRIR, kabuğa ham geçer.
-  hooks.battery_low_percent_threshold = 15;
-  hooks.battery_under_threshold = ''notify-send -u critical "Pil" "''${NOCTALIA_BATTERY_PERCENT}% kaldı"'';
+  # Pil düşük eşiği — vyrx'in battery-monitor daemon'ının karşılığı; bildirimi
+  # noctalia kendisi basıyor, hook gerekmiyor.
+  #
+  # İLK SÜRÜM YANLIŞTI: `hooks.battery_low_percent_threshold` ve
+  # `hooks.battery_under_threshold` diye iki anahtar uydurulmuştu; ikisi de yok.
+  # `noctalia config validate` bunları HATA değil UYARI sayıp exit 0 döndürüyor
+  # ("✓ Config is valid (2 warning(s))"), o yüzden build yeşil kaldı ve hata
+  # ancak çalışırken journal'da görüldü. Yani HM modülünün build-time validate'i
+  # yanlış DEĞERLERİ yakalar, yanlış ANAHTAR ADLARINI yakalamaz.
+  #
+  # Gerçek şema (`noctalia config export full`):
+  #   [battery] warning_threshold = <int>
+  #   [hooks]   battery_charging / battery_discharging / battery_plugged /
+  #             battery_percentage_changed — hepsi KOMUT LİSTESİ (dizi), string değil.
+  #             "eşiğin altına düştü" diye bir hook YOK.
+  battery.warning_threshold = 15;
 
   # Idle güç bütçesine dokunmasın diye muhafazakâr poll aralıkları (varsayılanlar).
   # Ölçümde 4.28W tabanı gerilerse burası ilk kapatılacak yer.

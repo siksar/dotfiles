@@ -106,9 +106,22 @@ One critical GNOME-specific rule: a udev rule in `gnome.nix` tags the NVIDIA DRM
 `mutter-device-ignore` so mutter never opens the dGPU node — an open fd would block RTD3
 D3cold and regress the idle power budget. PRIME offload (`gamerun`) is unaffected.
 
+`environment.sessionVariables.NIXOS_OZONE_WL = "1"` (`configuration.nix`, 2026-07-30) is
+system-wide and **crosses every session boundary**: it flips all nixpkgs-wrapped
+Electron/Chromium apps (VSCodium, Vesktop, 1Password, claude-desktop) from XWayland to
+native Wayland, because those wrappers gate `--ozone-platform-hint=auto
+--enable-features=WaylandWindowDecorations` on exactly this variable. It buys crisp HiDPI
+rendering plus xdg-decoration (Hyprland answers `MODE_SERVER_SIDE`, so those apps stop
+drawing their own decorations). Watch two regressions after touching it: ibus input in
+Electron apps (Wayland moves to text-input-v3) and screen sharing (falls to the portal).
+The full decoration policy — including why GTK/libadwaita headerbars can *never* be
+removed and why an app's self-drawn chrome needs a per-app setting instead — is in
+`docs/hyprland-rice.md`'s "Pencere süslemesi politikası" section; read it before
+re-litigating "make app X borderless".
+
 ### Opt-in Hyprland rice (`modules/desktop/hyprland-rice/`)
 
-A second desktop session — Hyprland 0.55 (Lua config) + Matugen dynamic theming
+A second desktop session — Hyprland 0.56 (Lua config) + Matugen dynamic theming
 (Waybar/Rofi/SwayNC/awww/Cava) — toggled by `rice.hyprland.enable = true;` in
 `configuration.nix` (currently on). It does **not** replace GNOME: ly gains a
 "Hyprland (uwsm-managed)" entry, GNOME stays default. The full design doc — the
@@ -118,7 +131,13 @@ config integration — is `docs/hyprland-rice.md`; read it before touching the r
 The rice-internal gotchas (`AQ_DRM_DEVICES` placement, `withUWSM`, session-target
 binding, matugen's source-color-index requirement) live in
 `modules/desktop/hyprland-rice/CLAUDE.md`, which loads automatically when you work in
-that directory.
+that directory. Waybar itself ships 16 selectable themes (the original bar plus 15
+vendored `atif-1402/minimal-waybar-themes` ports, all recolored from one shared
+monochrome palette) switchable without a rebuild via `waybar-theme --pick` /
+SUPER+W — see `docs/hyprland-rice.md`'s "Waybar çoklu tema sistemi" section. The rofi
+launcher is a vendored `adi1090x/rofi` type-5/style-4 painted from that *same* palette
+(`rofi-themes.nix`), so it tracks the waybar themes rather than matugen — the trade-off
+and rofi 2.0's gradient parser trap are in the same doc's "Rofi launcher teması" section.
 
 Runtime-written, HM-managed config files (Vesktop's `settings.json`) need the
 "mutable-copy trick": after `linkGeneration`, the HM symlink is replaced with a writable

@@ -167,6 +167,22 @@ geçmişi (≠ vyrx: cliphist+fuzzel) · `Alt+.` emoji (≠ vyrx: 1900 satırlı
 değiştirildi) · `Mod+r` kayıt (masaüstü sesi) · `Mod+Alt+r` bölge kaydı ·
 `Mod+Shift+r` mikrofonlu kayıt
 
+Bu üç kayıt bind'i de `sway-screenrecord` scriptiyle `gpu-screen-recorder -w screen`
+(doğrudan wlroots yakalama) kullanıyor — **portal'a hiç uğramıyor**, dolayısıyla
+aşağıdaki not onları etkilemiyor.
+
+**Portal tabanlı ekran paylaşımı (tarayıcı sekmesi paylaşımı, Discord/vesktop vb.)
+27 Tem 2026'dan beri bilerek KAPALI** — `xdg.portal.wlr.enable` global bir opsiyon
+olduğundan Hyprland/GNOME oturumlarına sızıp `xdg-desktop-portal-hyprland`'de bir
+epoll busy-loop'a yol açıyordu (bkz. `docs/xdp-hyprland-busyloop.md`). Kaybedilen
+işlevsellik pratikte muhtemelen sıfır: `xdg-desktop-portal-wlr`'ın kendi çıktı
+seçicisi (hardcoded `wofi`/`bemenu`/`mew` fallback'i) sistemde hiç kurulu değildi,
+yani bu yol muhtemelen daha önce de hiç çalışmıyordu. Geri açmak istenirse:
+`modules/desktop/sway-rice/system.nix`'te `xdg.portal.wlr.enable = true;` eklemek
+YETMEZ — önce bir `ConditionEnvironment=XDG_CURRENT_DESKTOP=sway` drop-in'iyle
+Sway'e scoped edilmeli (aksi halde sorun geri döner) ve `~/.config/xdg-desktop-portal-wlr/config`
+içine `chooser_type=none` + `output_name=…` yazılmalı (picker'ı bypass etmek için).
+
 ### Donanım tuşları
 `XF86Audio{Mute,Raise,Lower,MicMute}` → noctalia (OSD dahil) ·
 `XF86MonBrightness{Up,Down}` → noctalia · `Mod+XF86AudioRaise/Lower` →

@@ -25,6 +25,10 @@ hl.bind(mod .. " + SHIFT + F23", hl.dsp.exec_cmd("claude-desktop"))
 hl.bind(mod .. " + T",         hl.dsp.exec_cmd("wallpaper-picker"))
 hl.bind(mod .. " + SHIFT + T", hl.dsp.exec_cmd("theme-apply --random"))
 
+-- Waybar tema seçici — 16 tema (mevcut bar + 15 atif-1402/minimal-waybar-themes
+-- portu) arasında rebuild'siz geçiş (bkz. waybar-themes.nix, hm.nix waybar-theme)
+hl.bind(mod .. " + W", hl.dsp.exec_cmd("waybar-theme --pick"))
+
 ------------------------
 ---- SİSTEM ------------
 ------------------------
@@ -37,8 +41,23 @@ hl.bind(mod .. " + V", hl.dsp.exec_cmd("swaync-client -t -sw"))
 -- tarafında SUPER+M kullanılıyor)
 hl.bind(mod .. " + M", hl.dsp.exec_cmd("systemctl start --no-block fan-mode-cycle.service"))
 
--- Oturumdan çık (GDM'ye döner)
+-- Klavye aydınlatması (HID LampArray — bkz. modules/hardware/keyboard-rgb/).
+-- Renk normalde SUPER+T tema zincirinden matugen ile gelir; bunlar elle
+-- kontrol. Animasyon idle'da ASLA dönmez, yalnız bu toggle ile başlar.
+-- Z/X = animasyon, C/V = parlaklık (klavyede yan yana; C solda azaltır).
+hl.bind(mod .. " + ALT + Z", hl.dsp.exec_cmd("kbd-anim breathe"))
+hl.bind(mod .. " + ALT + X", hl.dsp.exec_cmd("kbd-anim rainbow"))
+hl.bind(mod .. " + ALT + C", hl.dsp.exec_cmd("kbd-rgb bright -10"), { repeating = true })
+hl.bind(mod .. " + ALT + V", hl.dsp.exec_cmd("kbd-rgb bright +10"), { repeating = true })
+
+-- Oturumdan çık (ly'ye döner)
 hl.bind(mod .. " + SHIFT + E", hl.dsp.exec_cmd("hyprctl dispatch exit"))
+
+-- Kilit ekranı (GNOME kas hafızası SUPER+L). loginctl lock-session,
+-- hypridle'ın general.lock_cmd'sini (hyprlock) org.freedesktop.login1 Lock
+-- sinyaliyle tetikler — doğrudan `hyprlock` çağırmak yerine bu yol, hypridle
+-- ile aynı kilit durumunu paylaşır (ör. after_sleep_cmd senkron kalır).
+hl.bind(mod .. " + L", hl.dsp.exec_cmd("loginctl lock-session"))
 
 ------------------------
 ---- PENCERE DÜZENİ ----
@@ -72,6 +91,16 @@ hl.bind(mod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
 -- SUPER + tekerlek: komşu çalışma alanları
 hl.bind(mod .. " + mouse_down", hl.dsp.focus({ workspace = "e+1" }))
 hl.bind(mod .. " + mouse_up",   hl.dsp.focus({ workspace = "e-1" }))
+
+------------------------
+---- EKRAN GÖRÜNTÜSÜ ---
+------------------------
+
+-- Print: bölge seç + satty ile düzenle. SHIFT+Print: tüm ekran (satty ile).
+-- SUPER+SHIFT+S: bölge → doğrudan panoya (dosya yazmaz, düzenleme açmaz).
+hl.bind("Print",               hl.dsp.exec_cmd("hypr-screenshot region"))
+hl.bind("SHIFT + Print",       hl.dsp.exec_cmd("hypr-screenshot fullscreen"))
+hl.bind(mod .. " + SHIFT + S", hl.dsp.exec_cmd("hypr-screenshot clipboard"))
 
 ------------------------
 ---- MULTİMEDYA --------

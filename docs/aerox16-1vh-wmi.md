@@ -33,8 +33,9 @@ Ayrıntı: "Canlı test sonuçları" bölümü.
 - dGPU Dynamic Boost: acpi_call `WMBD 0x4C` → AC'de ACBT=80W (+
   `nvidia-powerd` ile GPU tavanı 50→75W+), pilde 0. (`gpu_boost`/0x51
   KULLANILMIYOR: 2=no-op, 3=dGPU eject, 1=LCBT(0) — işlevsiz)
-- `charge_mode`/`charge_limit`: custom(1) + %80 (boot'ta servisle)
-- hwmon: 4× fan RPM + 3× sıcaklık (`sensors`, btop, Caelestia dashboard)
+- `charge_mode`/`charge_limit`: custom(1) + %60 (boot'ta servisle)
+- hwmon: 4× fan RPM (yalnız 1-2 gerçek) + 3× sıcaklık + **2× PWM/duty (CPU+GPU,
+  salt-okuma; sürücü 0.2.0)** — `sensors`, btop, Caelestia dashboard
 - Fn tuşu düzeltmesi: çıplak Fn = F20 (HID 0x7006f) → hwdb `reserved`
   (xkb F20'yi XF86AudioMicMute'a eşlediğinden mic toggle kaosu yaratıyordu)
 
@@ -507,6 +508,9 @@ kaynaklıydı; sürücünün `fan_mode 1`'i no-op.)
 - `fan3/fan4_input=0` (yalnız 2 tach), `temp3_input=0` (`ec_read(0x62)` port-EC bu eSPI'de
   boş, `:234`). Sıcaklıklar (`temp1=95`, `temp2=67`) swap edilmiyor, doğru.
 - "Dual fan speed control required" hiç basılmadı → `ec_read(0xB0/0xB1)` (`:846-852`) boş.
+  (**0.2.0'da değişti**: yoklama `ec_read` yerine `CPU_FAN_DUTY 0x46`/`FDTY` okumasına
+  döndü ve artık BASILIYOR — ama FDTY fan dururken 0 olduğu için bayrak modül yüklenme
+  anına bağlı. Bkz. "Sürücü 0.2.0'a yükseltme".)
 
 ### Çıktılar
 - Upstream rapor **kesinleştirildi**: `docs/upstream-gigabyte-wmi-report.md` (issue #22
@@ -515,6 +519,11 @@ kaynaklıydı; sürücünün `fan_mode 1`'i no-op.)
   ölçüm; Part 2 korumalı yazma testleri, gpu_boost 3 yasak kutusu dahil).
 
 ### Uygulanan local fix — sessiz mod misdetect'i (2026-07-11)
+> **Güncelleme (2026-07-29):** bu `.patch` dosyası sürücü 0.2.0'a yükseltilirken
+> düştü; aynı düzeltme artık `gigabyte-wmi.nix` içinde `postPatch` +
+> `substituteInPlace --replace-fail` olarak duruyor. Gerekçe aşağıdaki
+> "Sürücü 0.2.0'a yükseltme" bölümünde.
+
 Seçenek B (heuristik düzeltmesi, feature-detect) local patch olarak uygulandı:
 `modules/hardware/aorus-laptop-silent-0x57.patch` — probe artık `0xFA` yerine yeni
 sessiz selector `0x57`'yi doğrudan yokluyor (`ret==0` ise yeni model). Wire:
@@ -758,3 +767,83 @@ yenilenmeden build'i zaten durdurur.
 NVRM log hijyeni + 0x4B TGP kanalı (75–87 W, `NLIM=1` + `Notify(PEGP,0xC0)` →
 sürücü GPS/PSHAREPARAMS'tan okur). Oyun projesi için ACBT'ye (0x4C) ek ince
 sustained-TGP kolu; game-perf entegrasyonu ayrı iş (ölçümle).
+
+## Sürücü 0.2.0'a yükseltme (2026-07-29) — UYGULANDI + DOĞRULANDI
+
+Upstream `0.2.0` (tag `8bd8bef`, 2026-07-05) çıktı; pin `912b4e9` (2026-06-08)
+→ arada 25 commit. `master` (`fc2f217`, 2026-07-19) 0.2.0'dan yalnız 2 paketleme
+commit'i ileride, fonksiyonel fark yok → tag pinlendi.
+
+### Bizim 4 bulgumuzun durumu: HİÇBİRİ düzelmedi
+Beklenen sonuç — issue #22 yorumumuz 2026-07-11, tag ondan 6 gün eski. Kaynaktan
+teyit edildi:
+- Sessiz mod probe'u kelimesi kelimesine aynı (`if (output < 0)`).
+- `convert_fan_rpm` hâlâ `"GIGABYTE GAMING"` dışındaki **tüm** ailelere uygulanıyor.
+- `gpu_boost=3` (dGPU eject) ve custom-fan ölülüğü: dokunulmamış. Issue #22 açık.
+
+### Bizi ilgilendiren yenilikler
+- **PWM düğümleri (salt-okuma) sysfs + hwmon'da**: `FAN_PWM 0x50` (=`FDTY`) ve
+  `GPU_FAN_DUTY 0x47` (=`GDTY`). Defterdeki preset karakterizasyonunda
+  `acpi_call` ile okuduğumuz duty telemetrisi artık düz hwmon okuması.
+- Probe eğrinin 15 noktasını okuyor (`FAN_INDEX_VALUE 0x68` döngüsü). Bizde
+  geri-okuma hep 0 (EC tabloya işlemiyor, E1-E8) → içerik değersiz, ama WMBC
+  0x68'in içindeki `Sleep(100ms)` × 15 = **modül yüklenmesi ~1.5 sn uzuyor**.
+- `light_sensor` yeni 4-baytlık `0xFC` metodu. Bizde `0xFC->0` ölçüldü (Faz F)
+  → probe eski metoda düşecek, bağlanmayı engellememeli.
+- Çift fan mantığı `CPU_FAN_DUTY 0x46` okumasıyla feature-detect ediliyor; bizde
+  `FDTY` fan dururken 0, dönerken ≠0 → bu bayrak boot anına göre değişebilir.
+  Fan hızı yazma zaten ölü olduğu için sonucu yok.
+- DMI tablosuna `"AERO"` ve `"GIGABYTE GAMING"` eklendi; bizim `"GIGABYTE AERO"`
+  zaten vardı → eşleşme değişmedi.
+
+### Kırıcı değişiklik (bizi etkilemiyor)
+`fan_custom_speed` artık 25-100/5'in katı değil, ham **0-255**. O düğümü
+kullanmıyoruz (E7/E8'de değer↔RPM korelasyonu sıfır çıkmıştı).
+
+### `patches` → `postPatch` geçişi (neden)
+0.2.0'da probe'un ilk satırı `u8 result, result2;` → `u8 result;` oldu; eski
+`aorus-laptop-silent-0x57.patch`'in bağlam bloğu bu satırı içeriyordu. GNU
+patch varsayılan **fuzz=2** ile böyle bir hunk'ı yine de yapıştırabilir —
+yani sessizce "başarılı" olur. `substituteInPlace --replace-fail` ise hedef
+metin kaybolduğu an build'i açık hatayla düşürür; upstream refactor'lerine
+karşı doğru failure mode bu. Yamalar (`gigabyte-wmi.nix`, `postPatch`):
+1. `FAN_SILENT_OLD` → `FAN_SILENT_MODE` + `if (output < 0)` → `if (ret == 0)`
+   (Faz F §2'nin aynısı).
+2. `convert_fan_rpm` gövdesi no-op (`return fan_rpm;`) — tek çağrı yeri var ve
+   bu derleme yalnız bu makine için. Upstream'e gidecek biçim DMI dalına
+   `"GIGABYTE AERO"` eklemek (Faz F §1); local'de bilerek sadeleştirildi.
+
+### Doğrulama sonuçları (2026-07-29 reboot sonrası)
+| Kontrol | Sonuç |
+|---|---|
+| Build | ✅ Her iki `--replace-fail` hedefi kaynakta bulundu (bulunmasa build düşerdi) |
+| Modül canlı | ✅ `srcversion` `1B107436…` → **`922D3D6F…`**; `fan_pwm` düğümü belirdi |
+| Probe bağlandı | ✅ Tüm sysfs düğümleri yerinde; `charge_limit=60`, `fan_mode=0` |
+| Yama 1 (sessiz mod) | ✅ dmesg: `aorus_laptop: Newer model detected, using new silent fan mode ID` |
+| Yama 2 (RPM swap) | ✅ `fan1_input=5555`, `fan2_input=5769` (boot rampası). Swap sürseydi aynı fan **45845** (0xB315) yazardı — imkânsız değer. Fanlar durunca ikisi de 0 |
+| Yeni PWM kanalları | ✅ `pwm1`/`pwm2`/`fan_pwm` okunuyor; fan-stop'ta 0 (mod 0, <48 °C — preset tablosuyla tutarlı) |
+| Işık sensörü | ✅ `Using old light sensor method` — `0xFC->0` ölçümümüzün (Faz F) beklediği dal |
+| Servisler | ✅ `gigabyte-power-profile` + `gigabyte-charge-limit` `status=0/SUCCESS` |
+
+**Henüz test edilmedi:** Süper+M döngüsü (0→1→2→5) ve sessiz modun *duyulur*
+etkisi — ikincisi zaten Faz F'ten beri açık (AC + yük gerektiriyor; yama
+selector'ü düzeltir, o selector'ün bu firmware'de ses farkı yaratıp
+yaratmadığını değil).
+
+**Yan bulgu:** "Dual fan speed control required" **artık basılıyor** (Faz F'te
+hiç basılmamıştı). 0.2.0 bu yoklamayı `ec_read(0xB0/0xB1)`'den — bu eSPI'de boş
+bölge — `CPU_FAN_DUTY 0x46`/`FDTY` okumasına çevirmiş. FDTY fan dururken 0
+olduğundan bayrak **modül yüklenme anındaki fan durumuna bağlı**: boot'ta fanlar
+dönüyorsa set, durgunsa değil. Fan hızı yazma bu firmware'de zaten ölü (E1-E8)
+→ pratik sonucu yok, ama sürücü davranışı artık deterministik değil.
+
+### Kabuk notu (bu doğrulamada bir tur kaybettirdi)
+Kullanıcının fish'inde `grep` → **ripgrep** alias'lı. `grep -i 'a\|b'` rg'de
+alternation DEĞİL, literal boru işareti arar → **sessiz yanlış negatif**
+(dmesg'de mesaj vardı, komut boş döndü). `-E` de rg'de `--encoding`. Bu
+defterdeki komutları kopyalarken `rg -i 'a|b'` kullan.
+
+Rollback: `rev`/`hash`'i `912b4e9` +
+`sha256-AoPKhoPk0/lJ+f+YJZPFpJEZjeY/2CY8WnZ0VmfrJ8A=` yapıp `postPatch`'i eski
+`patches = [ ./aorus-laptop-silent-0x57.patch ];` satırına döndürmek yeterli
+(dosya git geçmişinde duruyor).

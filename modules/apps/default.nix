@@ -47,9 +47,10 @@
     virtiofsd
   ];
 
-  # Vesktop/Bitwarden token saklama (Secret Service)
+  # Vesktop/Bitwarden token saklama (Secret Service). Kilit girişte ly'nin
+  # PAM entegrasyonundan açılıyor (nixpkgs ly modülü enableGnomeKeyring'i
+  # services.gnome.gnome-keyring.enable'dan mkDefault ile zaten alıyor).
   services.gnome.gnome-keyring.enable = true;
-  security.pam.services.gdm-password.enableGnomeKeyring = true; # girişte keyring kilidi açılır
 
   # Cowork için KVM erişimi
   users.users.zixar.extraGroups = [ "kvm" ];

@@ -29,6 +29,25 @@ let
     floating.border = 2;
     focus.wrapping = "no";
     workspaceAutoBackAndForth = true;
+
+    # resize modu BURADA tanımlanmalı, extraConfig'te DEĞİL. HM'nin sway modülü
+    # `config.modes` için hazır bir varsayılan resize modu üretiyor (adımlar
+    # "10 px", boşluklu). extraConfig'e ikinci bir `mode "resize"` bloğu yazmak
+    # onu silmiyor, ÜSTÜNE yazıyor → sway her açılışta 10 tane
+    # "Overwriting binding 'h' … from `resize shrink width 10 px`" uyarısı
+    # basıp swaynag hata çubuğunu açıyordu. Buradan verince tek blok üretilir.
+    modes.resize = {
+      h = "resize shrink width 10px";
+      j = "resize grow height 10px";
+      k = "resize shrink height 10px";
+      l = "resize grow width 10px";
+      Left = "resize shrink width 10px";
+      Down = "resize grow height 10px";
+      Up = "resize shrink height 10px";
+      Right = "resize grow width 10px";
+      Return = "mode default";
+      Escape = "mode default";
+    };
   };
 in
 {
@@ -73,18 +92,6 @@ in
           repeat_rate 60
         }
 
-        mode "resize" {
-          bindsym h resize shrink width 10px
-          bindsym j resize grow height 10px
-          bindsym k resize shrink height 10px
-          bindsym l resize grow width 10px
-          bindsym Left resize shrink width 10px
-          bindsym Down resize grow height 10px
-          bindsym Up resize shrink height 10px
-          bindsym Right resize grow width 10px
-          bindsym Return mode "default"
-          bindsym Escape mode "default"
-        }
       '';
     };
 

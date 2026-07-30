@@ -24,11 +24,37 @@ let
     MAX=$(cat "$BL/max_brightness")
     PPCTL=${pkgs.power-profiles-daemon}/bin/powerprofilesctl
 
+    # PPD profilini uygula + DOĞRULA (2026-07-27). PPD 0.30, istenen profil kendi
+    # mevcut profiline EŞİTSE donanıma hiç yazmıyor — "set" sessizce no-op oluyor.
+    # Boot'ta PPD kendini zaten "balanced" sanarak açılıyor, EPP ise çekirdeğin boot
+    # varsayılanı "performance"ta kalıyor. Sonuç ölçüldü: boştaki 8 çekirdek tam
+    # 3465 MHz'e çivileniyor, 623 MHz'e (cpuinfo_min_freq) hiç inemiyor — yani PPD
+    # "balanced" derken donanım performance'ta. Bu yüzden set'ten sonra EPP'yi geri
+    # okuyup uyuşmuyorsa, başka bir profile uğrayıp dönerek GERÇEK bir geçiş zorluyoruz.
+    # Ham EPP yazmıyoruz, bilerek: PPD'yi kendi API'siyle sürmek şart — TLP'nin
+    # amd-pstate ile kavgası tam olarak ham governor/EPP yazımıydı (power.nix).
+    ppd_apply() {
+      WANT=$1
+      case "$WANT" in
+        # ALT = geçişi zorlamak için uğranacak profil. power-saver'a ASLA uğranmaz:
+        # scaling_max_freq'i 2 GHz'e kilitleyip geri açmıyor (aşağıdaki nota bak).
+        performance) EXP=performance         ; ALT=balanced    ;;
+        balanced)    EXP=balance_performance ; ALT=performance ;;
+        power-saver) EXP=power               ; ALT=balanced    ;;
+        *)           return 0                                  ;;
+      esac
+      "$PPCTL" set "$WANT" 2>/dev/null || return 0
+      EPPF=/sys/devices/system/cpu/cpufreq/policy0/energy_performance_preference
+      [ "$(cat "$EPPF" 2>/dev/null)" = "$EXP" ] && return 0
+      "$PPCTL" set "$ALT"  2>/dev/null || true
+      "$PPCTL" set "$WANT" 2>/dev/null || true
+    }
+
     if [ "$AC" = "0" ]; then
       echo $((MAX * 40 / 100)) > "$BL/brightness"
       # Webcam pilde hard-off (autosuspend yetmez, enumerate bile olmasın)
       echo 0 > /sys/bus/usb/devices/1-1/authorized 2>/dev/null || true
-      "$PPCTL" set power-saver 2>/dev/null || true
+      ppd_apply power-saver
     else
       echo $((MAX * 80 / 100)) > "$BL/brightness"
       echo 1 > /sys/bus/usb/devices/1-1/authorized 2>/dev/null || true
@@ -41,9 +67,9 @@ let
       UID_ZIXAR=$(${pkgs.coreutils}/bin/id -u zixar 2>/dev/null || echo 1000)
       if ${pkgs.systemd}/bin/systemctl is-active --quiet game-perf.service \
          && [ -f "/run/user/$UID_ZIXAR/gamerun-cpumax" ]; then
-        "$PPCTL" set performance 2>/dev/null || true
+        ppd_apply performance
       else
-        "$PPCTL" set balanced 2>/dev/null || true
+        ppd_apply balanced
       fi
 
       # Kritik düzeltme (2026-07-18): PPD power-saver profili platform_profile=low-power
@@ -82,33 +108,32 @@ let
       fi
     done
 
-    # Kullanıcı oturumu varsa GNOME adaptasyon servisini tetikle
+    # Kullanıcı oturumu varsa Hyprland adaptasyon servisini tetikle
     systemctl --user -M zixar@.host start power-display-user.service 2>/dev/null || true
   '';
 
-  # --- Kullanıcı servisi: GNOME refresh rate + pil render profili ---
-  # gnome-randr mutter'ın org.gnome.Mutter.DisplayConfig D-Bus API'sini kullanır;
-  # oturum yoksa sorgu düşer, sessizce çıkılır. Gerçek mod adları (59.994 vb.)
-  # panele göre değiştiğinden regex ile sorgu çıktısından seçilir.
+  # --- Kullanıcı servisi: Hyprland refresh rate + animasyon ---
+  # hyprctl keyword ile canlı ayar; oturum yoksa (Hyprland kapalı) sessizce
+  # çıkılır. MOD DEĞERİ lua/main.lua'daki hl.monitor({mode="2560x1600@165"})
+  # ile ELLE SENKRON tutulmalı — panel değişirse ikisi birden güncellenmeli.
   powerDisplayUserScript = pkgs.writeShellScript "power-display-user" ''
     AC=$(cat /sys/class/power_supply/ACAD/online 2>/dev/null || echo 1)
 
-    GR=${pkgs.gnome-randr}/bin/gnome-randr
-    MODES=$("$GR" 2>/dev/null) || exit 0
+    HYPRCTL=${pkgs.hyprland}/bin/hyprctl
+    "$HYPRCTL" monitors >/dev/null 2>&1 || exit 0
 
     if [ "$AC" = "0" ]; then
       # Pil: 60Hz + animasyonlar kapalı → residency artar
-      MODE=$(printf '%s\n' "$MODES" | grep -oE '2560x1600@(59|60)(\.[0-9]+)?' | head -1)
-      ANIM=false
+      MODE="2560x1600@60"
+      ANIM=0
     else
-      # AC: 165Hz + animasyonlar açık (VRR mutter experimental; yalnız tam ekran)
-      MODE=$(printf '%s\n' "$MODES" | grep -oE '2560x1600@16[45](\.[0-9]+)?' | head -1)
-      ANIM=true
+      # AC: 165Hz + animasyonlar açık (misc:vrr=2 zaten yalnız tam ekranda devreye girer)
+      MODE="2560x1600@165"
+      ANIM=1
     fi
 
-    [ -n "$MODE" ] && "$GR" modify eDP-1 --mode "$MODE" || true
-    ${pkgs.glib}/bin/gsettings set org.gnome.desktop.interface \
-      enable-animations "$ANIM" 2>/dev/null || true
+    "$HYPRCTL" keyword monitor "eDP-1,$MODE,auto,1" >/dev/null 2>&1 || true
+    "$HYPRCTL" keyword animations:enabled "$ANIM" >/dev/null 2>&1 || true
   '';
 in
 {
@@ -125,9 +150,20 @@ in
   # Sistem servisi — boot'ta VE udev'de koşar (pille boot edilirse de uygulanır).
   # after/wants power-profiles-daemon: boot'taki koşu PPD hazır olmadan "set" çağırıp
   # sessizce düşmesin (udev tetiklemesinde PPD zaten ayakta olur).
+  #
+  # wantedBy=graphical.target, multi-user.target DEĞİL (2026-07-27 — sıralama döngüsü):
+  # PPD 0.30'un upstream unit'i "After=multi-user.target" taşıyor. systemd.target(5):
+  # bir target, Wants=/Requires= listesindeki her unit'e örtük After= alır — yani
+  # multi-user.target otomatik olarak After=power-display oluyordu. Döngü:
+  #   PPD → after → multi-user.target → after → power-display → after → PPD
+  # systemd bunu kıramayıp PPD'nin BAŞLATMA JOB'INI düşürdü ("Unable to break cycle");
+  # PPD ancak ~16 sn sonra D-Bus etkinleştirmesiyle geldi ve profil hiç uygulanmadı.
+  # graphical.target zaten After=multi-user.target olduğundan buraya asılmak döngüyü
+  # kırar (bu makine ly ile hep grafik boot ediyor). display-manager.target bu sistemde
+  # hiç tanımlı değil, PPD'nin ona olan After='ı ölü bağ — yeni döngü riski yok.
   systemd.services.power-display = {
     description = "AC/BAT display brightness + webcam + power-profile adaptation";
-    wantedBy = [ "multi-user.target" ];
+    wantedBy = [ "graphical.target" ];
     after    = [ "power-profiles-daemon.service" ];
     wants    = [ "power-profiles-daemon.service" ];
     serviceConfig = {
@@ -136,12 +172,14 @@ in
     };
   };
 
-  # Kullanıcı servisi — GNOME oturumu açılınca otomatik koşar (graphical-session.target)
+  # Kullanıcı servisi — Hyprland oturumu açılınca otomatik koşar. GNOME'un
+  # graphical-session.target'ı DEĞİL: rice'ın diğer servisleriyle (waybar,
+  # swaync) aynı desen — yalnız Hyprland'de aktifleşsin.
   systemd.user.services.power-display-user = {
-    description = "AC/BAT GNOME refresh rate + render profile adaptation";
-    wantedBy = [ "graphical-session.target" ];
-    after    = [ "graphical-session.target" ];
-    partOf   = [ "graphical-session.target" ];
+    description = "AC/BAT Hyprland refresh rate + render profile adaptation";
+    wantedBy = [ "hyprland-session.target" ];
+    after    = [ "hyprland-session.target" ];
+    partOf   = [ "hyprland-session.target" ];
     serviceConfig = {
       Type      = "oneshot";
       ExecStart = powerDisplayUserScript;

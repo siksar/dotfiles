@@ -1,4 +1,4 @@
-# GNOME kullanıcı ayarları (HM) — kısayol temel seti + duvar kağıtları
+# GNOME kullanıcı ayarları (HM) — kısayol temel seti
 # İlke: GNOME varsayılanları esas; yalnız Hyprland kas hafızasının özü taşınır.
 # Kilit ekranı zaten GNOME varsayılanı SUPER+L — dokunulmaz.
 { lib, ... }:
@@ -64,11 +64,5 @@ in
       binding = "<Shift><Super>F23";
       command = "claude-desktop";
     };
-  };
-
-  # Tema duvar kağıtları (recursive: kullanıcı dizine kendi dosyasını da atabilir)
-  home.file."Pictures/Wallpapers" = {
-    source = ./wallpapers;
-    recursive = true;
   };
 }

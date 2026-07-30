@@ -21,8 +21,13 @@ rec {
     name = "sway-cheatsheet";
     runtimeInputs = [ pkgs.fuzzel pkgs.util-linux pkgs.sway ];
     text = ''
+      # --width ZORUNLU: fuzzel'in varsayılanı 30 KARAKTER, `column -t` ise tuş
+      # sütununu 32'ye yastıklıyor → açıklama sütunu tamamen pencere dışında
+      # kalıyor ve cheatsheet sadece tuş kombinasyonlarını gösteriyordu.
+      # En uzun satır 99 karakter; 104 pay bırakır.
       mapfile -t actions < ${cheatsheetActions}
-      idx=$(column -t -s $'\t' ${cheatsheetDisplay} | fuzzel --dmenu --index --prompt 'kısayol> ') || exit 0
+      idx=$(column -t -s $'\t' ${cheatsheetDisplay} \
+        | fuzzel --dmenu --index --width 104 --lines 20 --prompt 'kısayol> ') || exit 0
       [ -z "$idx" ] && exit 0
       swaymsg -- "''${actions[$idx]}"
     '';

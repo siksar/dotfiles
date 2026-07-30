@@ -14,6 +14,7 @@
     ./modules/hardware/power.nix
     ./modules/hardware/power-display.nix
     ./modules/hardware/gigabyte-wmi.nix
+    ./modules/hardware/keyboard-rgb/system.nix
     ./modules/hardware/gaming.nix
     ./modules/hardware/acpi-override.nix
 
@@ -67,6 +68,27 @@
 
   nixpkgs.config.allowUnfree = true;
 
+  # Electron/Chromium uygulamaları native Wayland'de çalışsın (kullanıcı isteği 30 Tem).
+  # nixpkgs'in Electron sarmalayıcıları şu kalıbı taşır:
+  #   ${NIXOS_OZONE_WL:+ --ozone-platform-hint=auto --enable-features=WaylandWindowDecorations}
+  # Değişken boşken flag hiç eklenmiyordu → VSCodium/Vesktop/1Password/claude-desktop
+  # XWayland'de koşuyordu. İki kazanç: (1) HiDPI'de net render + kesirli ölçekleme,
+  # (2) WaylandWindowDecorations sayesinde xdg-decoration konuşuluyor; Hyprland bu
+  # protokole DAİMA MODE_SERVER_SIDE cevabı verdiği için uygulama kendi süslemesini
+  # çizmiyor — pencerenin tek çerçevesi Hyprland'ın border+rounding'i oluyor.
+  #
+  # KAPSAM UYARISI: sessionVariables sistem geneli, GNOME oturumunu da etkiler
+  # (orada mutter gerçek başlık çubuğu çizer — normal davranış). Uygulamanın KENDİ
+  # tasarladığı chrome (VSCodium'un sekme çubuğu, Vesktop'un başlığı) bu flag'le
+  # GİTMEZ; o uygulama başına ayardır — VSCodium'unki modules/apps/vscodium.nix'te.
+  # GTK/libadwaita başlıkları (nautilus vb.) hiçbir şekilde kaldırılamaz: GtkHeaderBar
+  # bir süsleme değil, içinde yol çubuğu/arama/menü taşıyan uygulama arayüzüdür.
+  #
+  # Regresyon izle: ibus (GTK_IM_MODULE=ibus) Wayland'de text-input-v3'e geçer —
+  # Electron uygulamalarında Türkçe/emoji girişini bir teyit et. Ekran paylaşımı
+  # portal'a (xdg-desktop-portal) düşer. Bozarsa bu satırı sil, rebuild yeter.
+  environment.sessionVariables.NIXOS_OZONE_WL = "1";
+
   environment.systemPackages = with pkgs; [
     vim
     git
@@ -76,6 +98,11 @@
     brightnessctl     # CLI parlaklık (script/servisler)
     wl-clipboard      # wl-copy / wl-paste
     pavucontrol       # PulseAudio / PipeWire GUI
+
+    # TUI sistem ayarları (GUI olmadan terminalden bluetooth/wifi/ses)
+    bluetuith         # Bluetooth TUI — eşleştirme/bağlan/güven/ses profili (bluez üstünde)
+    wiremix           # PipeWire native ses mikseri TUI — pulse uyumluluk katmanı gerekmez
+    # WiFi TUI zaten var: nmtui — networking.networkmanager.enable paketi otomatik ekliyor
 
     # Ağ araçları (power-display WiFi PS servisi iw'yi kullanır + tanılama)
     iw                # regdomain/power_save sorgu-set (iw reg get, iw dev ... get power_save)

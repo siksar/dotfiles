@@ -53,14 +53,22 @@
       SUBSYSTEM=="drm", KERNEL=="card[0-9]*", DRIVERS=="amdgpu", SYMLINK+="dri/sway-igpu"
     '';
 
-    # Ekran paylaşımı wlr portal'ından, dosya seçici GTK'dan. programs.sway
-    # modülü zaten xdg.portal.config.sway.default = "gtk" set ediyor —
-    # ÜZERİNE YAZMIYORUZ (nixpkgs'in kendi varsayılanıyla çakışır); sadece
-    # wlr implementasyonunu ekliyoruz, seçim sırası nixpkgs'e kalıyor.
-    # xdg.portal.config.gnome/hyprland dallarına dokunulmuyor.
+    # Dosya seçici GTK'dan. Ekran paylaşımı BİLEREK YOK — wlr.enable GLOBAL bir
+    # NixOS opsiyonu (mkIf cfg.enable içine yazmak onu Sway'e KAPSAMIYOR): kurduğu
+    # xdg-desktop-portal-wlr.service yalnızca ConditionEnvironment=WAYLAND_DISPLAY
+    # ile korunur, masaüstü koşulu yok — GNOME/Hyprland oturumlarına da sızar.
+    # WLR_DRM_DEVICES'i extraSessionCommands'a scoped etmemizin (yukarıda) aynı
+    # dersi, burada 27 Tem 2026'da ihlal edilmiş haliyle bulundu: sızan wlr
+    # instance, xdph'nin (Hyprland'in KENDİ portalı) epoll busy-loop'una (2 çekirdek
+    # sürekli boost, 4.28W bütçesini deliyor) neden oldu — bkz.
+    # docs/xdp-hyprland-busyloop.md. Kayda değer bedel sıfıra yakın: wlr'ın kendi
+    # output seçicisi zaten hiç çalışmıyordu (hardcoded wofi/bemenu/mew fallback'i,
+    # sistemde hiçbiri kurulu değil) — yani Sway'de portal tabanlı ekran paylaşımı
+    # muhtemelen daha önce de hiç işlemiyordu. grim tabanlı ekran görüntüsü
+    # (sway-screenshot) ve gpu-screen-recorder'ın doğrudan yakalaması ETKİLENMİYOR.
+    # Geri açmak için: docs/sway-rice.md'deki "ekran paylaşımı" notuna bak.
     xdg.portal = {
       enable = true;
-      wlr.enable = true;
       extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
     };
 

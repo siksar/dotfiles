@@ -75,9 +75,12 @@ hl.window_rule({
 -- gamescope pencereli (GR_GSWIN — Hyprland'de varsayılan): DIŞ pencere gamescope'un
 -- KENDİSİDİR (app_id "gamescope"), oyunun steam_app_* penceresi değil (o, gamescope'un
 -- içindedir → Hyprland görmez). Bu yüzden windowed-game kuralı bunu YAKALAMAZ, ayrı kural
--- gerekir. Kullanıcı KENARLIK istiyor → border_size sıfırlanmaz (global border_size=1
--- miras alınır). float+center: 1920x1080 pencere 2560x1600'de ortada → waybar (üst) +
--- border'la çakışmaz. rounding=0: yuvarlatma oyun görüntüsünün köşesini kırpar → kapalı.
+-- gerekir. Kullanıcı KENARLIK istiyor → border_size sıfırlanmaz, global miras alınır
+-- (NOT: global border_size 29 Tem'de 0'a çekildi, yani bu kural pratikte kenarlıksız —
+-- gamescope'ta kenarlık geri istenirse burada ELLE border_size verilmeli, aynı
+-- vscodium-chrome kuralındaki gibi). float+center: 1920x1080 pencere 2560x1600'de
+-- ortada → waybar (üst) + border'la çakışmaz.
+-- rounding=0: yuvarlatma oyun görüntüsünün köşesini kırpar → kapalı.
 -- Süsleme/idle windowed-game ile aynı. Sınıf tutmazsa `hyprctl clients` ile teyit et.
 hl.window_rule({
     name  = "gamescope-windowed",
@@ -123,4 +126,28 @@ hl.window_rule({
     name  = "hoi4-confine-pointer",
     match = { class = "^steam_app_394360$" },
     confine_pointer = true,
+})
+
+-- VSCodium: pencere süslemesini compositor'a devret (kullanıcı isteği 30 Tem).
+-- Uygulama tarafı kendi başlık çubuğunu çizmiyor (modules/apps/vscodium.nix,
+-- window.customTitleBarVisibility="never") → pencerenin tek çerçevesi buradaki
+-- border. Global border_size 0 olduğu için (main.lua, kullanıcı kararı 29 Tem)
+-- ELLE açılması gerekiyor; global'i değiştirmiyoruz, yalnız bu pencereye.
+-- Güzel yan etki: theme.lua'nın matugen gradient'i (general.col.active_border,
+-- border_size=0 yüzünden şimdiye kadar hiçbir yerde çizilmiyordu) nihayet
+-- görünür oluyor → kenarlık duvar kağıdıyla birlikte değişir.
+--
+-- opacity: Hyprland'da TEK sayı active/inactive/fullscreen'in ÜÇÜNÜ birlikte
+-- set eder → pencere odağı kaybettiğinde global inactive_opacity'ye (0.86)
+-- SÖNMEZ. Kod okurken bu önemli; global active (0.92) yerine 0.94 seçildi,
+-- blur açık kaldığından buzlu cam hissi korunuyor.
+--
+-- Sınıf: codium.desktop'ta StartupWMClass=vscodium. NIXOS_OZONE_WL=1 ile artık
+-- native Wayland (app_id), öncesinde XWayland (WM_CLASS) idi — üç varyant da
+-- kapsandı. Tutmazsa `hyprctl clients | grep -A2 class` ile teyit et.
+hl.window_rule({
+    name  = "vscodium-chrome",
+    match = { class = "^(vscodium|codium|VSCodium)$" },
+    border_size = 2,
+    opacity     = 0.94,
 })

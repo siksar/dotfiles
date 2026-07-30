@@ -1,8 +1,35 @@
 # noctalia user-template çıktısı → ~/.config/sway/colors (hm.nix'te include edilir)
-# Token sözdizimi noctalia v5 Template Reference'a göre: {{ colors.<rol>.default.hex }}
-# İlk gerçek duvar kağıdı geçişinde `swaymsg reload` sonrası çıktı dosyasını
-# kontrol et — sentaks farklıysa (ör. .default alt-anahtarı yoksa) burada düzelt.
-client.focused          #{{ colors.primary.default.hex }} #{{ colors.surface_container.default.hex }} #{{ colors.on_primary.default.hex }} #{{ colors.primary.default.hex }} #{{ colors.primary.default.hex }}
-client.focused_inactive #{{ colors.surface_variant.default.hex }} #{{ colors.surface.default.hex }} #{{ colors.on_surface.default.hex }} #{{ colors.surface_variant.default.hex }} #{{ colors.surface_variant.default.hex }}
-client.unfocused        #{{ colors.outline_variant.default.hex }} #{{ colors.surface.default.hex }} #{{ colors.on_surface_variant.default.hex }} #{{ colors.outline_variant.default.hex }} #{{ colors.outline_variant.default.hex }}
-client.urgent            #{{ colors.error.default.hex }} #{{ colors.error_container.default.hex }} #{{ colors.on_error_container.default.hex }} #{{ colors.error.default.hex }} #{{ colors.error.default.hex }}
+#
+# İçerik noctalia 5.0.0'ın KENDİ hazır sway şablonundan türetildi:
+#   <noctalia>/share/noctalia/assets/templates/sway/sway
+# Elle yazılan ilk sürüm `{{ colors.<rol>.default.hex }}` kullanıyordu ve render
+# "1 template error" ile düşüyordu (çıktı hiç yazılmıyor → sway, HM'nin seed'lediği
+# Stylix renklerinde takılı kalıyordu). Doğrusu:
+#   • alan adı `hex_stripped` — '#' İÇERMEZ, onu şablonda biz koyarız
+#   • roller: primary/on_primary/secondary/tertiary/error/surface/on_surface/
+#     on_surface_variant/outline. surface_container, surface_variant,
+#     outline_variant, error_container, on_error_container YOK.
+#   • token içinde boşluk yok: {{colors.x.default.hex_stripped}}
+#
+# Hazır şablonu doğrudan AÇMIYORUZ: onun apply.sh'ı ~/.config/sway/config'e
+# `include .../sway/noctalia` satırı eklemeye çalışıyor, o dosya ise HM'nin
+# salt-okunur store symlink'i → yazma hatası. Bunun yerine kendi çıktı yolumuza
+# yazıp post_hook olarak `swaymsg reload` çalıştırıyoruz.
+
+set $primary            #{{colors.primary.default.hex_stripped}}
+set $on_primary         #{{colors.on_primary.default.hex_stripped}}
+set $secondary          #{{colors.secondary.default.hex_stripped}}
+set $tertiary           #{{colors.tertiary.default.hex_stripped}}
+set $error              #{{colors.error.default.hex_stripped}}
+set $surface            #{{colors.surface.default.hex_stripped}}
+set $on_surface         #{{colors.on_surface.default.hex_stripped}}
+set $on_surface_variant #{{colors.on_surface_variant.default.hex_stripped}}
+set $outline            #{{colors.outline.default.hex_stripped}}
+
+# sınıf                 kenarlık  arkaplan  metin               gösterge   alt-kenarlık
+client.focused          $primary  $surface  $on_surface         $primary   $primary
+client.focused_inactive $outline  $surface  $on_surface_variant $outline   $outline
+client.unfocused        $outline  $surface  $on_surface_variant $outline   $outline
+client.urgent           $error    $surface  $on_surface         $error     $error
+client.placeholder      $surface  $surface  $on_surface_variant $surface   $surface
+client.background       $surface

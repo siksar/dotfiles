@@ -26,9 +26,16 @@ let
   cfg = config.rice.hyprland;
   cfgHome = config.xdg.configHome;
 
-  # gnome-hm.nix'in kurduğu dizin — repo duvar kağıtları + kullanıcının
-  # elle attıkları (recursive olduğundan dizin yazılabilir)
+  # Bu modülün kurduğu dizin (aşağıda home.file) — repo duvar kağıtları +
+  # kullanıcının elle attıkları (recursive olduğundan dizin yazılabilir)
   wallDir = "${config.home.homeDirectory}/Pictures/Wallpapers";
+
+  # Hyprland rice'ının kendi varsayılan duvar kağıdı — BİLEREK Stylix'ten
+  # (config.stylix.image) bağımsız: GNOME'un statik teması/duvar kağıdı
+  # dokunulmadan kalsın diye (CLAUDE.md: "iki rice bağımsız" ilkesi, burada
+  # rice-vs-GNOME için de geçerli). İlk renk tohumu ve theme-apply --restore
+  # fallback'i burayı kullanır; SUPER+T ile her zaman değiştirilebilir.
+  defaultWallpaper = ../wallpapers/misty-forest.jpg;
 
   # Referans repo ile aynı matugen kipi: koyu + Material You "tonal spot".
   # NOT: matugen HCT renk uzayı kullanır (Material You standardı) — "Oklab"
@@ -51,7 +58,7 @@ let
     WALL_DIR="${wallDir}"
     STATE_DIR="''${XDG_STATE_HOME:-$HOME/.local/state}/theme-switcher"
     STATE="$STATE_DIR/current-wallpaper"
-    FALLBACK="${config.stylix.image}"
+    FALLBACK="${defaultWallpaper}"
     mkdir -p "$STATE_DIR"
 
     usage() { echo "kullanım: theme-apply <resim> | --random | --restore" >&2; exit 1; }
@@ -186,6 +193,35 @@ let
     fi
   '';
 
+  # --- Ekran görüntüsü (sway-rice/scripts.nix'teki sway-screenshot'ın portu) ---
+  # grim/slurp wlr-screencopy protokolünü kullanır — compositor bağımsız,
+  # swaymsg'e ihtiyaç yok, Hyprland'de aynen çalışır.
+  hypr-screenshot = pkgs.writeShellScriptBin "hypr-screenshot" ''
+    set -euo pipefail
+    dir="$HOME/Pictures/Screenshots"
+    mkdir -p "$dir"
+    out="$dir/screenshot-$(date +%Y%m%d-%H%M%S).png"
+
+    case "''${1:-region}" in
+      fullscreen)
+        ${pkgs.grim}/bin/grim "$out"
+        ;;
+      clipboard)
+        geom=$(${pkgs.slurp}/bin/slurp) || exit 0
+        ${pkgs.grim}/bin/grim -g "$geom" - | ${pkgs.wl-clipboard}/bin/wl-copy
+        ${pkgs.libnotify}/bin/notify-send -a "Ekran Görüntüsü" "Panoya kopyalandı"
+        exit 0
+        ;;
+      *)
+        geom=$(${pkgs.slurp}/bin/slurp) || exit 0
+        ${pkgs.grim}/bin/grim -g "$geom" "$out"
+        ;;
+    esac
+
+    ${pkgs.libnotify}/bin/notify-send -a "Ekran Görüntüsü" "Kaydedildi" "$out"
+    ${pkgs.satty}/bin/satty -f "$out" --output-filename "$out"
+  '';
+
   # --- Fan profili durumu (waybar custom/fan modülü) ---
   # Kaynak repodaki power-profiles-daemon modülünün ikamesi: burada güç profili
   # yerine aorus-laptop'un fan_mode sysfs'ini gösterir (PPD sistemde açık ama
@@ -206,6 +242,83 @@ let
     printf '{"text":"%s","tooltip":"Fan profili : %s","class":"%s"}\n' \
       "$icon" "$name" "$class"
   '';
+
+  # --- Waybar çoklu tema sistemi (atif-1402/minimal-waybar-themes portları) ---
+  # waybarThemes: { "V1" = <derivation>; … } — her biri build-time'da yeniden
+  # yazılmış bağımsız config.jsonc/style.css dizini (bkz. waybar-themes.nix).
+  # waybarCompat: omarchy-* shim'leri, YALNIZ waybar-launch'un PATH'ine girer.
+  waybarThemes = import ./waybar-themes.nix { inherit pkgs lib; };
+  waybarCompat = import ./waybar-omarchy-compat.nix { inherit pkgs; };
+
+  # --- Rofi teması (adi1090x/rofi type-5/style-4 portu) ---
+  # style4:     üst kaynak + mono renk katmanı birleştirilmiş tek .rasi
+  # monoColors: aynı paletin @değişken sürümü (wallpaper-grid.rasi import eder)
+  # İkisi de waybar-mono.css'ten beslenir — waybar temalarıyla tek renk kaynağı.
+  rofiThemes = import ./rofi-themes.nix { inherit pkgs lib; };
+
+  # ExecStart override — HM'in ürettiği ~/.config/waybar/{config,style.css}
+  # symlink'lerine hiç dokunmadan, rofi/state dosyasıyla seçilen temayı store
+  # yolundan çalıştırır. "current" (veya bilinmeyen bir state) → argümansız
+  # `waybar`, yani HM modülünün ürettiği bar (mevcut Anto98765 portu).
+  waybar-launch = pkgs.writeShellScript "waybar-launch" ''
+    set -euo pipefail
+    export PATH="${waybarCompat}/bin:$PATH"
+    export OMARCHY_PATH="${waybarCompat}"
+
+    stateFile="${config.xdg.stateHome}/waybar-theme/current"
+    theme="${cfg.waybarTheme}"
+    [ -r "$stateFile" ] && theme="$(cat "$stateFile")"
+
+    case "$theme" in
+  ${lib.concatStrings (
+    lib.mapAttrsToList (name: drv: ''
+      ${name}) exec ${pkgs.waybar}/bin/waybar -c ${drv}/config.jsonc -s ${drv}/style.css ;;
+    '') waybarThemes
+  )}
+      *) exec ${pkgs.waybar}/bin/waybar ;;
+    esac
+  '';
+
+  # waybar-theme --list/--pick/--reset/<ad> — rebuild'siz geçiş. `home.packages`'a
+  # girer (waybar-launch'un aksine, bu kullanıcı kabuğundan çağrılmalı).
+  waybar-theme = pkgs.writeShellScriptBin "waybar-theme" ''
+    set -euo pipefail
+    stateDir="${config.xdg.stateHome}/waybar-theme"
+    stateFile="$stateDir/current"
+    names="current ${lib.concatStringsSep " " (lib.attrNames waybarThemes)}"
+
+    case "''${1:-}" in
+      ""|--show)
+        if [ -r "$stateFile" ]; then cat "$stateFile"; else echo "current"; fi
+        ;;
+      --list)
+        printf '%s\n' $names
+        ;;
+      --reset)
+        rm -f "$stateFile"
+        systemctl --user restart waybar.service
+        ;;
+      --pick)
+        choice=$(printf '%s\n' $names | rofi -dmenu -p "Waybar teması") || exit 0
+        [ -z "$choice" ] && exit 0
+        exec "$0" "$choice"
+        ;;
+      -h|--help)
+        echo "kullanım: waybar-theme [--list|--show|--reset|--pick|<tema-adı>]"
+        ;;
+      *)
+        match=0
+        for n in $names; do [ "$n" = "$1" ] && match=1; done
+        if [ "$match" -ne 1 ]; then
+          echo "bilinmeyen tema: $1 (bkz. waybar-theme --list)" >&2
+          exit 1
+        fi
+        mkdir -p "$stateDir"
+        printf '%s' "$1" > "$stateFile"
+        systemctl --user restart waybar.service
+        ;;
+    esac
+  '';
 in
 {
   options.rice.hyprland.enable = lib.mkOption {
@@ -218,7 +331,21 @@ in
     description = "Hyprland + Matugen rice'ının HM katmanı (waybar, rofi, swaync, swww, cava, tema motoru)";
   };
 
+  options.rice.hyprland.waybarTheme = lib.mkOption {
+    type = lib.types.str;
+    default = osConfig.rice.hyprland.waybarTheme or "current";
+    defaultText = lib.literalExpression ''osConfig.rice.hyprland.waybarTheme or "current"'';
+    description = "Waybar temasının varsayılanı — bkz. waybar-themes.nix ve `waybar-theme --list`.";
+  };
+
   config = lib.mkIf cfg.enable {
+    # Tema duvar kağıtları (recursive: kullanıcı dizine kendi dosyasını da
+    # atabilir). SUPER+T'nin wallpaper-picker'ı ve --random burayı okur.
+    home.file."Pictures/Wallpapers" = {
+      source = ../wallpapers;
+      recursive = true;
+    };
+
     # Stylix bu beş hedefte matugen ile çakışır (iki renk yazarı olamaz) —
     # rice bileşenlerinin renk sahibi matugen. Stylix GTK, ghostty, starship
     # vb. hedeflerinde tek kaynak olmaya devam eder.
@@ -228,6 +355,16 @@ in
       rofi.enable = false;
       swaync.enable = false;
       cava.enable = false;
+      hyprlock.enable = false;
+    };
+
+    # Stylix'in gtk hedefi gtk.enable=true yapar ama ikon teması ayarlamaz —
+    # Stylix'te ayrı bir icons modülü yok. adwaita-icon-theme daha önce
+    # GNOME'un systemPackages'ından geliyordu; olmadan rofi -show drun
+    # (show-icons=true), nautilus ve tüm GTK diyalogları ikonsuz kalır.
+    gtk.iconTheme = {
+      package = pkgs.adwaita-icon-theme;
+      name = "Adwaita";
     };
 
     home.packages = [
@@ -235,9 +372,16 @@ in
       pkgs.awww # 0.12.1 — animasyonlu duvar kağıdı daemon'u (eski adı swww)
       pkgs.cava # 0.10.7 — ses görselleştirici (autostart YOK: idle bütçesi)
       pkgs.libnotify
+      pkgs.playerctl # bazı waybar temalarının custom/media modülü
+      pkgs.adwaita-icon-theme
+      pkgs.grim
+      pkgs.slurp
+      pkgs.satty
       theme-apply
       wallpaper-picker
       theme-sequences-apply
+      waybar-theme
+      hypr-screenshot
     ];
 
     # Yeni terminaller tema paletini bash başlangıcında alır. YALNIZ Hyprland
@@ -304,10 +448,25 @@ in
         output_path = '${cfgHome}/cava/config'
         post_hook = 'pkill -USR2 -x cava || true'
 
+        # Klavye aydınlatması — duvar kağıdının baskın rengine döner.
+        # Olay-güdümlü: yalnız tema değişince tek bir yazma olur, idle'da
+        # hiçbir şey dönmez (4.28W bütçesi). Animasyon çalışıyorsa döngü
+        # durumu 0.5 sn'de bir tazelediği için renk canlı geçer.
+        [templates.keyboard]
+        input_path = '${cfgHome}/matugen/templates/keyboard-color'
+        output_path = '${cfgHome}/kbd-rgb/color'
+        post_hook = 'kbd-rgb set "$(cat ${cfgHome}/kbd-rgb/color)" >/dev/null 2>&1 || true'
+
         [templates.terminal]
         input_path = '${cfgHome}/matugen/templates/terminal-sequences'
         output_path = '${cfgHome}/theme-switcher/sequences'
         post_hook = '${theme-sequences-apply}/bin/theme-sequences-apply --all || true'
+
+        # hyprlock.conf `source` ile bunu en başta okur (hyprlang $değişken).
+        # hook yok — hyprlock her açılışta dosyayı taze okur.
+        [templates.hyprlock]
+        input_path = '${cfgHome}/matugen/templates/hyprlock-colors.conf'
+        output_path = '${cfgHome}/hypr/hyprlock-colors.conf'
       '';
 
       "matugen/templates/hypr-colors.lua".source = ./templates/hypr-colors.lua;
@@ -316,73 +475,32 @@ in
       "matugen/templates/swaync-colors.css".source = ./templates/swaync-colors.css;
       "matugen/templates/cava-config".source = ./templates/cava-config;
       "matugen/templates/terminal-sequences".source = ./templates/terminal-sequences;
+      "matugen/templates/keyboard-color".source = ./templates/keyboard-color;
+      "matugen/templates/hyprlock-colors.conf".source = ./templates/hyprlock-colors.conf;
 
-      # Ana rofi (drun) teması — programs.rofi.theme buna mutlak yolla işaret
-      # eder. @import MUTLAK yol: dosya store'a symlink'lenir, göreli import
-      # store dizininde arardı.
-      "rofi/zixar-rice.rasi".text = ''
-        @import "${cfgHome}/rofi/colors.rasi"
+      # Ana rofi teması — adi1090x/rofi type-5/style-4 portu. Üst kaynak dosya
+      # + mono renk katmanı build-time'da TEK dosyada birleştirilir
+      # (rofi-themes.nix); programs.rofi.theme buna mutlak yolla işaret eder.
+      # Renkler literal hex olarak gömülü, @import YOK — rofi 2.0 gradient
+      # içinde @değişken'i ayrıştıramıyor (gerekçe rofi-themes.nix'te).
+      "rofi/type-5-style-4.rasi".source = rofiThemes.style4;
 
-        /* rofi 2.0'ın dahili varsayılan teması Solarized LIGHT'tır
-         * (background #fdf6e3, krem). Stillemediğimiz her widget o açık rengi
-         * miras alır; ÖZELLİKLE daha-özel durum selektörü 'element normal.normal'
-         * generic 'element' kuralımızı ezerek liste öğelerini beyaz yapar. Bu
-         * yüzden * tabanını VE tüm element durumlarını (normal/alternate/selected
-         * × normal/urgent/active) açıkça override ediyoruz; yoksa arama kutusu ve
-         * uygulama listesi beyaz-üstüne-beyaz görünür (kanıt: rofi -dump-theme). */
-        * {
-            background-color: @bg;
-            text-color: @fg;
-        }
-        window {
-            width: 40%;
-            background-color: @bg;
-            border: 2px;
-            border-color: @accent;
-            border-radius: 12px;
-            padding: 12px;
-        }
-        mainbox { background-color: transparent; }
-        inputbar {
-            children: [ prompt, entry ];
-            background-color: @bg-alt;
-            text-color: @fg;
-            padding: 8px;
-            border-radius: 8px;
-        }
-        prompt { text-color: @accent; background-color: transparent; }
-        entry  { text-color: @fg; background-color: transparent; placeholder-color: @fg-dim; }
-        listview {
-            lines: 8;
-            spacing: 4px;
-            padding: 8px 0px 0px;
-            background-color: transparent;
-        }
-        element {
-            padding: 6px;
-            border-radius: 8px;
-            background-color: transparent;
-            text-color: @fg;
-        }
-        element normal.normal    { background-color: transparent; text-color: @fg; }
-        element alternate.normal { background-color: transparent; text-color: @fg; }
-        element selected.normal  { background-color: @accent;     text-color: @on-accent; }
-        element normal.urgent    { background-color: transparent; text-color: @urgent; }
-        element selected.urgent  { background-color: @urgent;      text-color: @bg; }
-        element normal.active    { background-color: transparent; text-color: @accent; }
-        element selected.active  { background-color: @accent;      text-color: @on-accent; }
-        element-icon { background-color: transparent; size: 1.2em; }
-        element-text { background-color: transparent; text-color: inherit; }
-      '';
+      # waybar-mono paletinin @değişken sürümü — wallpaper-grid.rasi bunu
+      # import eder. matugen'in colors.rasi'siyle AYNI değişken adlarını taşır:
+      # rofi'yi duvar kağıdına göre değişen renklere döndürmek istersen
+      # aşağıdaki import satırında dosya adını colors.rasi yapman yeter.
+      "rofi/mono-colors.rasi".source = rofiThemes.monoColors;
 
       # wallpaper-picker'ın ikon grid teması. @import MUTLAK yol: bu dosya
       # store'a symlink'lenir, göreli import store dizininde arardı.
       "rofi/wallpaper-grid.rasi".text = ''
-        @import "${cfgHome}/rofi/colors.rasi"
+        @import "${cfgHome}/rofi/mono-colors.rasi"
 
-        /* Aynı rofi-2.0-Solarized-light tuzağı için zixar-rice.rasi'deki nota bak:
-         * * tabanı + element durumları açıkça override edilmezse grid öğeleri
-         * beyaz görünür. */
+        /* Launcher (type-5/style-4) ile aynı mono paleti — waybar'ın V-temaları
+         * ve bu grid tek renk ailesinde kalsın diye. rofi 2.0'ın dahili
+         * varsayılan teması Solarized LIGHT olduğundan * tabanı + element
+         * durumları açıkça override edilmezse grid öğeleri beyaz görünür
+         * (kanıt: rofi -dump-theme). */
         * {
             background-color: @bg;
             text-color: @fg;
@@ -563,6 +681,12 @@ in
         @import "${cfgHome}/waybar/colors.css";
       '' + builtins.readFile ./waybar-style.css;
     };
+    # Çoklu tema geçişi: HM'in ürettiği unit'in ExecStart'ı waybar-launch ile
+    # değiştirilir — targets/systemd.enable bloğu YUKARIDA aynen kalıyor
+    # (GNOME'a sızma koruması bu ayardan gelir, burada dokunulmuyor). HM'in
+    # kendi waybar modülü unit'i değiştirirse bu override'ın hâlâ doğru
+    # birimi hedeflediğini doğrula.
+    systemd.user.services.waybar.Service.ExecStart = lib.mkForce "${waybar-launch}";
 
     #### Rofi (2.0 — Wayland yerli) ####
     programs.rofi = {
@@ -573,7 +697,7 @@ in
       # DİKKAT: buraya writeText türevi (attrset) verilemez — HM modülü onu
       # rasi attrset'i sanıp çevirmeye kalkar ("Unhandled value type set").
       # Mutlak yol dizesi ver; dosyanın kendisi aşağıda xdg.configFile'da.
-      theme = "${cfgHome}/rofi/zixar-rice.rasi";
+      theme = "${cfgHome}/rofi/type-5-style-4.rasi";
     };
 
     #### SwayNC ####
@@ -595,6 +719,99 @@ in
     systemd.user.services.swaync.Install.WantedBy =
       lib.mkForce [ "hyprland-session.target" ];
 
+    #### hyprlock — kilit ekranı (renk sahibi matugen, yukarıdaki template) ####
+    programs.hyprlock = {
+      enable = true;
+      settings = {
+        # importantPrefixes varsayılanı "$"/"source" içerir → dosyanın en
+        # başına, matugen'in renk $değişkenlerinden ÖNCE gelmez diye taşınır.
+        source = "${cfgHome}/hypr/hyprlock-colors.conf";
+
+        general = {
+          hide_cursor = false;
+          ignore_empty_input = true;
+        };
+
+        background = [{
+          path = "screenshot";
+          blur_passes = 2;
+          blur_size = 7;
+          color = "$surface";
+        }];
+
+        input-field = [{
+          size = "250, 60";
+          position = "0, -100";
+          monitor = "";
+          dots_center = true;
+          fade_on_empty = false;
+          outer_color = "$primary";
+          inner_color = "$bg_alt";
+          font_color = "$fg";
+          fail_color = "$error";
+          check_color = "$tertiary";
+          outline_thickness = 3;
+          placeholder_text = "Parola...";
+        }];
+
+        label = [{
+          text = ''cmd[update:1000] date +"%H : %M"'';
+          color = "$fg";
+          font_size = 64;
+          position = "0, 200";
+          halign = "center";
+          valign = "center";
+        }];
+      };
+    };
+
+    #### hypridle — boşta DPMS + kilit (idle-notify protokolü, poll YOK) ####
+    # loginctl lock-session → hypridle general.lock_cmd'yi (hyprlock) tetikler
+    # (org.freedesktop.login1 Lock sinyali); SUPER+L de aynı yoldan geçer.
+    # Suspend YOK: s2h zinciri zaten logind'de kurulu (power.nix), ikinci bir
+    # yazar çakışır.
+    services.hypridle = {
+      enable = true;
+      systemdTarget = "hyprland-session.target";
+      settings = {
+        general = {
+          lock_cmd = "hyprlock";
+          before_sleep_cmd = "loginctl lock-session";
+          after_sleep_cmd = "hyprctl dispatch dpms on";
+        };
+        listener = [
+          {
+            timeout = 300; # 5 dk
+            on-timeout = "hyprctl dispatch dpms off";
+            on-resume = "hyprctl dispatch dpms on";
+          }
+          {
+            timeout = 600; # 10 dk
+            on-timeout = "loginctl lock-session";
+          }
+        ];
+      };
+    };
+
+    #### Polkit GUI ajanı ####
+    # Repoda hiç polkit ajanı yok — GNOME'un gnome-shell'e gömülü ajanı bugüne
+    # kadar bunu sağlıyordu. Ajan olmadan 1Password'ün "sistem kimlik
+    # doğrulaması", Mullvad ve fan-mode dışındaki her polkit isteği sessizce
+    # reddedilir (polkit daemon'ın kendisi networkmanager.nix'ten geliyor,
+    # yalnız GUI onay penceresi eksikti).
+    systemd.user.services.hyprpolkitagent = {
+      Unit = {
+        Description = "Hyprland polkit kimlik doğrulama ajanı";
+        PartOf = [ "hyprland-session.target" ];
+        After = [ "hyprland-session.target" ];
+      };
+      Service = {
+        ExecStart = "${pkgs.hyprpolkitagent}/libexec/hyprpolkitagent";
+        Restart = "on-failure";
+      };
+      Install.WantedBy = [ "hyprland-session.target" ];
+    };
+
     #### awww (eski adı swww) — duvar kağıdı daemon'u (HM'de hazır modülü yok) ####
     systemd.user.services.awww = {
       Unit = {
@@ -611,16 +828,17 @@ in
     };
 
     #### İlk kurulum tohumu ####
-    # Renk dosyaları hiç yoksa matugen'i Stylix duvar kağıdıyla bir kez
-    # koştur — ilk Hyprland girişinde waybar/swaync renksiz başlamasın.
+    # Renk dosyaları hiç yoksa matugen'i rice'ın kendi varsayılan duvar
+    # kağıdıyla (defaultWallpaper — Stylix'ten bağımsız) bir kez koştur —
+    # ilk Hyprland girişinde waybar/swaync renksiz başlamasın.
     # post_hook'lar oturum dışında zararsız (hepsi `|| true` korumalı).
     home.activation.hyprRiceSeedColors = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       if [ ! -e "${cfgHome}/hypr/colors.lua" ]; then
-        verboseEcho "hyprland-rice: ilk renk tohumu (matugen + stylix duvar kağıdı)"
+        verboseEcho "hyprland-rice: ilk renk tohumu (matugen + rice varsayılan duvar kağıdı)"
         mkdir -p "${cfgHome}/hypr" "${cfgHome}/waybar" "${cfgHome}/rofi" \
                  "${cfgHome}/swaync" "${cfgHome}/cava"
         run ${lib.getExe pkgs.matugen} -c "${cfgHome}/matugen/config.toml" \
-          image "${config.stylix.image}" ${matugenArgs} --source-color-index 0 \
+          image "${defaultWallpaper}" ${matugenArgs} --source-color-index 0 \
           || verboseEcho "matugen tohumu başarısız — ilk girişte theme-apply --restore telafi eder"
       fi
     '';

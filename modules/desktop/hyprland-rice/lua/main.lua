@@ -9,8 +9,9 @@
 ---- MONITORS ----
 ------------------
 
--- Panel: BOE NE160QDM-NYJ 2560x1600@165 — GDM/GNOME ile aynı sabitleme
--- (bkz. gnome.nix gdmMonitors: scale 1)
+-- Panel: BOE NE160QDM-NYJ 2560x1600@165 (scale 1). MOD DEĞERİ
+-- modules/hardware/power-display.nix'teki powerDisplayUserScript'in AC modu
+-- ("2560x1600@165") ile ELLE SENKRON — panel değişirse ikisi birden güncelle.
 hl.monitor({
     output   = "eDP-1",
     mode     = "2560x1600@165",
@@ -57,9 +58,12 @@ hl.config({
     general = {
         gaps_in     = 7,
         gaps_out    = 10,
-        border_size = 1,
-        -- col.active_border / inactive_border BURADA YOK — theme.lua
-        -- matugen çıktısından (colors.lua) uygular.
+        -- Kenarlık tamamen kapalı (kullanıcı isteği, 29 Tem) — pencereler
+        -- sadece gaps + rounding + gölgeyle ayrışıyor. theme.lua'nın
+        -- col.active_border/inactive_border ataması artık etkisiz (matugen
+        -- yine de renk üretiyor, sadece hiçbir yerde çizilmiyor) — dokunmadan
+        -- bırakıldı, ileride border_size geri açılırsa renkler hazır olsun.
+        border_size = 0,
         resize_on_border = true,  -- kaynakta false; kullanıcı alışkanlığı korundu
         allow_tearing    = false, -- kaynakta true; VRR/oyun akışını gamerun yönetir
         layout           = "dwindle",
@@ -83,11 +87,14 @@ hl.config({
         },
         blur = {
             enabled           = true,
-            size              = 2,
-            passes            = 2,
+            -- Daha yumuşak/sisli görünüm (kullanıcı isteği, 29 Tem): size+passes
+            -- artırıldı, contrast düşürüldü — kenarlar daha dağınık, "miasma"
+            -- tarzına yakın. Eskisi: size=2 passes=2 contrast=1.6.
+            size              = 4,
+            passes            = 3,
             ignore_opacity    = true,
             noise             = 0,
-            contrast          = 1.6,
+            contrast          = 1.0,
             popups            = true,
             xray              = false,
             new_optimizations = true,
