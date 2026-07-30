@@ -32,9 +32,9 @@ güç-limitli). Oyun bitince gigabyte-power-profile fan modunu AC→0'a (dengeli
 
 Donanım tarafı zaten AC'ye bağlı otomatik: fiş takılıyken fan modu 2 ("oyun") +
 NPCF.ACBT 80W → nvidia-powerd dGPU'yu 75–85W bandına çıkarır
-(`modules/hardware/gigabyte-wmi.nix`). VRR mutter'ın `variable-refresh-rate` deneysel
-özelliğiyle açık (`modules/desktop/gnome-hm.nix`); mutter VRR'ı yalnız tam ekranda
-devreye sokar. Pilde panel zaten 60Hz'e çekilir (`power-display-user`, power-display.nix).
+(`modules/hardware/gigabyte-wmi.nix`). VRR Hyprland'ın `misc.vrr = 2` ayarıyla açık
+(`hyprland-rice/lua/main.lua`); yalnız tam ekranda devreye girer. Pilde panel zaten
+60Hz'e çekilir (`power-display-user`, power-display.nix).
 
 **GPU-öncelik: oyunda PPD balanced (18 Tem 2026).** CPU ile dGPU, ACBT 80W'lık
 NVIDIA Dynamic Boost bütçesini **paylaşır**. Oyunda PPD `performance` yapılırsa
@@ -251,7 +251,7 @@ groups                            # "gamemode" görünmeli (yoksa re-login)
 ls -l /dev/ntsync                 # crw-rw-rw-
 swapon --show                     # zram0 prio 5 + nvme prio -1
 sysctl vm.max_map_count           # 2147483642
-gsettings get org.gnome.mutter experimental-features  # 'variable-refresh-rate' içermeli
+hyprctl getoption misc:vrr                            # int: 2
 
 # Oyun sırasında (AC'de):
 cat /sys/kernel/sched_ext/state /sys/kernel/sched_ext/root/ops   # enabled + scx_lavd

@@ -1,5 +1,6 @@
--- Kısayollar — GNOME kas hafızası korunur (gnome-hm.nix ile bire bir:
--- Enter/Q/M/V/1-9/Copilot). Tema motoru SUPER+T'de.
+-- Kısayollar — eskiden GNOME'un dconf kısayollarıyla bire bir eşleşecek
+-- şekilde seçildi (Enter/Q/M/V/1-9/Copilot); GNOME artık yok ama kas hafızası
+-- kalıcı. Tema motoru SUPER+T'de.
 
 local mod      = "SUPER"
 local terminal = "ghostty"

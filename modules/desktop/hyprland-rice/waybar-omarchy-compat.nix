@@ -17,9 +17,10 @@ let
   omarchy-menu = bin "omarchy-menu" ''
     case "''${1:-}" in
       power)
-        choice=$(printf '%s\n' "Uyku" "Yeniden Başlat" "Kapat" "Oturumu Kapat" \
+        choice=$(printf '%s\n' "Kilitle" "Uyku" "Yeniden Başlat" "Kapat" "Oturumu Kapat" \
           | ${pkgs.rofi}/bin/rofi -dmenu -p "Güç") || exit 0
         case "$choice" in
+          Kilitle) loginctl lock-session ;;
           # `suspend` DEĞİL: düz suspend, sleep.conf'taki 25 dk'lık hibernate
           # sayacını hiç başlatmaz (bkz. modules/hardware/power.nix) → makine
           # s2idle'da sonsuza kalıp pil yer.
@@ -48,8 +49,7 @@ let
   omarchy-launch-floating-terminal-with-presentation =
     bin "omarchy-launch-floating-terminal-with-presentation" ''exec ghostty -e "$@"'';
 
-  # gpu-screen-recorder'ın toggle mantığı sway-rice/scripts.nix:56-85'in
-  # (sway-screenrecord) birebir portu — bölgesiz, tam ekran kaydı.
+  # gpu-screen-recorder'ın toggle mantığı — bölgesiz, tam ekran kaydı.
   omarchy-cmd-screenrecord = bin "omarchy-cmd-screenrecord" ''
     dir="''${XDG_VIDEOS_DIR:-$HOME/Videos}"
     mkdir -p "$dir"

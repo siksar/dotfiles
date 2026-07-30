@@ -8,12 +8,15 @@ this directory.
 - `AQ_DRM_DEVICES` **must** stay in `environment.sessionVariables` (not in Hyprland
   config — aquamarine reads it before the config is parsed), and it points at the
   udev symlink `/dev/dri/hypr-igpu` because the value cannot contain `:` (aquamarine
-  splits on it, so by-path PCI names break). This keeps the dGPU node closed —
-  same D3cold rationale as GNOME's `mutter-device-ignore`.
+  splits on it, so by-path PCI names break). This is the **only** thing keeping the
+  dGPU node closed for D3cold now that GNOME's `mutter-device-ignore` udev rule is
+  gone — don't remove it without a replacement.
 - `withUWSM = true` is mandatory. The session desktop file is installed even without
   it, but then dies with "Unit not found" because the uwsm systemd units are absent.
 - Rice services (waybar, swaync, awww) bind to `hyprland-session.target`, never
-  `graphical-session.target` — the latter would start them inside GNOME too.
+  `graphical-session.target` — the former only activates for this session, the
+  latter is a generic systemd target that could later start these services in a
+  context you didn't intend (a bare TTY session, a future second compositor).
 - Color ownership is split three ways: Stylix is off for the rice components
   (`stylix.targets.{hyprland,waybar,rofi,swaync,cava}.enable = false`); matugen owns
   hyprland/swaync/cava/terminal (wallpaper-driven, runtime-written and deliberately

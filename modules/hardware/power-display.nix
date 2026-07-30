@@ -10,7 +10,7 @@ let
   #
   # PPD profili de fişe göre burada set edilir (2026-07-18): AC → balanced, BAT →
   # power-saver. Neden gerekli: PPD'nin aktif profili AC/BAT'a göre KENDİLİĞİNDEN
-  # değişmiyor (o mantık TLP'deydi, kaldırıldı) ve Hyprland'da GNOME güç kaydırıcısı
+  # değişmiyor (o mantık TLP'deydi, kaldırıldı) ve masaüstünde güç kaydırıcısı
   # yok — yani en son ne kaldıysa fişte de öyle kalıyordu. power-saver, platform_profile'ı
   # low-power'a çekip scaling_max_freq'i 2.0 GHz'e sabitliyor; bu Zen 5 aslında ~5.09 GHz
   # boost yapabiliyor. Sonuç: fişteyken CPU kapasitesinin ~%40'ında → pencere açma /
@@ -137,8 +137,8 @@ let
   '';
 in
 {
-  # UPower — batarya telemetrisini D-Bus'a sunar (GNOME kabuğu buradan okur).
-  # Salt okuyucu; güç profilini PPD yönetir (power.nix), çakışma yok.
+  # UPower — batarya telemetrisini D-Bus'a sunar (upower CLI, bazı uygulamalar
+  # buradan okur). Salt okuyucu; güç profilini PPD yönetir (power.nix), çakışma yok.
   services.upower.enable = true;
 
   # udev: AC adaptör bağlantısı değişince sistem servisini tetikle
@@ -172,8 +172,8 @@ in
     };
   };
 
-  # Kullanıcı servisi — Hyprland oturumu açılınca otomatik koşar. GNOME'un
-  # graphical-session.target'ı DEĞİL: rice'ın diğer servisleriyle (waybar,
+  # Kullanıcı servisi — Hyprland oturumu açılınca otomatik koşar. Generic
+  # graphical-session.target DEĞİL: rice'ın diğer servisleriyle (waybar,
   # swaync) aynı desen — yalnız Hyprland'de aktifleşsin.
   systemd.user.services.power-display-user = {
     description = "AC/BAT Hyprland refresh rate + render profile adaptation";

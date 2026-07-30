@@ -1,10 +1,7 @@
-# Hyprland + Matugen dinamik tema rice'ı — SİSTEM katmanı (varsayılan KAPALI)
+# Hyprland + Matugen dinamik tema rice'ı — SİSTEM katmanı. Tek oturum (GNOME +
+# Sway kaldırıldı, 2026-07-30); rice.hyprland.enable bayrağı bir güvenlik valfi
+# olarak kalıyor, kapatmak sistemi çalışan oturumsuz bırakır.
 #
-# GNOME'un yerine geçmez: programs.hyprland yalnız oturum dosyasını, paketi ve
-# xdg-desktop-portal-hyprland'i ekler; GDM giriş ekranında "Hyprland" ikinci
-# seçenek olarak belirir, GNOME varsayılan kalır.
-#
-# Açmak için configuration.nix'te: rice.hyprland.enable = true;
 # HM tarafı (hm.nix) gömülü HM'de osConfig üzerinden bunu OTOMATİK izler —
 # ikinci bir anahtar çevirmek gerekmez. Standalone `hms` yolunda osConfig
 # olmadığından gerekirse home.nix'te elle açılır.
@@ -53,16 +50,16 @@
 
     # uwsm: Hyprland'i systemd oturumu olarak başlatır (upstream'in önerdiği yol).
     # KAPALIYKEN bile hyprland paketi "Hyprland (uwsm-managed)" oturum dosyasını
-    # GDM'e koyar (module satır 107: sessionPackages = [ cfg.package ]); ama
+    # ly'e koyar (module satır 107: sessionPackages = [ cfg.package ]); ama
     # uwsm systemd unit'leri (wayland-session-bindpid@.service) kurulmadığından
-    # o giriş ÇALIŞMAZ — GDM "Unit not found" verip oturumu düşürür. true yapmak
+    # o giriş ÇALIŞMAZ — ly "Unit not found" verip oturumu düşürür. true yapmak
     # programs.uwsm.enable'ı da açar (module satır 116) ve o girişi çalışır kılar.
     programs.hyprland.withUWSM = true;
 
     # AQ_DRM_DEVICES: aquamarine SADECE AMD iGPU'sunu açsın; NVIDIA dGPU node'una
     # (card0, pci 64:00.0) HİÇ dokunmasın. İki neden:
     #   1) Açık DRM fd, dGPU'nun RTD3 D3cold'una girmesini bloke eder → 4.28W
-    #      idle bütçesi gerilerdi (gnome.nix'teki mutter-device-ignore'un karşılığı).
+    #      idle bütçesi gerilerdi.
     #   2) Kısıtlama olmadan aquamarine iki GPU'yu da açmayı deneyip başlangıçta
     #      çöküyordu (CBackend::create failed) — Hyprland'e girilememesinin nedeni.
     #
@@ -76,13 +73,11 @@
     # BURADA (oturum ortamında) set edilmek ZORUNDA: aquamarine bu değişkeni
     # backend'i kurarken, yani Hyprland daha config'i okumadan okur. Config
     # içindeki hl.env/`env=` çok geç kalır (bkz. lua/main.lua'daki uzun not).
-    # sessionVariables, PAM üzerinden GDM'in başlattığı oturuma compositor exec
-    # edilmeden önce girer — hem düz hem uwsm giriş yolunda geçerli. AQ_* yalnız
-    # aquamarine'i etkiler, dolayısıyla GNOME oturumunda tamamen zararsızdır.
+    # sessionVariables, PAM üzerinden ly'nin başlattığı oturuma compositor exec
+    # edilmeden önce girer — hem düz hem uwsm giriş yolunda geçerli.
     environment.sessionVariables.AQ_DRM_DEVICES = "/dev/dri/hypr-igpu";
 
     # Yukarıdaki değerin işaret ettiği kararlı, iki-nokta-İÇERMEYEN iGPU node'u.
-    # gnome.nix'teki 'SUBSYSTEM=="drm", DRIVERS=="nvidia"' kuralının kardeşi;
     # KERNEL=="card[0-9]*" ile yalnız KMS kart düğümüne (renderD* değil) bağlanır,
     # DRIVERS=="amdgpu" ile boot sırasından bağımsız hep AMD iGPU'yu yakalar.
     services.udev.extraRules = ''

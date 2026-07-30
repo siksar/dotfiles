@@ -32,8 +32,8 @@ hl.monitor({
 -----------------------------
 
 -- dGPU D3cold koruması: aquamarine NVIDIA DRM node'unu HİÇ açmasın — açık fd
--- RTD3'ü bloke edip 4.28W idle bütçesini bozar (gnome.nix'teki
--- mutter-device-ignore udev kuralının Hyprland karşılığı).
+-- RTD3'ü bloke edip 4.28W idle bütçesini bozar. Bu, tek koruma katmanı
+-- (GNOME'un mutter-device-ignore udev kuralı kaldırıldı — gerek kalmadı).
 --
 -- DİKKAT — AQ_DRM_DEVICES BURADA (hl.env ile) AYARLANAMAZ:
 --   aquamarine backend'i, Hyprland config'i OKUNMADAN ÖNCE, initServer
@@ -116,8 +116,7 @@ hl.config({
         disable_hyprland_logo   = true,
         force_default_wallpaper = 0,
         -- VRR yalnız tam ekran pencerede (2): masaüstünde sabit 165Hz,
-        -- oyunda değişken — GNOME'daki mutter variable-refresh-rate
-        -- deneysel özelliğinin karşılığı (panel 48-165Hz, docs/gaming.md).
+        -- oyunda değişken (panel 48-165Hz, docs/gaming.md).
         vrr = 2,
     },
 })

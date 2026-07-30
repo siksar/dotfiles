@@ -109,10 +109,10 @@
   # baypas eder ve s2idle'da sonsuza kalır; systemd'de düz suspend'i s2h'e
   # yükseltmenin desteklenen bir yolu YOK (SuspendState= sadece /sys/power/state'e
   # yazılan stringi değiştirir), yani çağıran tarafı düzeltmek tek çözüm.
-  # Yeni bir uyku tetikleyicisi eklerken `suspend-then-hibernate` yaz.
-  # Şu an bilinçli olarak kapsanmayanlar (GNOME/Sway yakında kaldırılacak):
-  #   - GNOME boşta-uyku (dconf enum'unda s2h yok; sleep-inactive-battery-type)
-  #   - modules/desktop/sway-rice/keybinds.nix — XF86PowerOff → düz suspend
+  # Yeni bir uyku tetikleyicisi eklerken `suspend-then-hibernate` yaz — ör.
+  # hypridle.conf'ta zamanlayıcı hiç suspend'e bağlanmaz (hyprland-rice/hm.nix,
+  # docs/hyprland-rice.md'de gerekçesi), omarchy-menu'nün güç menüsü de
+  # `systemctl suspend-then-hibernate` çağırır (waybar-omarchy-compat.nix).
   services.logind.settings.Login = {
     HandleLidSwitch              = "suspend-then-hibernate";
     HandleLidSwitchExternalPower = "suspend-then-hibernate";

@@ -32,22 +32,6 @@
     chaotic.url = "github:chaotic-cx/nyx/nyxpkgs-unstable";
     # claude-desktop artık resmî Linux .deb'inden yerel pakette:
     # modules/apps/claude-desktop-pkg.nix
-
-    # noctalia-shell — opt-in Sway rice'ının bar/bildirim/kontrol merkezi/launcher/
-    # kilit ekranı/duvar kağıdı katmanı (docs/sway-rice.md). nixpkgs'te paket var ama
-    # resmî Home Manager modülü (programs.noctalia, build-time config validate) sadece
-    # upstream flake'te olduğundan input olarak alınıyor.
-    noctalia = {
-      url = "github:noctalia-dev/noctalia-shell";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    # toofan — vyrx-dev'in typing TUI'si (sway rice Mod+Shift+T). nixpkgs'te YOK,
-    # kendi flake'i buildGoModule ile packages.default veriyor.
-    toofan = {
-      url = "github:vyrx-dev/toofan";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   outputs = inputs @ { nixpkgs, home-manager, stylix, ... }:
@@ -77,7 +61,6 @@
             home-manager.extraSpecialArgs = { inherit inputs; };
             # Kabukların runtime'da yazdığı config'ler için güvenlik ağı
             home-manager.backupFileExtension = "hm-backup";
-            home-manager.sharedModules = [ inputs.noctalia.homeModules.default ];
             home-manager.users.zixar = import ./home.nix;
           }
         ];
@@ -101,7 +84,6 @@
           ./home.nix
           stylix.homeModules.stylix
           ./modules/desktop/stylix-standalone.nix
-          inputs.noctalia.homeModules.default
         ];
       };
     };

@@ -1,9 +1,9 @@
-# TUI/CLI ortamı — sway rice'ın parçası (vyrx-dev/dotfiles portu). Neovim
-# config'i PORTLANMADI (mason NixOS'ta ayrı bir iş, docs/sway-rice.md'de not
-# düşüldü) — sadece paket kurulu, varsayılan config.
-{ config, lib, pkgs, ... }:
+# TUI/CLI ortamı (vyrx-dev/dotfiles portu, eskiden sway rice'a bağlıydı).
+# Neovim config'i PORTLANMADI (mason NixOS'ta ayrı bir iş) — sadece paket
+# kurulu, varsayılan config.
+{ pkgs, ... }:
 
-lib.mkIf config.rice.sway.enable {
+{
   programs.tmux = {
     enable = true;
     prefix = "C-s";
@@ -36,8 +36,7 @@ lib.mkIf config.rice.sway.enable {
     enableFishIntegration = true;
   };
 
-  # Renkler Stylix'ten (stylix.targets.zathura devre dışı bırakılmadı — bu
-  # rice'a özel bir uygulama değil, GNOME/Hyprland'de de kullanılabilir).
+  # Renkler Stylix'ten (stylix.targets.zathura devre dışı bırakılmadı).
   programs.zathura.enable = true;
 
   programs.btop.enable = true;

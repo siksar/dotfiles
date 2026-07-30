@@ -31,10 +31,9 @@ let
   wallDir = "${config.home.homeDirectory}/Pictures/Wallpapers";
 
   # Hyprland rice'ının kendi varsayılan duvar kağıdı — BİLEREK Stylix'ten
-  # (config.stylix.image) bağımsız: GNOME'un statik teması/duvar kağıdı
-  # dokunulmadan kalsın diye (CLAUDE.md: "iki rice bağımsız" ilkesi, burada
-  # rice-vs-GNOME için de geçerli). İlk renk tohumu ve theme-apply --restore
-  # fallback'i burayı kullanır; SUPER+T ile her zaman değiştirilebilir.
+  # (config.stylix.image) bağımsız: rice kendi içinde tam kendi kendine yeterli
+  # kalsın diye. İlk renk tohumu ve theme-apply --restore fallback'i burayı
+  # kullanır; SUPER+T ile her zaman değiştirilebilir.
   defaultWallpaper = ../wallpapers/misty-forest.jpg;
 
   # Referans repo ile aynı matugen kipi: koyu + Material You "tonal spot".
@@ -176,7 +175,7 @@ let
   #   --all      → TÜM açık PTY'lere (tema değişince canlı yeniden boyama)
   # Diziler emülatör tarafından yorumlanır, ekrana BASILMAZ — açık TUI'ler
   # (vim, claude) bozulmaz. Ghostty'nin statik Stylix teması taban kalır
-  # (GNOME oturumu + ilk açılış); OSC yalnız çalışma anında üzerine boyar.
+  # (ilk açılış); OSC yalnız çalışma anında üzerine boyar.
   theme-sequences-apply = pkgs.writeShellScriptBin "theme-sequences-apply" ''
     SEQ_FILE="${cfgHome}/theme-switcher/sequences"
     [ -r "$SEQ_FILE" ] || exit 0
@@ -193,7 +192,7 @@ let
     fi
   '';
 
-  # --- Ekran görüntüsü (sway-rice/scripts.nix'teki sway-screenshot'ın portu) ---
+  # --- Ekran görüntüsü (eskiden sway rice'ta olan sway-screenshot'ın portu) ---
   # grim/slurp wlr-screencopy protokolünü kullanır — compositor bağımsız,
   # swaymsg'e ihtiyaç yok, Hyprland'de aynen çalışır.
   hypr-screenshot = pkgs.writeShellScriptBin "hypr-screenshot" ''
@@ -384,10 +383,10 @@ in
       hypr-screenshot
     ];
 
-    # Yeni terminaller tema paletini bash başlangıcında alır. YALNIZ Hyprland
-    # oturumunda: GNOME'da ghostty statik Stylix temasında kalmalı (oradaki
-    # duvar kağıdı Stylix'in). mkBefore ŞART — shell.nix'in fastfetch'i bu
-    # satırdan SONRA koşmalı ki logo/renk halkaları tema paletiyle çizilsin.
+    # Yeni terminaller tema paletini bash başlangıcında alır (HYPRLAND_INSTANCE_
+    # SIGNATURE guard'ı: yalnız Hyprland oturumunda, TTY/başka bağlamda hiç
+    # çalışmasın). mkBefore ŞART — shell.nix'in fastfetch'i bu satırdan SONRA
+    # koşmalı ki logo/renk halkaları tema paletiyle çizilsin.
     programs.bash.initExtra = lib.mkBefore ''
       if [ -n "''${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
         ${theme-sequences-apply}/bin/theme-sequences-apply
@@ -554,9 +553,9 @@ in
       enable = true;
       systemd = {
         enable = true;
-        # graphical-session.target GNOME oturumunda DA aktifleşir — waybar
-        # GNOME'a sızmasın diye yalnız Hyprland'in target'ına bağlanır.
-        # (HM'de `target` string'i `targets` listesine dönüştü.)
+        # graphical-session.target generic bir systemd target'ı — waybar
+        # yalnız bu oturumda aktifleşsin diye Hyprland'in kendi target'ına
+        # bağlanır. (HM'de `target` string'i `targets` listesine dönüştü.)
         targets = [ "hyprland-session.target" ];
       };
       # Düzen — Anto98765/My-Hyprland-Rice portu: transparan tam genişlik bar,
@@ -683,9 +682,9 @@ in
     };
     # Çoklu tema geçişi: HM'in ürettiği unit'in ExecStart'ı waybar-launch ile
     # değiştirilir — targets/systemd.enable bloğu YUKARIDA aynen kalıyor
-    # (GNOME'a sızma koruması bu ayardan gelir, burada dokunulmuyor). HM'in
-    # kendi waybar modülü unit'i değiştirirse bu override'ın hâlâ doğru
-    # birimi hedeflediğini doğrula.
+    # (oturum kapsamlama bu ayardan gelir, burada dokunulmuyor). HM'in kendi
+    # waybar modülü unit'i değiştirirse bu override'ın hâlâ doğru birimi
+    # hedeflediğini doğrula.
     systemd.user.services.waybar.Service.ExecStart = lib.mkForce "${waybar-launch}";
 
     #### Rofi (2.0 — Wayland yerli) ####
@@ -713,9 +712,8 @@ in
         @import "${cfgHome}/swaync/colors.css";
       '' + builtins.readFile ./swaync-style.css;
     };
-    # swaync yalnız Hyprland oturumunda çalışsın — GNOME kendi bildirim
-    # sistemini kullanıyor (HM modülü graphical-session.target'a bağlar,
-    # o GNOME'da da aktif olur → mkForce ile daralt)
+    # swaync yalnız Hyprland oturumunda çalışsın (HM modülü generic
+    # graphical-session.target'a bağlar → mkForce ile daralt)
     systemd.user.services.swaync.Install.WantedBy =
       lib.mkForce [ "hyprland-session.target" ];
 

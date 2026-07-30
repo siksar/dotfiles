@@ -1,6 +1,6 @@
 # Stylix — tema katmanı (system): renklerin TEK kaynağı.
-# Palet + font + imleç buradan tüm hedeflere (GTK/GNOME, ghostty, vscodium,
-# vesktop, starship...) dağılır; palet değişimi = stylix-base.nix + rebuild.
+# Palet + font + imleç buradan tüm hedeflere (GTK, ghostty, vscodium, vesktop,
+# starship...) dağılır; palet değişimi = stylix-base.nix + rebuild.
 # Taban değerler stylix-base.nix'te — standalone HM (nh home switch) ile ortak.
 { pkgs, ... }:
 

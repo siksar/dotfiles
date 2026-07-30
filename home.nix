@@ -2,9 +2,7 @@
 
 {
   imports = [
-    ./modules/desktop/gnome-hm.nix
     ./modules/desktop/hyprland-rice/hm.nix
-    ./modules/desktop/sway-rice/hm.nix
     ./modules/desktop/fish.nix
     ./modules/desktop/ghostty.nix
     ./modules/desktop/shell.nix
@@ -17,7 +15,6 @@
     ./modules/apps/opencode.nix
     ./modules/apps/vscodium.nix
     ./modules/apps/tui.nix
-    ./modules/apps/music.nix
   ];
 
   home.username      = "zixar";

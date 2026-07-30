@@ -1,5 +1,12 @@
 # xdg-desktop-portal-hyprland — epoll busy-loop (2 çekirdek 7/24)
 
+**Not (2026-07-30):** Kök sebep olarak teşhis edilen `modules/desktop/sway-rice/`
+(ve GNOME) bu tarihte repodan kaldırıldı — tek oturum artık Hyprland. Bu dosya
+tarihsel bir kanıt/yatırım günlüğü olarak kalıyor; aşağıdaki dosya yolları
+(`sway-rice/system.nix` vb.) artık repoda yok, ama olayın teşhis mantığı ve
+`xdg.portal.wlr` global-kapsam dersi gelecekte benzer bir sızıntıyla
+karşılaşılırsa hâlâ geçerli.
+
 **Durum (2026-07-27, ikinci oturum sonrası):** Tetikleyici **repo tarafında lokalize
 edildi** (Sway rice'ın `xdg.portal.wlr.enable = true` global ayarı, Hyprland/GNOME
 oturumlarına sızıyor) ve düzeltme uygulandı — ayrıntı aşağıda "2026-07-27 oturumu"

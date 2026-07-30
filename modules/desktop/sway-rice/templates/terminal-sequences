@@ -1,2 +1,0 @@
-{{ "\x1b" }}]11;#{{ colors.background.default.hex }}{{ "\x1b" }}\
-{{ "\x1b" }}]10;#{{ colors.on_background.default.hex }}{{ "\x1b" }}\

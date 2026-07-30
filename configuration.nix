@@ -19,12 +19,10 @@
     ./modules/hardware/acpi-override.nix
 
     # Desktop
-    ./modules/desktop/gnome.nix
     ./modules/desktop/ly.nix
     ./modules/desktop/stylix.nix
     ./modules/desktop/firefox.nix
     ./modules/desktop/hyprland-rice/system.nix
-    ./modules/desktop/sway-rice/system.nix
 
     # Uygulamalar
     ./modules/apps/default.nix
@@ -39,16 +37,19 @@
   ];
 
 
-  # Hyprland + Matugen dinamik tema rice'ı (GNOME'a ek, GDM'de 2. oturum).
-  # Açmak için yorum işaretini kaldır — HM tarafı osConfig ile otomatik izler.
+  # Hyprland + Matugen dinamik tema rice'ı — tek oturum (GNOME + Sway kaldırıldı,
+  # 2026-07-30). Bayrak güvenlik valfi olarak kalıyor; kapatmak sistemi Hyprland'siz
+  # bırakır (ly'de başka oturum yok). HM tarafı osConfig ile otomatik izler.
   # Ayrıntı: docs/hyprland-rice.md
-   rice.hyprland.enable = true;
+  rice.hyprland.enable = true;
 
-  # Sway + noctalia-shell rice'ı (GNOME'a ek, ly'de 3. oturum, Hyprland rice'ından
-  # bağımsız). HM tarafı osConfig ile otomatik izler. Ayrıntı: docs/sway-rice.md
-  rice.sway.enable = true;
+  # hyprland paketi hem "hyprland.desktop" hem "hyprland-uwsm.desktop" oturum
+  # dosyasını kurar; yalnız uwsm olanı bu makinede çalışıyor (withUWSM=true,
+  # bkz. hyprland-rice/system.nix). Tek oturum kalınca ly listesinde ikisi yan
+  # yana durur — defaultSession yanlış olanı seçmeyi zorlaştırır.
+  services.displayManager.defaultSession = "hyprland-uwsm";
 
-  # HM dconf ayarları (GNOME kısayolları, gnome-hm.nix) için gerekli
+  # Stylix'in GTK hedefi + HM'in gtk.iconTheme/dconf.settings ayarları için gerekli
   programs.dconf.enable = true;
 
   # JetBrainsMono Nerd Font (terminal/starship glif ikonları)
@@ -77,10 +78,9 @@
   # protokole DAİMA MODE_SERVER_SIDE cevabı verdiği için uygulama kendi süslemesini
   # çizmiyor — pencerenin tek çerçevesi Hyprland'ın border+rounding'i oluyor.
   #
-  # KAPSAM UYARISI: sessionVariables sistem geneli, GNOME oturumunu da etkiler
-  # (orada mutter gerçek başlık çubuğu çizer — normal davranış). Uygulamanın KENDİ
-  # tasarladığı chrome (VSCodium'un sekme çubuğu, Vesktop'un başlığı) bu flag'le
-  # GİTMEZ; o uygulama başına ayardır — VSCodium'unki modules/apps/vscodium.nix'te.
+  # KAPSAM UYARISI: sessionVariables sistem geneli. Uygulamanın KENDİ tasarladığı
+  # chrome (VSCodium'un sekme çubuğu, Vesktop'un başlığı) bu flag'le GİTMEZ; o
+  # uygulama başına ayardır — VSCodium'unki modules/apps/vscodium.nix'te.
   # GTK/libadwaita başlıkları (nautilus vb.) hiçbir şekilde kaldırılamaz: GtkHeaderBar
   # bir süsleme değil, içinde yol çubuğu/arama/menü taşıyan uygulama arayüzüdür.
   #
@@ -94,7 +94,7 @@
     git
     gh
 
-    # Masaüstü araçları (ekran görüntüsü GNOME yerleşik: PrintScreen)
+    # Masaüstü araçları (ekran görüntüsü: hyprland-rice/hm.nix'in hypr-screenshot'ı, Print)
     brightnessctl     # CLI parlaklık (script/servisler)
     wl-clipboard      # wl-copy / wl-paste
     pavucontrol       # PulseAudio / PipeWire GUI

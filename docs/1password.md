@@ -45,8 +45,9 @@ bir daemon sürekli açık kalır — ölçmeden açma (`powertop`, BAT1 `curren
   (`IdentityAgent ~/.1password/agent.sock`, HM tarafında `programs.ssh`).
 - **`op` ile secret enjeksiyonu** — API anahtarlarını nix store'a sızdırmadan çekmek
   (`op run` / `op read`); `modules/apps/local-ai.nix` için aday.
-- **İlgisiz ama bu iş sırasında görüldü:** `modules/apps/default.nix:52`'de
-  `security.pam.services.gdm-password.enableGnomeKeyring = true` duruyor, ama display
-  manager artık **ly** (2026-07-18 geçişi) → bu satır ölü, girişte gnome-keyring kilidi
-  açılmıyor olabilir (Vesktop/Bitwarden token'larını etkiler). Doğru hedef muhtemelen
-  `security.pam.services.ly.enableGnomeKeyring`. Ayrı iş olarak ele alınacak.
+- ~~**İlgisiz ama bu iş sırasında görüldü:** `modules/apps/default.nix`'te
+  `security.pam.services.gdm-password.enableGnomeKeyring = true` duruyordu — display
+  manager **ly** (2026-07-18 geçişi) ama satır hâlâ GDM'i hedefliyordu.~~ **Çözüldü**
+  (2026-07-30, GNOME kaldırılırken): satır silindi. nixpkgs'in ly modülü
+  `enableGnomeKeyring`'i `services.gnome.gnome-keyring.enable`'dan `mkDefault` ile
+  zaten alıyor, ekstra pam ayarına gerek yoktu.

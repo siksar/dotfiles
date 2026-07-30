@@ -114,10 +114,11 @@ efektiyle üstüne yazar.
   matugen rengi değiştirse ya da parlaklık bind'ına basılsa efekt canlı uyum
   sağlar; iki yazarın aynı lambayı çekiştirip titretmesi önlenir.
 
-## Kısayollar (yalnız Hyprland)
+## Kısayollar
 
-Kullanıcı tercihi: bind'lar **sadece Hyprland rice'ında** (`lua/binds.lua`).
-GNOME ve Sway'e kasten eklenmedi — o oturumlarda araç CLI'dan kullanılır.
+Bind'lar Hyprland rice'ında tanımlı (`lua/binds.lua`); tek oturum kalınca
+(2026-07-30) burası tek yer. Rebuild olmadan da `kbd-rgb`/`kbd-anim` CLI'dan
+kullanılabilir.
 
 | Kısayol | Eylem |
 |---|---|

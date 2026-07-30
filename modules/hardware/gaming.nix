@@ -94,8 +94,9 @@ in
                      # görevler içinde en yüksek öncelikli. Gerçek RT (SCHED_FIFO) DEĞİL:
                      # o, scx_lavd'ı bypass eder + busy-loop donma riski taşır (bilinçli).
         ioprio = 0;  # IO best-effort en yüksek öncelik
-        # GNOME org.freedesktop.ScreenSaver sağlar → oyun sırasında ekran
-        # kararması/kilidi bastırılır (yalnız oyun oturumunda, idle maliyeti yok)
+        # hypridle org.freedesktop.ScreenSaver arayüzünü sağlar → oyun
+        # sırasında ekran kararması/kilidi bastırılır (yalnız oyun
+        # oturumunda, idle maliyeti yok; bkz. hyprland-rice/hm.nix hypridle)
         inhibit_screensaver = 1;
       };
       custom = {

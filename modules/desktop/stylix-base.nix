@@ -11,7 +11,7 @@ let
   # toprak tonlu — miasma duvar kağıdı tarzıyla da uyumlu.
   palette = "kanagawa-dragon";
 
-  # Palete eşlik eden duvar kağıdı (GNOME arka planı + build-time türetmeler)
+  # Palete eşlik eden duvar kağıdı (build-time türetmeler)
   wallpaper = {
     zixar-main = ./wallpapers/kanagawa.png;
     ergenekon = ./wallpapers/bonfire.png;

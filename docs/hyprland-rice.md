@@ -58,7 +58,7 @@ SUPER+T → wallpaper-picker (rofi ikon grid'i, ~/Pictures/Wallpapers)
   4/12=**primary** (starship "bold blue" dizini tema aksanı olur), 3/11/5/13/6/14
   = primary'nin hue-döndürülmüş halleri (`| set_hue:` filtresi — tema kromalı
   semantik renkler). Ghostty'nin statik Stylix teması taban/fallback kalır
-  (GNOME oturumu + ilk açılış); OSC yalnız runtime'da üzerine boyar.
+  (ilk açılış); OSC yalnız runtime'da üzerine boyar.
   **Tuzak:** OSC ST sonlandırıcısı `\033\\` KULLANILAMAZ — matugen şablon motoru
   `\\`'ı `\`'a indirger; BEL (`\a`) kullanılır. Şablonda kaçışlar metin olarak
   durur, `printf %b` uygulama anında çözer (`grep -v '^#' | tr -d '\n'` sonrası).
@@ -86,19 +86,17 @@ Kritik incelik — `theme.lua` renkleri `require` ile değil **`dofile`** ile ok
 `require` sonucu önbelleğe alır (`package.loaded`); `hyprctl reload` sonrası
 eski renkler dönebilirdi. `dofile` her reload'da diskten taze okur.
 
-## GNOME ile birlikte yaşama (bu repo için kritik)
+## Servis kapsamlama + Stylix çakışması
 
-- `programs.hyprland.enable` GNOME'u **değiştirmez**; GDM'de "Hyprland" ikinci
-  oturum olur. GNOME + tüm dconf ayarları aynen kalır.
 - Waybar/SwayNC/awww **systemd user servisleri** olarak
   `hyprland-session.target`'a bağlı — `graphical-session.target`'a değil.
-  Neden: graphical-session GNOME oturumunda da aktifleşir; yanlış target
-  seçilirse waybar GNOME'un içinde belirir.
+  Neden: graphical-session generic bir target, yanlış seçilirse bu servisler
+  Hyprland dışındaki bir bağlamda da (ör. bir TTY oturumu) tetiklenebilirdi.
 - **Stylix çakışması:** Stylix bu repoda renklerin tek kaynağı; ama rice
   bileşenlerinde renk sahibi matugen olmalı. Bu yüzden yalnız
-  `stylix.targets.{hyprland,waybar,rofi,swaync,cava}.enable = false` — GTK,
-  ghostty, starship vb. Stylix'te kalır. İki sistem yan yana: Stylix "statik
-  taban", matugen "dinamik rice katmanı".
+  `stylix.targets.{hyprland,waybar,rofi,swaync,cava,hyprlock}.enable = false` —
+  GTK, ghostty, starship vb. Stylix'te kalır. İki sistem yan yana: Stylix
+  "statik taban", matugen "dinamik rice katmanı".
 
 ## Animasyon + görünüm (Anto98765/My-Hyprland-Rice portu)
 
@@ -113,8 +111,7 @@ contrast 1.6 + popups. Bilinçli sapmalar (main.lua yorumlarında):
   bile her karede repaint demek; 4.28W bütçesini doğrudan ihlal ederdi.
 - Süreler kaynaktan ~%25 kısa (kullanıcı: "biraz daha hızlı") — kaynak değerler
   main.lua satır-sonu yorumlarında.
-- İmleç: apple-cursor **macOS-White** (stylix-base.nix cursor.name — Stylix tüm
-  oturumlara uygular, GNOME dahil).
+- İmleç: apple-cursor **macOS-White** (stylix-base.nix cursor.name).
 - Saydamlık kaynakta 1/1 (opak); bizde 0.92/0.86 korunur (Stylix senkron kararı).
 - `resize_on_border=true` ve `allow_tearing=false` bizde kaldı (alışkanlık/VRR).
 
@@ -165,7 +162,7 @@ store'da kendi dizininde durur; `waybar-launch` (hm.nix) state dosyasına göre
 (veya bilinmeyen bir değer) argümansız `waybar`'a düşer, yani HM modülünün
 ürettiği bar. `systemd.user.services.waybar.Service.ExecStart` bu script'e
 `lib.mkForce` ile yönlendirilir; `programs.waybar`'ın `systemd.targets` ayarı
-(GNOME'a sızmama koruması) buna dokunulmadan aynı kalır.
+(oturum kapsamlama) buna dokunulmadan aynı kalır.
 
 **Palet tek kaynak.** `waybar-mono.css` (`@background #0d0e10` … `@bright
 #eceff2` — saf siyah/beyaz değil, halation/banding'den kaçınmak için) her
@@ -190,13 +187,13 @@ düzeltme override dosyasına eklenir, palet dokunulmaz.
 çağrısını tema başına elle düzeltmek yerine, aynı isimlerde ince shim'ler
 üretilip **yalnız `waybar-launch`'ın PATH'ine** eklendi (`home.packages`'a
 sızmaz). Karşılıklar: `omarchy-menu` → rofi drun / rofi tabanlı güç menüsü
-(`hyprland-rice`'ta lock screen yok, o yüzden "Kilitle" seçeneği eklenmedi),
+("Kilitle" → `loginctl lock-session`, hyprlock'u tetikler),
 `omarchy-launch-wifi/-bluetooth` → `ghostty -e nmtui`/`bluetuith`,
-`omarchy-cmd-screenrecord` → `gpu-screen-recorder` toggle (sway-rice'ın
-`sway-screenrecord`'unun portu; bu yüzden `programs.gpu-screen-recorder.enable`
-artık hyprland-rice'ın `system.nix`'inde de açık), `omarchy-update-available`
-→ her zaman boş çıkış (waybar modülü otomatik gizler). `$OMARCHY_PATH/default/
-waybar/indicators/*.sh` üç gösterge de aynı katmanda.
+`omarchy-cmd-screenrecord` → `gpu-screen-recorder` toggle, `omarchy-toggle-idle`
+→ `hypridle.service`'i durdurup başlatır, `omarchy-update-available` → her
+zaman boş çıkış (waybar modülü otomatik gizler). `$OMARCHY_PATH/default/
+waybar/indicators/*.sh` üç gösterge de aynı katmanda — `idle-indicator.sh`
+`hypridle.service`nin durumunu yansıtır.
 
 **Elle düzenlemeler** (jq ile 15 farklı şekilli JSON'a modül enjekte etmek
 yerine, vendor'lanmış dosyalarda doğrudan):
@@ -358,10 +355,6 @@ symlink'leyip mutable-copy çakışması/boş-profil riski doğuruyor. Güvenli 
 doğrulama gerektiren bilinçli adım. Saydamlık zaten Hyprland'den geliyor;
 ertelenen yalnız zen'in *renk* teması.
 
-**GNOME oturumu notu:** `stylix.opacity` GNOME'da da uygulanır ama GNOME pencere
-blur'ü yapmaz → orada şeffaf terminal blur yerine düz duvar kağıdını gösterir.
-Camsı görünüm Hyprland oturumuna özgü (blur orada).
-
 ## Pencere süslemesi politikası (30 Tem 2026)
 
 İstek: "tüm uygulamaların başlık çubuğunu Hyprland'a bırak." Araştırma sonucu:
@@ -403,10 +396,9 @@ sekme/başlık çubuğu, Vesktop'un başlığı, zen'in sekme şeridi `WaylandWi
 `Decorations` ile GİTMEZ; her biri uygulama-içi ayar gerektirir. VSCodium için
 o ayar aşağıda.
 
-**Kapsam uyarısı:** `sessionVariables` sistem geneli → **GNOME oturumunu da**
-etkiler (orada mutter gerçek başlık çubuğu çizer; normal davranış). İzlenecek
-regresyonlar: ibus (`GTK_IM_MODULE=ibus`) Wayland'de text-input-v3'e geçer →
-Electron uygulamalarında Türkçe/emoji girişi teyit edilmeli; ekran paylaşımı
+**Kapsam uyarısı:** `sessionVariables` sistem geneli. İzlenecek regresyonlar:
+ibus (`GTK_IM_MODULE=ibus`) Wayland'de text-input-v3'e geçer → Electron
+uygulamalarında Türkçe/emoji girişi teyit edilmeli; ekran paylaşımı
 xdg-desktop-portal'a düşer. Bozarsa o tek satırı silmek yeter.
 
 ## VSCodium minimalist görünüm (30 Tem 2026)
@@ -446,10 +438,6 @@ Kritik olan üçlü:
   `StartupWMClass=vscodium`; NIXOS_OZONE_WL öncesi XWayland `WM_CLASS`, sonrası
   Wayland `app_id` olduğundan üç varyant birlikte kapsandı.
 
-**GNOME'da** yalnız uygulama tarafı geçerli; kenarlık/opaklık compositor işi ve
-mutter per-window opacity sunmuyor. **Sway rice'a kural eklenmedi** — istek
-Hyprland içindi ve riceler bilinçli olarak kod paylaşmıyor.
-
 **Denenmeyen yol:** VSCodium'un *içinde* gerçek şeffaflık. Stylix'in vscode
 teması opak hex üretiyor (`"editor.background":"#181616"` — alpha yok), Electron
 penceresi şeffaf oluşturulmadığı için 8 haneli hex masaüstüne değil uygulamanın
@@ -459,11 +447,12 @@ kurulum dizinindeki `workbench.desktop.main.js`'i yamalıyor — o dosya
 
 ## Güç bütçesi (4.28W GERİLEMEZ kuralı)
 
-- `main.lua` → `AQ_DRM_DEVICES=/dev/dri/by-path/pci-0000:65:00.0-card`:
-  aquamarine NVIDIA node'unu hiç açmaz. Bu, `gnome.nix`'teki
-  `mutter-device-ignore` udev kuralının Hyprland eşleniğidir; açık fd RTD3
-  D3cold'u bloke ederdi. by-path çünkü `cardN` numarası boot sırasına göre
-  değişiyor (ölçüldü: card0=nvidia, card1=amdgpu). PRIME offload (`gamerun`)
+- `system.nix` → `AQ_DRM_DEVICES=/dev/dri/hypr-igpu` (sabit bir udev symlink'i,
+  `KERNEL=="card[0-9]*", DRIVERS=="amdgpu"`): aquamarine NVIDIA node'unu hiç
+  açmaz — açık fd RTD3 D3cold'u bloke ederdi. `cardN` numarası boot sırasına
+  göre değiştiğinden (ölçüldü: card0=nvidia, card1=amdgpu) sabit bir isim
+  şart; değer iki nokta (`:`) içeremez (aquamarine ':' ile ayırır), bu yüzden
+  by-path değil udev symlink'i kullanılıyor. PRIME offload (`gamerun`)
   etkilenmez.
 - Tema motoru **olay güdümlü**: yalnız kısayolla tetiklenir, poll yok.
   matugen/swww geçişi anlık maliyet; idle'da hiçbir şey koşmaz.
@@ -471,47 +460,74 @@ kurulum dizinindeki `workbench.desktop.main.js`'i yamalıyor — o dosya
   tabanlı (poll yok), ağ modülü waybar varsayılanında (60 sn).
 - Cava **barda yok ve autostart edilmez** — sürekli ses örnekler; istenince
   terminalden.
-- `misc.vrr = 2` (yalnız tam ekran) — GNOME'daki mutter VRR deneysel
-  özelliğinin karşılığı.
+- `misc.vrr = 2` (yalnız tam ekran) — panel 48-165Hz aralığında değişken tazeleme.
 - **Yapılacak ölçüm:** Hyprland oturumunda pilde idle W (`current_now ×
   voltage_now / 1e12`, BAT1) + `/sys/bus/pci/devices/0000:64:00.0/power_state`
-  ile D3cold teyidi. 4.28W tabanı GNOME'da ölçüldü; burada yeniden doğrulanmalı.
+  ile D3cold teyidi. 4.28W tabanı GNOME hâlâ birincil oturumken ölçülmüştü
+  (2026-07-02); GNOME kaldırıldıktan sonra (2026-07-30) yeniden doğrulanmalı.
 
-## Kısayollar (GNOME kas hafızasıyla hizalı)
+## Kısayollar
 
-| Kısayol | İş | GNOME eşleniği |
-|---|---|---|
-| SUPER+Enter | ghostty | aynı |
-| SUPER+Q | pencere kapat | aynı |
-| SUPER+1..9 (+SHIFT) | çalışma alanı (taşı) | aynı |
-| SUPER+M | fan modu döngüsü | aynı |
-| SUPER+V | bildirim paneli (swaync) | aynı |
-| Copilot (Meta+Shift+F23) | Claude Desktop | aynı |
-| **SUPER+T** | **duvar kağıdı seç → tema** | — (referans repo: Super+T/W) |
-| **SUPER+SHIFT+T** | **rastgele duvar kağıdı + tema** | — |
-| SUPER+D | rofi drun | — |
-| SUPER+F / SHIFT+F | yüzer / maximize (16 Tem'de yer değişti) | — |
-| SUPER+SHIFT+E | oturumu kapat (GDM) | — |
+Eskiden GNOME'un dconf kısayollarıyla bire bir eşleşecek şekilde seçilenler
+(kas hafızası korunuyor) + rice'a özgü olanlar:
+
+| Kısayol | İş |
+|---|---|
+| SUPER+Enter | ghostty |
+| SUPER+Q | pencere kapat |
+| SUPER+1..9 (+SHIFT) | çalışma alanı (taşı) |
+| SUPER+M | fan modu döngüsü |
+| SUPER+V | bildirim paneli (swaync) |
+| SUPER+L | kilit ekranı (hyprlock, `loginctl lock-session` üzerinden) |
+| Copilot (Meta+Shift+F23) | Claude Desktop |
+| **SUPER+T** | **duvar kağıdı seç → tema** |
+| **SUPER+SHIFT+T** | **rastgele duvar kağıdı + tema** |
+| SUPER+W | waybar tema seçici |
+| SUPER+D | rofi drun |
+| SUPER+F / SHIFT+F | yüzer / maximize (16 Tem'de yer değişti) |
+| Print / SHIFT+Print | ekran görüntüsü (bölge/tam ekran) → satty |
+| SUPER+SHIFT+S | ekran görüntüsü (bölge) → panoya |
+| SUPER+SHIFT+E | oturumu kapat (ly'ye döner) |
 
 ## Açma / doğrulama
 
-1. `configuration.nix` → `rice.hyprland.enable = true;` satırının yorumunu kaldır
-   (HM tarafı gömülü HM'de `osConfig` üzerinden otomatik izler; standalone
-   `hms` yolunda gerekirse `home.nix`'e aynı satır yazılır).
+1. `configuration.nix` → `rice.hyprland.enable = true;` (tek oturum kalınca
+   her zaman açık; kapatmak sistemi çalışan oturumsuz bırakır).
 2. `nixos-rebuild build --flake /home/zixar/nixos-zixar#nixos` → hatasızsa
    `sudo nixos-rebuild switch --flake /home/zixar/nixos-zixar#nixos`.
-3. Çıkış yap → GDM'de dişli menüsünden **Hyprland** seç.
+3. Çıkış yap → ly'de **Hyprland (uwsm-managed)** seç (`defaultSession` zaten
+   bunu işaret ediyor).
 4. İlk giriş: Stylix duvar kağıdı + ondan üretilmiş renklerle açılır
    (aktivasyon tohumu). SUPER+T ile değiştir; `hyprctl reload` sonrası
    kenarlık renklerinin değiştiğini gör.
 5. Güç ölçümü (yukarıdaki bölüm) — sonucu bu dosyaya işle.
 
+## Ekran görüntüsü, kilit ve idle
+
+GNOME'un PrintScreen'i ve SUPER+L'si, Sway rice'ın grim/slurp'ı kaldırılınca
+(2026-07-30) rice kendi karşılıklarını kazandı:
+
+- **Ekran görüntüsü** — `hypr-screenshot` (`hm.nix`, eskiden sway rice'ta olan
+  `sway-screenshot`'ın portu): grim/slurp wlr-screencopy protokolünü kullanır,
+  compositor bağımsız. `region` (bölge seç + satty ile düzenle, varsayılan),
+  `fullscreen`, `clipboard` (bölge → doğrudan panoya) modları var.
+- **Kilit ekranı** — `programs.hyprlock`, renk sahibi matugen
+  (`templates/hyprlock-colors.conf` → `~/.config/hypr/hyprlock-colors.conf`,
+  hyprlock.conf bunu `source` ile okur). PAM servisi `system.nix`'te
+  (`security.pam.services.hyprlock`) — olmadan parola asla doğrulanmaz.
+- **Idle** — `services.hypridle`, `hyprland-session.target`'a bağlı: 5 dk
+  boşta DPMS off, 10 dk boşta `loginctl lock-session` (→ hyprlock). Suspend
+  YOK — s2h zinciri zaten logind'de kurulu (`power.nix`), ikinci bir yazar
+  çakışırdı. `waybar-omarchy-compat.nix`'teki `omarchy-toggle-idle` /
+  `idle-indicator.sh` `hypridle.service`'i durdurup başlatarak devre dışı
+  bırakır.
+- **AC/BAT refresh-rate** — `power-display.nix`'in kullanıcı servisi artık
+  `gnome-randr` yerine `hyprctl keyword monitor` kullanıyor (60Hz pilde,
+  165Hz fişte); mod stringi `lua/main.lua`'daki `hl.monitor` ile elle senkron
+  tutulmalı.
+
 ## Bilinçli eksikler (istemde yoktu)
 
-- Kilit ekranı / idle yönetimi (hyprlock+hypridle) — GNOME oturumu dururken
-  öncelik değil; eklenirse matugen'e `hyprlock` şablonu da bağlanmalı.
-- Ekran görüntüsü (grim+slurp) — GNOME'da PrintScreen var; Hyprland
-  oturumuna eklenecekse `hl.permission` (screencopy) notuna dikkat.
 - Tema önizleme küçük resimleri (referans repodaki `thumb-gen.sh`) — rofi
   ikonları orijinal dosyayı okuyor; büyük PNG'lerde seçici ilk açılışta
   yavaşlarsa eklenebilir.

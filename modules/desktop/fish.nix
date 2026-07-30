@@ -1,10 +1,8 @@
-# fish kabuğu — sway rice'ın parçası (vyrx-dev/dotfiles portu). GNOME/Hyprland
-# rice.sway.enable KAPALIYKEN bu dosya devre dışı kalır; ikinci bir toggle
-# YOK, sway-rice/hm.nix'te tanımlı options.rice.sway.enable okunuyor.
+# fish kabuğu (vyrx-dev/dotfiles portu, eskiden sway rice'a bağlıydı).
 # users.nix'te users.users.zixar.shell = pkgs.fish (sistem katmanı, login shell).
-{ config, lib, pkgs, ... }:
+{ pkgs, ... }:
 
-lib.mkIf config.rice.sway.enable {
+{
   programs.fish = {
     enable = true;
 
