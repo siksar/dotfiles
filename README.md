@@ -51,6 +51,7 @@ değil; `kernel/`, `desktop/`). Sözlük Linux çekirdeğinden alınma.
 ├── configuration.nix          Kconfig: SİSTEM katmanının tek import listesi
 ├── home.nix                   Kconfig: KULLANICI katmanının tek import listesi
 ├── hardware-configuration.nix üretilmiş — elle düzenleme
+├── default.nix                `nix repl ./` kapısı (rebuild yolu DEĞİL)
 ├── MAINTAINERS                konu → dosya haritası
 ├── CLAUDE.md                  mimari + kurallar (ajan ve insan için)
 │
@@ -59,7 +60,7 @@ değil; `kernel/`, `desktop/`). Sözlük Linux çekirdeğinden alınma.
 │   │                          Makine değişirse ilk silinecek dizin burası.
 │   ├── drivers/               gpu, input/keyboard-rgb
 │   ├── kernel/                power, power-display, sched
-│   ├── init/                  limine, locale, (plymouth — kullanılmıyor)
+│   ├── init/                  limine, locale
 │   ├── net/                   core, vpn, localsend
 │   ├── security/              users, keyring, onepassword
 │   ├── desktop/               session, login (ly), theme (stylix)
@@ -87,7 +88,7 @@ değil; `kernel/`, `desktop/`). Sözlük Linux çekirdeğinden alınma.
 ```
 
 **Neden `lib/`:** duvar kağıtları ve base16 şemalarını hem sistem katmanı
-(Stylix) hem kullanıcı katmanı (`home/desktop/session.nix`) okuyor. `system/`
+(Stylix) hem kullanıcı katmanı (`home/desktop/theme/`) okuyor. `system/`
 altında bırakılsalardı `home/` oraya `../../system/…` ile uzanacaktı.
 Çekirdekteki anlamıyla aynı: iki dalın da paylaştığı şey.
 

@@ -20,10 +20,12 @@ F:	flake.nix
 F:	configuration.nix
 F:	home.nix
 F:	hardware-configuration.nix
+F:	default.nix
 N:	flake.nix     = Makefile: girdiler (nixpkgs/HM/stylix/chaotic/…) + iki çıktı
 	configuration.nix = Kconfig: SİSTEM katmanının tek import listesi
 	home.nix      = Kconfig: KULLANICI katmanının tek import listesi
 	hardware-configuration.nix = üretilmiş, elle düzenleme
+	default.nix   = nix repl ./ için ince kapı (rebuild yolu DEĞİL)
 W:	İki flake çıktısı AYNI home.nix'i okur (gömülü HM + standalone `hms`).
 	Yalnız birinin görebileceği HM config'i EKLEME. Bunu ayakta tutan şey
 	flake.nix'teki extraSpecialArgs.osConfig geçişi — oraya dokunmak
@@ -138,7 +140,7 @@ W:	Per-app renk AYARLAMA. Stylix GTK/ghostty/vscodium/vesktop/starship'i
 	kendi hedefleriyle boyar.
 W:	schemes/ ve wallpapers/ dosya adları store yoluna girer.
 N:	lib/ altında olmalarının sebebi: hem sistem hem kullanıcı katmanı okuyor
-	(home/desktop/session.nix duvar kağıdını buradan alıyor).
+	(home/desktop/theme/ duvar kağıdını buradan alıyor).
 
 GİRİŞ EKRANI
 S:	Maintained
@@ -194,7 +196,10 @@ UYGULAMALAR
 ═══════════════════════════════════════════════════════════════════════════
 SİSTEM GENELİ (usr/)
 S:	Maintained
-F:	usr/steam.nix  usr/netflix.nix  usr/firefox.nix  usr/local-ai.nix
+F:	usr/steam.nix
+F:	usr/netflix.nix
+F:	usr/firefox.nix
+F:	usr/local-ai.nix
 N:	local-ai = NPU öncelikli yerel AI (XDNA2/FastFlowLM + Lemonade).
 	NPU oyunla İLGİSİZ — FSR4/DLSS shader/tensor core kullanır.
 
@@ -207,7 +212,7 @@ W:	Runtime'da yazılan HM config'leri (vesktop settings.json) "mutable-copy
 
 KABUK / TERMİNAL
 S:	Maintained
-F:	home/shell/fish.nix  starship.nix  ghostty.nix  tmux.nix
+F:	home/shell/
 N:	Kullanıcının fish'inde grep→rg, cat→bat aliaslı. `\|` alternation
 	sessizce eşleşmez; fish glob'unda [...] yok.
 
