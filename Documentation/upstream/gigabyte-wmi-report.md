@@ -1,8 +1,8 @@
 # Draft comment for tangalbert919/gigabyte-laptop-wmi — issue #22 ("Support for Aero 16X")
 
 > Durum: kullanıcı gönderecek. İçerik pinlenen sürücü sürümü `912b4e9`'a ve canlı
-> salt-okuma testine (`docs/aerox16-1vh-test-plan.md` Part 1) göre doğrulandı.
-> Ham kanıt: `docs/aerox16-1vh-wmi.md`. Aşağıdaki gövde (---'den sonra) İngilizce,
+> salt-okuma testine (`Documentation/aerox16/test-plan.md` Part 1) göre doğrulandı.
+> Ham kanıt: `Documentation/aerox16/wmi-ec.md`. Aşağıdaki gövde (---'den sonra) İngilizce,
 > olduğu gibi yorum olarak yapıştırılabilir.
 
 ---
@@ -182,7 +182,7 @@ Full annotated table + DSDT dump available on request.
 # Follow-up: DADA30000 cevabı için taslak (2026-07-11)
 
 > Durum: kullanıcı gönderecek (issue #22'ye yanıt). §3'ün "tracks the value"
-> iddiasını geri çeker; E1-E6 matrisi `docs/aerox16-1vh-wmi.md`'de.
+> iddiasını geri çeker; E1-E6 matrisi `Documentation/aerox16/wmi-ec.md`'de.
 
 ---
 

@@ -1,3 +1,20 @@
+> # ⚠ ARŞİV — 28 Haz 2026 durumu, GÜNCEL DEĞİL
+>
+> Bu belge repo'nun ilk kurulum günlerinden kalma bir durum fotoğrafı. Aktif
+> olarak **yanıltıyor**, karar verirken kaynak alma:
+>
+> | Burada yazan | Gerçek (31 Tem 2026) |
+> |---|---|
+> | Compositor: KDE Plasma 6 | Hyprland (tek oturum; GNOME + Sway 30 Tem'de silindi) |
+> | Kernel 6.19.10 | 7.1.4 |
+> | NixOS 25.11 | stateVersion 26.05 |
+> | Faz 2–7 "Pending" | hepsi tamamlandı |
+> | `modules/...` yolları | ağaç `system/ usr/ home/ lib/` olarak yeniden düzenlendi |
+>
+> Hâlâ geçerli tek bölüm **§1 Hardware Profile** — o tablo `README.md`'de
+> yaşıyor. Güncel mimari: `CLAUDE.md`. Konu→dosya haritası: `MAINTAINERS`.
+> Saklanma sebebi: kararların *hangi varsayımlarla* alındığını gösteriyor.
+
 # NixOS Optimization Agent - Context Document
 
 ## 1. Hardware Profile

@@ -1,6 +1,6 @@
 # AERO X16 1VH — klavye aydınlatması (HID LampArray)
 
-Ölçüm tarihi: 2026-07-29. Modül: `modules/hardware/keyboard-rgb/`.
+Ölçüm tarihi: 2026-07-29. Modül: `system/drivers/input/keyboard-rgb/`.
 
 Kısa özet: klavye **standart HID LampArray** (Usage Page 0x59) konuşuyor. Bu
 yüzden renk kontrolü, bu repodaki fan/güç işlerinin aksine, DSDT kazısı ya da
@@ -9,7 +9,7 @@ eksiksiz implemente etmiş.
 
 ## Neden WMI/EC değil
 
-İlk aday `docs/aerox16-1vh-wmi.md`'de zaten haritalanmış olan WMBD `0xF6`
+İlk aday `Documentation/aerox16/wmi-ec.md`'de zaten haritalanmış olan WMBD `0xF6`
 (`KBLL = Arg2`, MOF adı `SetKeyBoardBackLight`, EC alanı `@0x31`) idi. Elendi:
 
 - `aorus-laptop` sürücüsünde klavye desteği **yok** — ne sysfs düğümü, ne

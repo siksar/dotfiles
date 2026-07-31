@@ -1,9 +1,9 @@
 { pkgs, ... }:
 
 {
-  # fish — eskiden sway rice'ın parçasıydı (sway-rice/system.nix), tek oturum
+  # fish — eskiden sway rice'ın parçasıydı (30 Tem'de silindi), tek oturum
   # kalınca sistem katmanına taşındı. HM tarafındaki abbr/alias/function seti
-  # modules/desktop/fish.nix'te (artık koşulsuz).
+  # home/shell/fish.nix'te (artık koşulsuz).
   programs.fish.enable = true;
 
   users.users.zixar = {

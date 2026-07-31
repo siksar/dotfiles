@@ -41,7 +41,7 @@
 
         #### Pencere süslemesi compositor'a bırakılır ####
         # VSCodium kendi başlık çubuğunu çizmez → pencere kenarı doğrudan
-        # Hyprland'ın border + rounding'ine dayanır (hyprland-rice/lua/rules.lua,
+        # Hyprland'ın border + rounding'ine dayanır (home/desktop/wm/rules.lua,
         # "vscodium-chrome" kuralı). titleBarStyle="native" DEĞİL: Wayland'de
         # native, menü çubuğunu pencerenin İÇİNE ayrı bir satır olarak koyuyor —
         # tam istenmeyen şey. custom + never ikisini birden halleder.

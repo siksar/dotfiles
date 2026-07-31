@@ -1,5 +1,5 @@
 # Oyun performans altyapısı (sistem katmanı)
-# Kullanım: Steam launch options → gamerun %command%   (ayrıntı: docs/gaming.md)
+# Kullanım: Steam launch options → gamerun %command%   (ayrıntı: Documentation/gaming.md)
 #
 # Tasarım kısıtı: pil/idle tabanı 4.28W GERİLEMEZ. Buradaki hiçbir şey boşta
 # koşmaz — scx_lavd yalnız gamemode aktifken çalışır, zram pasif, ntsync pasif.
@@ -25,7 +25,7 @@ let
   # pilde oyun güç-limitli, max fan anlamsız gürültü+drain olur.
   # EC uçucu → stop'ta 0xED profil 0 (boot varsayılanı) + gigabyte-power-profile
   # ACBT 80/fan modunu (AC→0 dengeli) geri kurar.
-  # Ayrıntı: docs/aerox16-1vh-wmi.md "Deneysel 0xED" tablosu + preset karakterizasyonu.
+  # Ayrıntı: Documentation/aerox16/wmi-ec.md "Deneysel 0xED" tablosu + preset karakterizasyonu.
   gamePerfStart = pkgs.writeShellScript "game-perf-start" ''
     if [ "$(cat /sys/class/power_supply/ACAD/online 2>/dev/null)" = "1" ]; then
       if [ -w /proc/acpi/call ]; then
@@ -96,7 +96,7 @@ in
         ioprio = 0;  # IO best-effort en yüksek öncelik
         # hypridle org.freedesktop.ScreenSaver arayüzünü sağlar → oyun
         # sırasında ekran kararması/kilidi bastırılır (yalnız oyun
-        # oturumunda, idle maliyeti yok; bkz. hyprland-rice/hm.nix hypridle)
+        # oturumunda, idle maliyeti yok; bkz. home/desktop/session.nix hypridle)
         inhibit_screensaver = 1;
       };
       custom = {
@@ -179,6 +179,6 @@ in
                        # birincil oyun-içi ölçüm aracı (ikinci terminalde nvtop / nvidia-smi dmon)
   ];
   # gamescope KALDIRILDI (2026-07-22): bu hibrit topolojide (AMD iGPU süren + NVIDIA dGPU
-  # offload) penceresiz çöküyordu (coredump geçmişi, docs/gaming.md). İzolasyon gerekirse
+  # offload) penceresiz çöküyordu (coredump geçmişi, Documentation/gaming.md). İzolasyon gerekirse
   # oyun-içi "unfocused'ta duraklat" ayarını kapatmak yeterli.
 }

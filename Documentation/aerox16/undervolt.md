@@ -164,13 +164,13 @@ CPU'nun **güç iştahını** kısıyoruz: `game-perf` artık PPD'yi `performanc
 CPU paylaşımlı Dynamic Boost bütçesini daha az yer → dGPU beslenir). Bu, "CPU-güç
 limiti" kolunun (yukarıdaki matriste EC 0xF1-F3'e alternatif) PPD/amd-pmf üzerinden
 kanıtlanmış, düşük-riskli hâli — kesin watt-cap (ECPT) hâlâ açık iş kalemi.
-CPU-bound oyun için `GR_CPUMAX=1` performance'a döner. Ayrıntı: `docs/gaming.md`
-"GPU-öncelik" bölümü + `modules/hardware/gaming.nix`.
+CPU-bound oyun için `GR_CPUMAX=1` performance'a döner. Ayrıntı: `Documentation/gaming.md`
+"GPU-öncelik" bölümü + `system/kernel/sched.nix`.
 
 ## İlgili
 - Idle güç bütçesi (4.28W) ve gaming kısıtları: değişiklikler bu tabanı bozmamalı
   (bkz. `CLAUDE.md` güç yönetimi bölümü, `power-optimization-project` memory).
-- Fan/WMI/EC araştırması (ayrı alt sistem): `docs/aerox16-1vh-wmi.md`.
+- Fan/WMI/EC araştırması (ayrı alt sistem): `Documentation/aerox16/wmi-ec.md`.
 
 ---
 

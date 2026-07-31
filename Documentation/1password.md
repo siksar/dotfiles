@@ -2,7 +2,7 @@
 
 *Yazıldı: 2026-07-25 · Durum: **kod yazıldı + `nixos-rebuild build` geçti, HENÜZ `switch` YAPILMADI***
 
-Kod: `modules/apps/onepassword.nix` (system katmanı), `configuration.nix`'ten import edilir.
+Kod: `system/security/onepassword.nix` (system katmanı), `configuration.nix`'ten import edilir.
 Sürümler (pinli nixpkgs, 26.11): GUI **8.12.28**, CLI **2.34.1**.
 
 ## Neden system katmanı, neden bu üç parça
@@ -44,8 +44,8 @@ bir daemon sürekli açık kalır — ölçmeden açma (`powertop`, BAT1 `curren
 - **1Password SSH agent** — ssh anahtarlarını kasada tutup git/ssh'ı ona yönlendirmek
   (`IdentityAgent ~/.1password/agent.sock`, HM tarafında `programs.ssh`).
 - **`op` ile secret enjeksiyonu** — API anahtarlarını nix store'a sızdırmadan çekmek
-  (`op run` / `op read`); `modules/apps/local-ai.nix` için aday.
-- ~~**İlgisiz ama bu iş sırasında görüldü:** `modules/apps/default.nix`'te
+  (`op run` / `op read`); `usr/local-ai.nix` için aday.
+- ~~**İlgisiz ama bu iş sırasında görüldü:** `usr/steam.nix`'te
   `security.pam.services.gdm-password.enableGnomeKeyring = true` duruyordu — display
   manager **ly** (2026-07-18 geçişi) ama satır hâlâ GDM'i hedefliyordu.~~ **Çözüldü**
   (2026-07-30, GNOME kaldırılırken): satır silindi. nixpkgs'in ly modülü

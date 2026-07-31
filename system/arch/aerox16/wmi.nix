@@ -23,7 +23,7 @@ let
 
     # İki local düzeltme. İkisi de upstream 0.2.0'da HÂLÂ açık (issue #22'ye
     # 2026-07-11'de raporlandı, tag ondan 6 gün eski) — bkz.
-    # docs/upstream-gigabyte-wmi-report.md.
+    # Documentation/upstream/gigabyte-wmi-report.md.
     #
     # Neden `patches` değil de substituteInPlace: eski
     # ./aorus-laptop-silent-0x57.patch'in bağlam satırı 0.2.0'da değişti
@@ -35,7 +35,7 @@ let
       #    "yeni cihazlar negatif döner" varsayıyor; bu şasi 0 döndürdüğü için
       #    "eski model" sanılıp fan_modes[1]=0xFA (WMBD'de BOŞ case) oluyor →
       #    sessiz mod no-op. Doğrudan yeni selector 0x57'yi feature-detect et.
-      #    Ölçüm: docs/aerox16-1vh-wmi.md "Faz F" §2 (0xFA->0, 0x57->1).
+      #    Ölçüm: Documentation/aerox16/wmi-ec.md "Faz F" §2 (0xFA->0, 0x57->1).
       substituteInPlace aorus-laptop.c \
         --replace-fail \
           'gigabyte_laptop_get_devstate(FAN_SILENT_OLD, &output)' \
@@ -50,7 +50,7 @@ let
       #    bizimki "GIGABYTE AERO" → yanlışlıkla swap yiyor. Fonksiyonun tek
       #    çağrı yeri olduğu için no-op'a çeviriyoruz; bu derleme zaten yalnız
       #    bu makine için. (Upstream'e gidecek biçim DMI dalına "GIGABYTE AERO"
-      #    eklemek — docs/aerox16-1vh-wmi.md "Faz F" §1.)
+      #    eklemek — Documentation/aerox16/wmi-ec.md "Faz F" §1.)
       substituteInPlace aorus-laptop.c \
         --replace-fail 'return rol16(fan_rpm, 8);' 'return fan_rpm;'
     '';
@@ -73,7 +73,7 @@ in
 {
   # acpi_call KALICI: dGPU Dynamic Boost bütçesi (NPCF.ACBT) yalnız ham
   # WMBD 0x4C ile yazılabiliyor (sürücünün gpu_boost'u LCBT=0 yüzünden işlevsiz;
-  # bkz. docs/aerox16-1vh-wmi.md "Faz D+E sonuçları"). power-profile kullanıyor.
+  # bkz. Documentation/aerox16/wmi-ec.md "Faz D+E sonuçları"). power-profile kullanıyor.
   boot.extraModulePackages = [ aorus-laptop config.boot.kernelPackages.acpi_call ];
   boot.kernelModules = [ "aorus-laptop" "acpi_call" ];
 
@@ -87,7 +87,7 @@ in
   '';
 
   # AC/BAT'a göre otomatik fan modu + dGPU Dynamic Boost bütçesi (ölçümler:
-  # docs/aerox16-1vh-wmi.md). Varsayılan: BAT=1 (sessiz), AC=0 (dengeli) —
+  # Documentation/aerox16/wmi-ec.md). Varsayılan: BAT=1 (sessiz), AC=0 (dengeli) —
   # kullanıcı tercihi (eski AC=2/oyun'dan değişti). Fan modu ayrıca Süper+M ile
   # canlı döndürülebiliyor (0→1→2→5, bkz. aşağıdaki fan-mode-cycle servisi);
   # AC/uyku değişimi bu otomatik varsayılanı yeniden uygular (manuel geçici). ACBT
@@ -131,7 +131,7 @@ in
   # Süper+M fan modu döngüsü (0→1→2→5). fan_mode sysfs'i root gerektirir; bu root
   # oneshot servis yazar, sonra masaüstü bildirimini zixar oturumuna runuser +
   # kullanıcı DBus'ı üzerinden gönderir. SUPER+M kısayolundan polkit ile ŞİFRESİZ
-  # tetiklenir (bkz. hyprland-rice/lua/binds.lua). ACBT'ye DOKUNMAZ — dGPU boost
+  # tetiklenir (bkz. home/desktop/wm/binds.lua). ACBT'ye DOKUNMAZ — dGPU boost
   # ayrı (AC/oyun profili yönetir). Modlar: 0=Dengeli·1=Sessiz·2=Gaming·5=Turbo.
   # (Not: Fn+F7 denendi ama Linux'a güvenilir input/ACPI olayı olarak ulaşmıyor.)
   systemd.services.fan-mode-cycle = {
@@ -158,7 +158,7 @@ in
             XDG_RUNTIME_DIR="/run/user/$uid" \
           ${pkgs.libnotify}/bin/notify-send -a Fan -u low -t 2000 \
             "Mevcut Mod $next" "$name" >/dev/null 2>&1 || true
-        # Waybar'daki custom/fan modülünü tazele (signal=8, hyprland-rice/hm.nix)
+        # Waybar'daki custom/fan modülünü tazele (signal=8, home/desktop/session.nix)
         # — modül interval="once" ile çalışır, bu sinyal olmadan güncellenmez.
         ${pkgs.procps}/bin/pkill -SIGRTMIN+8 -u zixar waybar 2>/dev/null || true
       '';

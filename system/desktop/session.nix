@@ -1,5 +1,5 @@
 # Hyprland + Matugen dinamik tema rice'ı — SİSTEM katmanı. Tek oturum (GNOME +
-# Sway kaldırıldı, 2026-07-30); rice.hyprland.enable bayrağı bir güvenlik valfi
+# Sway kaldırıldı, 2026-07-30); desktop.hyprland.enable bayrağı bir güvenlik valfi
 # olarak kalıyor, kapatmak sistemi çalışan oturumsuz bırakır.
 #
 # HM tarafı (hm.nix) gömülü HM'de osConfig üzerinden bunu OTOMATİK izler —
@@ -8,7 +8,7 @@
 { config, lib, pkgs, ... }:
 
 {
-  options.rice.hyprland.enable =
+  options.desktop.hyprland.enable =
     lib.mkEnableOption "Hyprland 0.55+ (Lua config) + Matugen dinamik tema rice'ı";
 
   # atif-1402/minimal-waybar-themes portlarından biri (V1..V7) veya "current"
@@ -16,13 +16,13 @@
   # hm.nix'teki waybar-themes.nix'in ürettiği attrset'in anahtarları +
   # "current". Deneme aşamasında `waybar-theme <ad>` ile rebuild'siz de
   # değiştirilebilir; bu seçenek yalnız temiz kurulumdaki varsayılanı belirler.
-  options.rice.hyprland.waybarTheme = lib.mkOption {
+  options.desktop.hyprland.waybarTheme = lib.mkOption {
     type = lib.types.str;
     default = "current";
-    description = "Varsayılan Waybar teması (bkz. modules/desktop/hyprland-rice/waybar-themes.nix)";
+    description = "Varsayılan Waybar teması (bkz. home/desktop/bar/themes.nix)";
   };
 
-  config = lib.mkIf config.rice.hyprland.enable {
+  config = lib.mkIf config.desktop.hyprland.enable {
     # gpu-screen-recorder'ın setcap wrapper'ı — omarchy-cmd-screenrecord shim'i
     # (waybar-omarchy-compat.nix) ve elle ekran kaydı kısayolları için.
     programs.gpu-screen-recorder.enable = true;

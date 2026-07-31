@@ -1,5 +1,9 @@
 result
-power-audit*
+
+# Ham güç-denetimi çıktıları (scripts/power-audit.sh üretir) — özet
+# Documentation/aerox16/power.md'de tutulur, ham dökümler commit'lenmez.
+/power-audit-*/
+/power-audit.tar.gz
 
 # API anahtarları / sırlar (opencode NVIDIA NIM vb.) — asla commit'lenmez
 secrets/

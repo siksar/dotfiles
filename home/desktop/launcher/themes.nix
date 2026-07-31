@@ -55,7 +55,7 @@ let
   # Burada @değişken güvenli — gradient kullanan tek dosya style-4.
   monoColors = pkgs.writeText "rofi-mono-colors.rasi" ''
     /* ÜRETİLMİŞ DOSYA — elle düzenleme.
-     * Kaynak: modules/desktop/hyprland-rice/waybar-mono.css */
+     * Kaynak: home/desktop/bar/waybar-mono.css */
     * {
         bg:        ${palette.background};
         bg-alt:    ${palette.surface};

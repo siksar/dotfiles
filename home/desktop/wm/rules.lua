@@ -45,7 +45,7 @@ hl.window_rule({
 })
 
 -- VSCodium: pencere süslemesini compositor'a devret (kullanıcı isteği 30 Tem).
--- Uygulama tarafı kendi başlık çubuğunu çizmiyor (modules/apps/vscodium.nix,
+-- Uygulama tarafı kendi başlık çubuğunu çizmiyor (home/apps/vscodium.nix,
 -- window.customTitleBarVisibility="never") → pencerenin tek çerçevesi buradaki
 -- border. Global border_size 0 olduğu için (main.lua, kullanıcı kararı 29 Tem)
 -- ELLE açılması gerekiyor; global'i değiştirmiyoruz, yalnız bu pencereye.

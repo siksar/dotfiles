@@ -2,7 +2,7 @@
 #
 # repeated_keys: her dosyadaki boot/services/programs bloklarını tek attrset'te
 #   birleştirmemizi ister. Bu config konu başlıklı Türkçe yorumlarla gruplanmış
-#   (bkz. modules/networking.nix), birleştirmek o organizasyonu yok eder.
+#   (bkz. system/net/core.nix), birleştirmek o organizasyonu yok eder.
 # empty_pattern: `{ ... }:` yerine `_:` önerir — kozmetik ve NixOS modül
 #   konvansiyonuna aykırı.
 #

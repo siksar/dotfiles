@@ -1,7 +1,7 @@
 { pkgs, ... }:
 
 # Klavye aydınlatması — HID LampArray (Usage Page 0x59), tek bölge RGB.
-# Ölçüm ve protokol notları: docs/aerox16-keyboard-rgb.md
+# Ölçüm ve protokol notları: Documentation/aerox16/keyboard-rgb.md
 #
 # Neden WMI/EC değil: aorus-laptop sürücüsünde klavye desteği YOK ve WMBD
 # 0xF6 (KBLL) tek bayt — en iyi ihtimalle parlaklık, renk değil. Klavye

@@ -126,8 +126,8 @@
   # yükseltmenin desteklenen bir yolu YOK (SuspendState= sadece /sys/power/state'e
   # yazılan stringi değiştirir), yani çağıran tarafı düzeltmek tek çözüm.
   # Yeni bir uyku tetikleyicisi eklerken `suspend-then-hibernate` yaz — ör.
-  # hypridle.conf'ta zamanlayıcı hiç suspend'e bağlanmaz (hyprland-rice/hm.nix,
-  # docs/hyprland-rice.md'de gerekçesi), omarchy-menu'nün güç menüsü de
+  # hypridle.conf'ta zamanlayıcı hiç suspend'e bağlanmaz (home/desktop/session.nix,
+  # Documentation/desktop.md'de gerekçesi), omarchy-menu'nün güç menüsü de
   # `systemctl suspend-then-hibernate` çağırır (waybar-omarchy-compat.nix).
   services.logind.settings.Login = {
     HandleLidSwitch              = "suspend-then-hibernate";

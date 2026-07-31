@@ -1,16 +1,16 @@
 # AERO X16 1VH — güvenli manuel test planı (sürücü bulgu doğrulama)
 
-Amaç: `docs/upstream-gigabyte-wmi-report.md` (issue #22 yorumu) yayınlanmadan önce,
+Amaç: `Documentation/upstream/gigabyte-wmi-report.md` (issue #22 yorumu) yayınlanmadan önce,
 pinlenen sürücü kaynağıyla (`912b4e9`) **çelişen** iki iddiayı canlı makinede
 doğrulamak: (1) RPM byte-swap zaten `convert_fan_rpm` ile düzeltilmiş mi, (2) sürücü bu
 şasiyi "Older model" sanıp `fan_mode 1` (sessiz) yolunu boş WMBD `0xFA` case'ine mi
 bağlıyor. Kaynak analizi: `aorus-laptop.c` (`…/scratchpad/gigabyte-laptop-wmi/`) ve
-`~/dsdt.dsl`. Ölçüm geçmişi: `docs/aerox16-1vh-wmi.md` "Canlı test sonuçları".
+`~/dsdt.dsl`. Ölçüm geçmişi: `Documentation/aerox16/wmi-ec.md` "Canlı test sonuçları".
 
 **Güvenlik kuralı:** Part 1 **salt-okuma**. `dmesg`/`cat`/`sensors` saf okuma;
 `echo <id> > debug_method` yalnızca bir sonraki `cat debug_method` için hangi **WMBC
 (Get)** metodunun çalışacağını *seçer* — WMBC hiçbir EC durumunu yazmaz
-(`docs/aerox16-1vh-wmi.md`: "debug_method = serbest WMBC okuma kapısı"). Bu fazda
+(`Documentation/aerox16/wmi-ec.md`: "debug_method = serbest WMBC okuma kapısı"). Bu fazda
 `fan_mode`/eğri/şarj **yazımı YOK**. Part 2 (yazma) ancak Part 1 sonrası, tek register,
 her adımda gözlenebilir etki + revert ile.
 
@@ -49,7 +49,7 @@ cat "$P/fan_mode" "$P/fan_custom_speed" 2>/dev/null
 
 ### Sonuç — ÖLÇÜLDÜ (2026-07-11), her iki iddia da netleşti
 
-Part 1 canlı çıktısı (`docs/aerox16-1vh-wmi.md`'ye de işlenecek):
+Part 1 canlı çıktısı (`Documentation/aerox16/wmi-ec.md`'ye de işlenecek):
 
 | Gözlem (ölçülen) | Anlamı / raporu nasıl kilitledi |
 |---|---|
@@ -64,7 +64,7 @@ Part 1 canlı çıktısı (`docs/aerox16-1vh-wmi.md`'ye de işlenecek):
 ## Part 2 — Korumalı yazma testleri  (Part 1'den SONRA, tek tek)
 
 Ortam: AC + sabit yük (örn. `stress-ng --cpu 4` veya bir oyun), sıcaklık 50-65 °C
-bandında (sessiz↔normal farkının ölçülebildiği bant — `docs/aerox16-1vh-wmi.md` preset
+bandında (sessiz↔normal farkının ölçülebildiği bant — `Documentation/aerox16/wmi-ec.md` preset
 karakterizasyonu). Her adım: **önkoşul → komut → beklenen gözlem → revert**.
 
 ### 2a. Sessiz mod gerçekten çalışıyor mu? (0xFA vs 0x57)
@@ -89,7 +89,7 @@ sleep 45; echo "[raw 0x57]"; base
 - **Beklenen:** `fan_mode 1` sonrası FDTY/GDTY = normal ile aynı (no-op doğrulaması);
   ham `0x57` sonrası 50-60 °C bandında duty birkaç puan düşer (CRAF sessiz tablosu).
 - **Revert:** `sudo sh -c "echo 0 > $P/fan_mode"` (normal moda dön; CRAF'ı EC kendisi
-  temizler — `docs/aerox16-1vh-wmi.md` mod-mekanizması notu).
+  temizler — `Documentation/aerox16/wmi-ec.md` mod-mekanizması notu).
 
 **SONUÇ — register seviyesi ÖLÇÜLDÜ (2026-07-11, pil / 34 °C idle,
 `scratchpad/fan-bits.sh`):** her yolda EC durum bitleri okundu.
@@ -119,7 +119,7 @@ sleep 45; echo "[raw 0x57]"; base
 > `Notify (^^GPP9.PEGP, 0x03) // Eject Request` (`dsdt.dsl:9396`) → dGPU'yu
 > ACPI'den çıkarma isteği. `gpu_boost 2` = no-op (case yok), `gpu_boost 1` = `ACBT=LCBT`
 > ama Linux'ta LCBT=0 → etkisiz. Dinamik boost için doğru yol zaten çalışan servisin
-> ham `WMBD 0x4C` yazımı (`modules/hardware/gigabyte-wmi.nix`).
+> ham `WMBD 0x4C` yazımı (`system/arch/aerox16/wmi.nix`).
 - Test edilecek tek şey: **hiçbir şey**. Bu kutu sadece "sakın" içindir.
 
 ### 2c. dGPU boost bütçesi (ACBT) — salt cross-check

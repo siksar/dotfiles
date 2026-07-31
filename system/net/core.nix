@@ -63,8 +63,10 @@ in
   # kendi DNS'ini per-link olarak resolved'e yazar, çözümleme sürer.
   services.resolved = {
     enable = true;
-    dnssec = "false";
-    dnsovertls = "false";
+    settings.Resolve = {
+      DNSSEC = "false";
+      DNSOverTLS = "false";
+    };
   };
 
   # --- Ağ yığını: BBR tıkanıklık kontrolü + fq qdisc + TCP Fast Open ---

@@ -3,7 +3,7 @@
 Kaynak istem: "SaneAspect tasarımı — Hyprland 0.55+ (`hyprland.lua`), Matugen
 tema motoru, `enes-less/theme-switcher` referanslı, Waybar/Rofi/SwayNC/Swww/Cava".
 Bu doküman hem kurulumun **nasıl** çalıştığını hem de **neden** böyle kurulduğunu
-anlatır. Modüller: `modules/desktop/hyprland-rice/`.
+anlatır. Modüller: `home/desktop/`.
 
 ## Önce gerçeklik kontrolü (istemdeki iddialar)
 
@@ -62,7 +62,7 @@ SUPER+T → wallpaper-picker (rofi ikon grid'i, ~/Pictures/Wallpapers)
   **Tuzak:** OSC ST sonlandırıcısı `\033\\` KULLANILAMAZ — matugen şablon motoru
   `\\`'ı `\`'a indirger; BEL (`\a`) kullanılır. Şablonda kaçışlar metin olarak
   durur, `printf %b` uygulama anında çözer (`grep -v '^#' | tr -d '\n'` sonrası).
-- **gruvbox-material.jpg** (`modules/desktop/wallpapers/`): elde üretilmiş sisli
+- **gruvbox-material.jpg** (`lib/wallpapers/`): elde üretilmiş sisli
   katmanlı çam ormanı — miasma tarzında, gruvbox-material paletiyle (zemin
   #32302f→#7d7450 sis, katmanlar #5e5c42→#222619, sis #d8c07a). SVG+awk üretimi;
   seçilince matugen ~gruvbox-material paleti türetir (primary ~#d8c770).
@@ -351,7 +351,7 @@ silebilir) doğrulanamadı; eşit literal + yorum güvenli yol.
 bir profile yazabiliyor; kullanıcının zaten verili bir runtime profili var
 (`~/.config/zen/r1lawe90.Default Profile`). HM'ye almak profiles.ini'yi
 symlink'leyip mutable-copy çakışması/boş-profil riski doğuruyor. Güvenli reçete
-`modules/apps/zen.nix` içinde yorumlu — kullanıcı onayı + switch sonrası
+`home/apps/zen.nix` içinde yorumlu — kullanıcı onayı + switch sonrası
 doğrulama gerektiren bilinçli adım. Saydamlık zaten Hyprland'den geliyor;
 ertelenen yalnız zen'in *renk* teması.
 
@@ -407,7 +407,7 @@ Kullanıcının referans ekran görüntülerinden çıkarılan hedef: activity b
 durum çubuğu yok, sekmeler var, breadcrumb/minimap yok, girinti kılavuzları
 duruyor, yuvarlak köşe + soluk kenarlık. İki dosyaya bölünüyor:
 
-**Uygulama tarafı — `modules/apps/vscodium.nix` (`userSettings`).** Yalnız
+**Uygulama tarafı — `home/apps/vscodium.nix` (`userSettings`).** Yalnız
 yerleşim/chrome anahtarları; renk ve font Stylix'in (dosya başındaki kural).
 Doğrulandı: üretilen `settings.json`'da Stylix'in font anahtarları + `colorTheme
 = "Stylix"` ile bu anahtarlar **çakışmadan** birleşiyor. Anahtar adlarının

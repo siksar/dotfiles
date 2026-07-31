@@ -20,7 +20,7 @@ hl.bind(mod .. " + SHIFT + F23", hl.dsp.exec_cmd("claude-desktop"))
 ---- TEMA MOTORU -------
 ------------------------
 
--- Otonom tema değiştirici (bkz. docs/hyprland-rice.md):
+-- Otonom tema değiştirici (bkz. Documentation/desktop.md):
 -- SUPER+T       → rofi grid'den duvar kağıdı seç → swww + matugen zinciri
 -- SUPER+SHIFT+T → rastgele duvar kağıdı + tema
 hl.bind(mod .. " + T",         hl.dsp.exec_cmd("wallpaper-picker"))
@@ -38,11 +38,11 @@ hl.bind(mod .. " + W", hl.dsp.exec_cmd("waybar-theme --pick"))
 hl.bind(mod .. " + V", hl.dsp.exec_cmd("swaync-client -t -sw"))
 
 -- Fan modu döngüsü 0→1→2→5 — polkit kuralı şifresiz izin verir
--- (bkz. modules/hardware/gigabyte-wmi.nix; Fn+F7 EC'de yutulduğu için OS
+-- (bkz. system/arch/aerox16/wmi.nix; Fn+F7 EC'de yutulduğu için OS
 -- tarafında SUPER+M kullanılıyor)
 hl.bind(mod .. " + M", hl.dsp.exec_cmd("systemctl start --no-block fan-mode-cycle.service"))
 
--- Klavye aydınlatması (HID LampArray — bkz. modules/hardware/keyboard-rgb/).
+-- Klavye aydınlatması (HID LampArray — bkz. system/drivers/input/keyboard-rgb/).
 -- Renk normalde SUPER+T tema zincirinden matugen ile gelir; bunlar elle
 -- kontrol. Animasyon idle'da ASLA dönmez, yalnız bu toggle ile başlar.
 -- Z/X = animasyon, C/V = parlaklık (klavyede yan yana; C solda azaltır).

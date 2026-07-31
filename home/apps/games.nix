@@ -1,5 +1,5 @@
 # Oyun (HM katmanı): gamerun sarmalayıcısı
-# Steam launch options: gamerun %command%   (ayrıntı: docs/gaming.md)
+# Steam launch options: gamerun %command%   (ayrıntı: Documentation/gaming.md)
 # NOT (2026-07-22): MangoHud + gamescope KALDIRILDI. Gerekçe: MangoHud oyun↔Vulkan
 # sürücüsü arasına giren bir katman (burada segfault geçmişi var) → kaldırmak DXVK/VKD3D
 # iletişimini sadeleştirir; gamescope bu hibritte (AMD iGPU + NVIDIA offload) çöküyordu.
@@ -27,7 +27,7 @@ let
     #   GR_CPUMAX=1   → CPU-ağır oyunda tam güç (PPD performance). Varsayılan balanced:
     #                   GPU-öncelik — dGPU'ya paylaşımlı Dynamic Boost bütçesi bırakır.
     #
-    #   --- Blackwell DX12/VKD3D kararlılık kaçış-flag'leri (opt-in; docs/gaming.md) ---
+    #   --- Blackwell DX12/VKD3D kararlılık kaçış-flag'leri (opt-in; Documentation/gaming.md) ---
     #   GR_VKD3DNOCACHE=1 → VKD3D shader cache'i kapat (VKD3D_SHADER_CACHE_PATH=0). NVIDIA'da
     #                   DX12 oyunları bir süre oynayınca donarsa/çökerse (vkd3d-proton #2793).
     #                   Bedel: ilk-render shader stutter'ı artar → YALNIZ donan oyunda aç.
@@ -153,7 +153,7 @@ let
     # --- Blackwell DX12/VKD3D kararlılık kaçış-flag'leri (opt-in, VARSAYILAN KAPALI) ---
     # Neden opt-in ve neden varsayılan kapalı: kullanıcıda şu an donma YOK → bu koşulların
     # herkese stutter (NOCACHE) veya gereksiz yan-etki bindirmesini istemiyoruz. Belirli bir
-    # DX12/Blackwell oyunu takılırsa cerrahi olarak o oyuna eklenir (docs/gaming.md).
+    # DX12/Blackwell oyunu takılırsa cerrahi olarak o oyuna eklenir (Documentation/gaming.md).
     [ "''${GR_VKD3DNOCACHE:-0}" = "1" ] && export VKD3D_SHADER_CACHE_PATH=0   # #2793 NVIDIA DX12 donma escape
     [ "''${GR_HEAP:-0}" = "1" ] && export PROTON_VKD3D_HEAP=1                 # #2914 Blackwell Xid109 descriptor_heap
     [ -n "''${GR_VKD3D:-}" ] && export VKD3D_CONFIG="$GR_VKD3D"               # ileri per-oyun passthrough

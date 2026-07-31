@@ -22,7 +22,7 @@ let
         case "$choice" in
           Kilitle) loginctl lock-session ;;
           # `suspend` DEĞİL: düz suspend, sleep.conf'taki 25 dk'lık hibernate
-          # sayacını hiç başlatmaz (bkz. modules/hardware/power.nix) → makine
+          # sayacını hiç başlatmaz (bkz. system/kernel/power.nix) → makine
           # s2idle'da sonsuza kalıp pil yer.
           Uyku) systemctl suspend-then-hibernate ;;
           "Yeniden Başlat") systemctl reboot ;;

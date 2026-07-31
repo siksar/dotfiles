@@ -6,7 +6,7 @@ let
   # artığı) -> her dGPU uyanışında AE_NOT_FOUND + NVRM PSHAREPARAMS spam'i,
   # WMBD 0x4B (TGP 75-87W) işlevsiz. Çözüm: kernel initrd ACPI table upgrade
   # ile binary-patch'li SSDT9. Ayrıntı + BIOS güncelleme politikası:
-  # docs/aerox16-1vh-wmi.md "SSDT9 PC00->PCI0" bölümü.
+  # Documentation/aerox16/wmi-ec.md "SSDT9 PC00->PCI0" bölümü.
   pristine       = ./acpi/ssdt9-pristine.dat;
   pristineSha256 = "03b2207ec1db487d3b2235435c5a42778c841ff2286f035bae63b1b639cb01dd";
 

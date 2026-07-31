@@ -1,8 +1,8 @@
 # Hyprland rice — mechanics that bite
 
-Loaded only when working under `modules/desktop/hyprland-rice/`. The always-loaded
+Loaded only when working under `home/desktop/`. The always-loaded
 summary and the cross-cutting rules (the `osConfig` toggle contract) live in the root
-`CLAUDE.md`; the full design doc is `docs/hyprland-rice.md` — read it before touching
+`CLAUDE.md`; the full design doc is `Documentation/desktop.md` — read it before touching
 this directory.
 
 - `AQ_DRM_DEVICES` **must** stay in `environment.sessionVariables` (not in Hyprland
@@ -33,7 +33,7 @@ this directory.
   HM's `~/.config/waybar/{config,style.css}` symlinks. Full design and the per-theme
   exceptions (V1/V1.5 lacked `@import` entirely, V3.Omegax merges two bars into one
   JSON array, V4.y collapses to just its "dock" variant) are in
-  `docs/hyprland-rice.md`'s "Waybar çoklu tema sistemi" section — read it before
+  `Documentation/desktop.md`'s "Waybar çoklu tema sistemi" section — read it before
   touching a vendored theme or the palette.
 - `waybar-mono-overrides.css` **must be appended after** each theme's own `style.css`
   content, never before — CSS is last-rule-wins at equal specificity, and the

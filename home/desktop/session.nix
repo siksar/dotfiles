@@ -23,7 +23,7 @@
 { config, lib, pkgs, osConfig ? { }, ... }:
 
 let
-  cfg = config.rice.hyprland;
+  cfg = config.desktop.hyprland;
   cfgHome = config.xdg.configHome;
 
   # Bu modülün kurduğu dizin (aşağıda home.file) — repo duvar kağıtları +
@@ -38,7 +38,7 @@ let
 
   # Referans repo ile aynı matugen kipi: koyu + Material You "tonal spot".
   # NOT: matugen HCT renk uzayı kullanır (Material You standardı) — "Oklab"
-  # değil; ikisi de algısal-düzgün uzaylardır, ayrıntı: docs/hyprland-rice.md
+  # değil; ikisi de algısal-düzgün uzaylardır, ayrıntı: Documentation/desktop.md
   #
   # --source-color-index BURADA YOK ama her çağrıda VERİLMEK ZORUNDA (matugen
   # 4.0.0): matugen bir resimden BİRDEN ÇOK aday kaynak renk çıkarıp seçimi
@@ -320,20 +320,20 @@ let
   '';
 in
 {
-  options.rice.hyprland.enable = lib.mkOption {
+  options.desktop.hyprland.enable = lib.mkOption {
     type = lib.types.bool;
-    # Gömülü HM: sistemdeki rice.hyprland.enable'ı osConfig ile izler —
+    # Gömülü HM: sistemdeki desktop.hyprland.enable'ı osConfig ile izler —
     # tek anahtar configuration.nix'te. Standalone `hms` yolunda osConfig
     # olmadığından varsayılan false; gerekirse home.nix'te elle açılır.
-    default = osConfig.rice.hyprland.enable or false;
-    defaultText = lib.literalExpression "osConfig.rice.hyprland.enable or false";
+    default = osConfig.desktop.hyprland.enable or false;
+    defaultText = lib.literalExpression "osConfig.desktop.hyprland.enable or false";
     description = "Hyprland + Matugen rice'ının HM katmanı (waybar, rofi, swaync, swww, cava, tema motoru)";
   };
 
-  options.rice.hyprland.waybarTheme = lib.mkOption {
+  options.desktop.hyprland.waybarTheme = lib.mkOption {
     type = lib.types.str;
-    default = osConfig.rice.hyprland.waybarTheme or "current";
-    defaultText = lib.literalExpression ''osConfig.rice.hyprland.waybarTheme or "current"'';
+    default = osConfig.desktop.hyprland.waybarTheme or "current";
+    defaultText = lib.literalExpression ''osConfig.desktop.hyprland.waybarTheme or "current"'';
     description = "Waybar temasının varsayılanı — bkz. waybar-themes.nix ve `waybar-theme --list`.";
   };
 

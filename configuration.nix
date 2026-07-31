@@ -25,12 +25,17 @@
     ./system/init/limine.nix
     ./system/init/locale.nix
 
-    # net/ sound/ — dizin import'u default.nix'e çözülür
-    ./system/net
-    ./system/sound
+    # net/ — ağ yığını, VPN, yerel paylaşım
+    ./system/net/core.nix
+    ./system/net/vpn.nix
+    ./system/net/localsend.nix
+
+    ./system/sound.nix
+    ./system/virt.nix
 
     # security/ — hesaplar, anahtarlık, parola yöneticisi
     ./system/security/users.nix
+    ./system/security/keyring.nix
     ./system/security/onepassword.nix
 
     # desktop/ — oturum katmanı (Hyprland + ly + Stylix)
@@ -40,20 +45,21 @@
 
     # ══ usr/ — sistem geneli kurulan programlar ════════════════════════════
     ./usr/steam.nix
-    ./usr/local-ai.nix
+    ./usr/netflix.nix
     ./usr/firefox.nix
+    ./usr/local-ai.nix
   ];
 
 
   # Hyprland + Matugen dinamik tema rice'ı — tek oturum (GNOME + Sway kaldırıldı,
   # 2026-07-30). Bayrak güvenlik valfi olarak kalıyor; kapatmak sistemi Hyprland'siz
   # bırakır (ly'de başka oturum yok). HM tarafı osConfig ile otomatik izler.
-  # Ayrıntı: docs/hyprland-rice.md
-  rice.hyprland.enable = true;
+  # Ayrıntı: Documentation/desktop.md
+  desktop.hyprland.enable = true;
 
   # hyprland paketi hem "hyprland.desktop" hem "hyprland-uwsm.desktop" oturum
   # dosyasını kurar; yalnız uwsm olanı bu makinede çalışıyor (withUWSM=true,
-  # bkz. hyprland-rice/system.nix). Tek oturum kalınca ly listesinde ikisi yan
+  # bkz. system/desktop/session.nix). Tek oturum kalınca ly listesinde ikisi yan
   # yana durur — defaultSession yanlış olanı seçmeyi zorlaştırır.
   services.displayManager.defaultSession = "hyprland-uwsm";
 
@@ -88,7 +94,7 @@
   #
   # KAPSAM UYARISI: sessionVariables sistem geneli. Uygulamanın KENDİ tasarladığı
   # chrome (VSCodium'un sekme çubuğu, Vesktop'un başlığı) bu flag'le GİTMEZ; o
-  # uygulama başına ayardır — VSCodium'unki modules/apps/vscodium.nix'te.
+  # uygulama başına ayardır — VSCodium'unki home/apps/vscodium.nix'te.
   # GTK/libadwaita başlıkları (nautilus vb.) hiçbir şekilde kaldırılamaz: GtkHeaderBar
   # bir süsleme değil, içinde yol çubuğu/arama/menü taşıyan uygulama arayüzüdür.
   #
@@ -102,7 +108,7 @@
     git
     gh
 
-    # Masaüstü araçları (ekran görüntüsü: hyprland-rice/hm.nix'in hypr-screenshot'ı, Print)
+    # Masaüstü araçları (ekran görüntüsü: home/desktop/session.nix'in hypr-screenshot'ı, Print)
     brightnessctl     # CLI parlaklık (script/servisler)
     wl-clipboard      # wl-copy / wl-paste
     pavucontrol       # PulseAudio / PipeWire GUI
@@ -133,7 +139,9 @@
     # "Lint / inspection tooling".
     deadnix           # kullanılmayan let-binding / lambda argümanı
     statix            # anti-pattern linter — statix.toml OLMADAN çalıştırma
-    nixfmt-rfc-style  # resmi formatter — ağaç geneli çalıştırma, hizalamayı bozar
+    nixfmt            # resmi formatter (eski ad nixfmt-rfc-style artık aynı türeve
+                      # çözülüyor ve uyarı veriyor) — ağaç geneli ÇALIŞTIRMA,
+                      # elle hizalanmış yorum sütunlarını bozar
 
     # LLM-assisted development
     claude-code

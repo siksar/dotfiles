@@ -10,7 +10,7 @@
 ------------------
 
 -- Panel: BOE NE160QDM-NYJ 2560x1600@165 (scale 1). MOD DEĞERİ
--- modules/hardware/power-display.nix'teki powerDisplayUserScript'in AC modu
+-- system/kernel/power-display.nix'teki powerDisplayUserScript'in AC modu
 -- ("2560x1600@165") ile ELLE SENKRON — panel değişirse ikisi birden güncelle.
 hl.monitor({
     output   = "eDP-1",
@@ -43,7 +43,7 @@ hl.monitor({
 --   SIGABRT, throwError@initServer, boş hyprland.log. GDM'den Hyprland'e
 --   girilememesinin kök nedeni buydu.
 --   Bu yüzden değişken oturum ORTAMINDA, Hyprland başlamadan set edilir:
---   modules/desktop/hyprland-rice/system.nix → environment.sessionVariables.
+--   system/desktop/session.nix → environment.sessionVariables.
 --   AYRICA değer İKİ NOKTA içeremez (aquamarine ':' ile böler) → by-path yerine
 --   sürücüye göre sabit bir udev symlink'i (/dev/dri/hypr-igpu) kullanılır.
 --   (ölçülen: card0=nvidia pci 64:00.0, card1=amdgpu pci 65:00.0 = Radeon 860M.)
@@ -116,7 +116,7 @@ hl.config({
         disable_hyprland_logo   = true,
         force_default_wallpaper = 0,
         -- VRR yalnız tam ekran pencerede (2): masaüstünde sabit 165Hz,
-        -- oyunda değişken (panel 48-165Hz, docs/gaming.md).
+        -- oyunda değişken (panel 48-165Hz, Documentation/gaming.md).
         vrr = 2,
     },
 })

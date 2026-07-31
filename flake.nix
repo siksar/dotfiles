@@ -31,7 +31,7 @@
     # hash'leri chaotic'in pinli nixpkgs'ine göre; follows onları kaçırır).
     chaotic.url = "github:chaotic-cx/nyx/nyxpkgs-unstable";
     # claude-desktop artık resmî Linux .deb'inden yerel pakette:
-    # modules/apps/claude-desktop-pkg.nix
+    # home/apps/claude-desktop-pkg.nix
   };
 
   outputs = inputs @ { nixpkgs, home-manager, stylix, ... }:
@@ -72,7 +72,7 @@
       homeConfigurations."zixar" = home-manager.lib.homeManagerConfiguration {
         pkgs = import nixpkgs { inherit system; config = nixpkgsConfig; };
         # osConfig: gömülü HM'de home-manager NixOS modülü otomatik geçirir;
-        # standalone yolda YOK → rice/hm.nix'in `osConfig.rice.hyprland.enable
+        # standalone yolda YOK → rice/hm.nix'in `osConfig.desktop.hyprland.enable
         # or false` varsayılanı false'a düşüp TÜM hypr dosyalarını jenerasyondan
         # atıyordu (17 Tem gecesi hms sonrası Hyprland config'siz kaldı).
         # Sistem config'ini burada elle geçir → iki yol aynı bayrağı görür.

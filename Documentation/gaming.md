@@ -26,14 +26,14 @@ Steam (iGPU'da açılır)
 
 **Turbo fan (2026-07-17):** oyun süresince (AC'de) fanlar tam güce alınır (fan_mode 5,
 ~6900 RPM) → dGPU en soğuk + fan tepkisi maksimum. **CPU yine ~95°C** olur (EC/SMU
-tavanı; hiçbir fan bunu değiştirmez — bkz. `docs/aerox16-1vh-wmi.md` preset
+tavanı; hiçbir fan bunu değiştirmez — bkz. `Documentation/aerox16/wmi-ec.md` preset
 karakterizasyonu) ve **seslidir** — bilinçli tercih. Pilde uygulanmaz (oyun zaten
 güç-limitli). Oyun bitince gigabyte-power-profile fan modunu AC→0'a (dengeli) döndürür.
 
 Donanım tarafı zaten AC'ye bağlı otomatik: fiş takılıyken fan modu 2 ("oyun") +
 NPCF.ACBT 80W → nvidia-powerd dGPU'yu 75–85W bandına çıkarır
-(`modules/hardware/gigabyte-wmi.nix`). VRR Hyprland'ın `misc.vrr = 2` ayarıyla açık
-(`hyprland-rice/lua/main.lua`); yalnız tam ekranda devreye girer. Pilde panel zaten
+(`system/arch/aerox16/wmi.nix`). VRR Hyprland'ın `misc.vrr = 2` ayarıyla açık
+(`home/desktop/wm/main.lua`); yalnız tam ekranda devreye girer. Pilde panel zaten
 60Hz'e çekilir (`power-display-user`, power-display.nix).
 
 **GPU-öncelik: oyunda PPD balanced (18 Tem 2026).** CPU ile dGPU, ACBT 80W'lık
@@ -44,7 +44,7 @@ Bu yüzden oyun varsayılanı artık `balanced`: CPU STAPM tavanı düşer, klok
 üzerine yükselir (EPP=balance_performance), bütçe dGPU'ya kayar → GPU-bound oyunda
 daha çok watt + FPS. CPU-bound oyun (bazı sim/strateji, KCD kalabalık şehir) için
 `GR_CPUMAX=1` ile performance'a dön. **Not:** CPU'yu undervolt ile soğutmak bu
-makinede platform-kilitli (`docs/undervolt-curve-optimizer.md`); güç-iştahını kısmak
+makinede platform-kilitli (`Documentation/aerox16/undervolt.md`); güç-iştahını kısmak
 tek kullanılabilir kol. 100°C by-design'dır (Zen5 mobil Tjmax hedefi), arıza değil.
 
 **Pilde oyun:** tasarım gereği kısıtlı — CPU 2GHz tavan + boost kapalı + ACBT 0.
@@ -104,7 +104,7 @@ her Proton oyununu Vulkan'a çevirir. Blackwell'e özgü iki bilinen kararsızl�
 - **`GR_VKD3D=<token>`** → ham `VKD3D_CONFIG` passthrough. İleri per-oyun: `dxr11` (D3D12
   raytracing zorla), `force_raw_va_cbv` (bazı NVAPI/DLSS kurulumları), vb.
 
-**Proton-CachyOS (Blackwell-sertleştirilmiş, 22 Tem 2026):** `modules/apps/default.nix`
+**Proton-CachyOS (Blackwell-sertleştirilmiş, 22 Tem 2026):** `usr/steam.nix`
 artık GE-Proton'un **yanına** Proton-CachyOS'u da kurar (`chaotic-nyx` flake input +
 `nyx-cache.chaotic.cx` binary cache). Steam'de oyun-başına seçilir (Özellikler → Uyumluluk).
 GE-Proton **varsayılan** kalır; inatçı DX12/Blackwell oyunlarında (Xid 109, #2793 donma)
@@ -149,7 +149,7 @@ sabitleme garantisi isteyen sim oyunları için. Proton sürümü olarak **GE-Pr
 
 ## Minecraft (Prism Launcher)
 
-*Kurulum: 2026-07-15 · `modules/apps/minecraft.nix` (HM katmanı)*
+*Kurulum: 2026-07-15 · `home/apps/minecraft.nix` (HM katmanı)*
 
 Steam zincirinin native-Java karşılığı — Prism her instance'ı **Wrapper Command**
 üzerinden başlatır:
@@ -211,7 +211,7 @@ kullanıcı tarafında (launcher); autoexec (env/wrapper/bellek) bu modülde.
 
 **Yapılandırma deklaratif:** `prismlauncher.cfg` her `hms`'te store kopyasıyla
 tazelenir (vesktop'taki mutable-copy deseni) → GUI'den yapılan *global* ayar
-değişiklikleri kalıcı olsun istiyorsan `modules/apps/minecraft.nix`'e işle.
+değişiklikleri kalıcı olsun istiyorsan `home/apps/minecraft.nix`'e işle.
 Hesaplar (`accounts.json`) ve instance'lar ayrı dosyalarda, etkilenmez.
 
 Doğrulama (instance açıkken, AC'de):
@@ -362,7 +362,7 @@ kolu yok (undervolt kilidiyle aynı kategori: donanım/firmware sınırı) ama b
 kapanacak bir şey de yok — RAM olabileceği en hızlı noktada. Fiziksel dizi 64GiB'a kadar
 büyüyebilir (32GiB kurulu) — donanım yükseltmesi isteği olursa headroom var, yazılım
 tarafında yapılacak bir şey değil. BIOS FB0A (28 May 2026)/EC 3.10 — bu makinede EC hand-
-reverse-engineered olduğundan (`docs/aerox16-1vh-wmi.md`) BIOS güncellemesi önerilmiyor.
+reverse-engineered olduğundan (`Documentation/aerox16/wmi-ec.md`) BIOS güncellemesi önerilmiyor.
 
 **NVMe:** `/sys/block/nvme0n1/queue/scheduler` = **none** (aktif) — NVMe için zaten doğru
 seçim (donanım kendi çoklu kuyruğunu yönetiyor, mq-deadline/kyber üstüne binen ek yalnız
@@ -408,7 +408,7 @@ cat /sys/devices/system/cpu/cpufreq/policy0/scaling_governor     # PPD yönetimi
 - `GR_WL=1` (Proton Wayland) Steam Overlay ve Steam Input'u bozar — yalnız test için.
 - ntsync artık varsayılanda zorlanmıyor (Proton/GE kendi per-game blocklist'iyle
   karar verir); bir oyunda faydası varsa `GR_NTSYNC=1`, sorun çıkarırsa `GR_NTSYNC=0`.
-- NVIDIA sürücü `nvidiaPackages.latest` (`modules/hardware/gpu.nix`; şu an 610.43.03) —
+- NVIDIA sürücü `nvidiaPackages.latest` (`system/drivers/gpu.nix`; şu an 610.43.03) —
   `nix flake update` nixpkgs'i tazeleyince sürücü de oynayabilir. Belirli sürüme geri
   pinlemek: `mkDriver { version + hash }` (Dynamic Boost gerekçesi gpu.nix'te).
 - Kernel 7.x + Blackwell'de bilinen s2idle resume hang riski (open-gpu issue #1117);
@@ -424,12 +424,12 @@ cat /sys/devices/system/cpu/cpufreq/policy0/scaling_governor     # PPD yönetimi
 
 Amaç: GCC'nin Windows'ta kullandığı iki denenmemiş kolu ölçümle keşfetmek:
 `0xED` (muhtemel bütünleşik performans profili 0–3) ve `0xF1/0xF2/0xF3`
-(SPL/SPPT/FPPT, mW). Ayrıntılı protokol ve log tablosu: `docs/aerox16-1vh-wmi.md`
+(SPL/SPPT/FPPT, mW). Ayrıntılı protokol ve log tablosu: `Documentation/aerox16/wmi-ec.md`
 "Deneysel 0xED / 0xF1–F3 logu" bölümü.
 
 Yeni kol (2026-07-12): SSDT9 PC00→PCI0 düzeltmesiyle **`0x4B` (dGPU TGP set,
 75–87 W)** artık canlı — ACBT'nin (0x4C) yanına ince sustained-TGP ayarı;
-ayrıntı `docs/aerox16-1vh-wmi.md` "SSDT9 PC00→PCI0 düzeltmesi". game-perf
+ayrıntı `Documentation/aerox16/wmi-ec.md` "SSDT9 PC00→PCI0 düzeltmesi". game-perf
 entegrasyonu ölçüm ister, henüz bağlanmadı.
 
 **SONUÇ (31 Tem 2026) — 0x4B ve 0xF1-F3 KAPANDI, bir daha denenmeyecek:**
@@ -442,8 +442,7 @@ EC'nin TANIDIĞI, kendi önceden tanımlı modları arasından seçim — EC bun
 benimseyip tutuyor (KCD 38W→70-83W ölçümüyle kanıtlı). `0x4B`/`0xF1-F3` ham,
 EC'nin sürekli yeniden hesapladığı limit alanları — dışarıdan tek seferlik yazım
 tutmuyor. CPU'nun 21W sürdürülebilir kıskacının kaynağı hâlâ bilinmiyor ama bu
-selector'lar üzerinden açılamıyor; undervolt/CO kilidiyle (`docs/undervolt-curve-
-optimizer.md`) aynı tema — bu board'da OS'tan alınabilecek daha fazla güç-limiti
+selector'lar üzerinden açılamıyor; undervolt/CO kilidiyle (`Documentation/aerox16/undervolt.md`) aynı tema — bu board'da OS'tan alınabilecek daha fazla güç-limiti
 kontrolü yok, mevcut 0xED/ACBT zinciri zaten en iyi kanıtlanmış kol. Ayrıntı:
 bellek `ec-power-limit-self-revert`.
 

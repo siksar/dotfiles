@@ -70,7 +70,7 @@ won't tell you.
   `home-manager.users.zixar = import ./home.nix`.
 - `homeConfigurations."zixar"` — a standalone HM path over the *same* `home.nix`, used
   only to iterate on HM-side config faster via `hms` without a full system rebuild.
-  Stylix is imported by hand here (`modules/desktop/stylix-standalone.nix`) since there's
+  Stylix is imported by hand here (`lib/theme-standalone.nix`) since there's
   no NixOS module to propagate it. The `osConfig`/`extraSpecialArgs` plumbing gotcha
   (why it must be passed manually here) is documented inline in `flake.nix` itself.
 
@@ -94,14 +94,14 @@ on the `rice/caelestia` branch, unrelated to the current setup.
 
 The full design doc — the SUPER+T wallpaper→matugen theme chain, why `withUWSM = true`
 is mandatory (the session file exists even without it but fails with "Unit not
-found"), the Lua config integration — is `docs/hyprland-rice.md`; read it before
+found"), the Lua config integration — is `Documentation/desktop.md`; read it before
 touching the rice. The rice-internal gotchas (`AQ_DRM_DEVICES` placement, `withUWSM`,
 session-target binding, matugen's source-color-index requirement) live in
-`modules/desktop/hyprland-rice/CLAUDE.md`, which loads automatically when you work in
+`home/desktop/CLAUDE.md`, which loads automatically when you work in
 that directory. Waybar itself ships 16 selectable themes (the original bar plus 15
 vendored `atif-1402/minimal-waybar-themes` ports, all recolored from one shared
 monochrome palette) switchable without a rebuild via `waybar-theme --pick` /
-SUPER+W — see `docs/hyprland-rice.md`'s "Waybar çoklu tema sistemi" section. The rofi
+SUPER+W — see `Documentation/desktop.md`'s "Waybar çoklu tema sistemi" section. The rofi
 launcher is a vendored `adi1090x/rofi` type-5/style-4 painted from that *same* palette
 (`rofi-themes.nix`), so it tracks the waybar themes rather than matugen — the trade-off
 and rofi 2.0's gradient parser trap are in the same doc's "Rofi launcher teması" section.
@@ -110,7 +110,7 @@ toggle. This works on both the embedded and standalone HM paths only because of 
 flake's `extraSpecialArgs.osConfig` pass-through, so changes to `flake.nix` can
 silently break it.
 
-The **display manager is ly** (`modules/desktop/ly.nix`), a TUI greeter on the TTY.
+The **display manager is ly** (`system/desktop/login.nix`), a TUI greeter on the TTY.
 ly 1.4.1 takes 32-bit `0xSSRRGGBB` truecolor, so it's themed by feeding
 `config.lib.stylix.colors` (kanagawa-dragon) directly into
 `services.displayManager.ly.settings` (Stylix has no ly target).
@@ -119,8 +119,8 @@ picks the working session entry: the `hyprland` package also installs a plain
 "Hyprland" desktop file that does **not** work here (no uwsm systemd units without
 `withUWSM = true`), and ly otherwise lists both.
 
-**Stylix is the single source of truth for colors** (`modules/desktop/stylix.nix` /
-`stylix-base.nix`). Custom base16 palettes live in `modules/desktop/schemes/*.yaml`;
+**Stylix is the single source of truth for colors** (`system/desktop/theme.nix` /
+`stylix-base.nix`). Custom base16 palettes live in `lib/schemes/*.yaml`;
 switching is a one-line change of `palette` in `stylix-base.nix` (currently
 `kanagawa-dragon`) + rebuild — the wallpaper is keyed off the same variable.
 Stylix targets auto-theme GTK, ghostty, vscodium, vesktop, starship, etc. — don't set
@@ -135,7 +135,7 @@ variable. It buys crisp HiDPI rendering plus xdg-decoration (Hyprland answers
 regressions after touching it: ibus input in Electron apps (Wayland moves to
 text-input-v3) and screen sharing (falls to the portal). The full decoration policy —
 including why GTK/libadwaita headerbars can *never* be removed and why an app's
-self-drawn chrome needs a per-app setting instead — is in `docs/hyprland-rice.md`'s
+self-drawn chrome needs a per-app setting instead — is in `Documentation/desktop.md`'s
 "Pencere süslemesi politikası" section; read it before re-litigating "make app X
 borderless".
 
@@ -143,7 +143,7 @@ Runtime-written, HM-managed config files (Vesktop's `settings.json`) need the
 "mutable-copy trick": after `linkGeneration`, the HM symlink is replaced with a writable
 copy so the app can write to it at runtime, and stale `*.hm-backup` files are cleaned
 *before* `checkLinkTargets` runs (it errors on them if they're stale). See the
-`home.activation.vesktop*` blocks in `modules/apps/vesktop.nix` for the working pattern —
+`home.activation.vesktop*` blocks in `home/apps/vesktop.nix` for the working pattern —
 replicate it exactly if adding a new runtime-mutated config elsewhere; getting the
 activation-script ordering wrong is the most common way this repo's `hms`/rebuild breaks.
 
@@ -162,18 +162,18 @@ polling) survives in `power-display.nix` — which **also sets the PPD profile p
 TLP's job) and there's no desktop power slider, so power-saver's 2.0 GHz cap would
 otherwise stick on AC and make the desktop sluggish. BAT stays power-saver, so the idle budget is
 untouched (the freq cap only bites under load). **Anything
-added under `modules/hardware/` or `modules/apps/gaming.nix` must not run or poll while
-idle** — see the design constraint comment at the top of `modules/hardware/gaming.nix`
+added under `modules/hardware/` or `home/apps/games.nix` must not run or poll while
+idle** — see the design constraint comment at the top of `system/kernel/sched.nix`
 ("pil/idle tabanı 4.28W GERİLEMEZ"). scx_lavd, zram priority, gamemode hooks etc. are all
 gated to only activate during an actual gaming session (`game-perf.service`), never at
 boot.
 
-`modules/hardware/gigabyte-wmi.nix` builds an out-of-tree kernel module
+`system/arch/aerox16/wmi.nix` builds an out-of-tree kernel module
 (`aorus-laptop`, fetched from GitHub) plus uses `acpi_call` for raw WMI/EC writes
 (fan curve, dGPU Dynamic Boost budget via NPCF.ACBT) that the upstream driver doesn't
 expose yet. This is fragile, DSDT/EC-version-specific, hand-reverse-engineered
 territory — the reasoning and measured selector values are logged in
-`docs/aerox16-1vh-wmi.md`; consult it (and the memory files) before changing WMBD
+`Documentation/aerox16/wmi-ec.md`; consult it (and the memory files) before changing WMBD
 selector values.
 
 AC/battery-dependent behavior is applied via a udev rule on `ACAD`
@@ -182,10 +182,10 @@ follow this pattern for any new AC-state-dependent tuning rather than a timer.
 
 ### Gaming stack
 
-`modules/hardware/gaming.nix` (system layer: gamemode, scx_lavd scheduler, ntsync,
-zram, `game-perf.service`) + `modules/apps/gaming.nix` (HM layer: the `gamerun` shell
+`system/kernel/sched.nix` (system layer: gamemode, scx_lavd scheduler, ntsync,
+zram, `game-perf.service`) + `home/apps/games.nix` (HM layer: the `gamerun` shell
 wrapper and MangoHud config) together implement the launch chain documented in
-`docs/gaming.md`. Steam launch options are `gamerun %command%`; `gamerun` is a
+`Documentation/gaming.md`. Steam launch options are `gamerun %command%`; `gamerun` is a
 `pkgs.writeShellScriptBin` wrapper handling dGPU PRIME offload, DLSS 4.5 env vars,
 Reflex, ntsync, and CPU pinning (`GR_PIN`), then `exec`s `gamemoderun`, whose
 start/stop hooks drive `game-perf.service` (scx_lavd + the WMI 0xED perf profile on AC).
@@ -193,11 +193,11 @@ start/stop hooks drive `game-perf.service` (scx_lavd + the WMI 0xED perf profile
 The CPU power policy during gaming is **GPU-priority** (2026-07-18): `game-perf` sets
 PPD to `balanced`, **not** `performance`, so the shared NVIDIA Dynamic Boost budget
 (ACBT 80W) favors the dGPU instead of starving it — full rationale is in
-`modules/hardware/gaming.nix`'s inline comments (CPU-bound titles opt back in with
+`system/kernel/sched.nix`'s inline comments (CPU-bound titles opt back in with
 `GR_CPUMAX=1 gamerun …`). Undervolting the CPU is **platform-locked** on this Gigabyte
-board (see `docs/undervolt-curve-optimizer.md`), so capping its power appetite is the
+board (see `Documentation/aerox16/undervolt.md`), so capping its power appetite is the
 only lever; 100°C is by-design (Zen5 mobile Tjmax), not a fault. When touching this chain, update
-`docs/gaming.md`'s launch-options table to match.
+`Documentation/gaming.md`'s launch-options table to match.
 
 ### Docs directory
 

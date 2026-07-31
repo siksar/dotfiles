@@ -1,9 +1,11 @@
-# Masaüstü uygulamaları (system)
+# Steam + Proton — sistem geneli oyun çalıştırma katmanı.
+# Perf altyapısı system/kernel/sched.nix'te (scx_lavd/gamemode/ntsync/zram),
+# kullanıcı tarafı home/apps/games.nix'te (gamerun sarmalayıcı + MangoHud).
+# Kullanım / launch options tablosu: Documentation/gaming.md
 { pkgs, inputs, ... }:
 
 {
-  # Steam (32-bit GL/Vulkan dahil) — perf altyapısı: modules/hardware/gaming.nix,
-  # kullanım: docs/gaming.md (launch options: gamerun %command%)
+  # Steam (32-bit GL/Vulkan dahil)
   programs.steam = {
     enable = true;
     # Proton seçenekleri (Steam'de oyun-başına seçilir → Özellikler → Uyumluluk):
@@ -19,39 +21,10 @@
   };
 
   # Proton-CachyOS binary cache (chaotic-nyx, kendi nixConfig'inden doğrulanan değerler) —
-  # kaynaktan derlemeyi önler. local-ai.nix'teki nix-amd-ai cachix deseniyle aynı
+  # kaynaktan derlemeyi önler. usr/local-ai.nix'teki nix-amd-ai cachix deseniyle aynı
   # (nix.settings.substituters/trusted-public-keys listeleri NixOS'ta birleşir).
   nix.settings = {
     substituters = [ "https://nyx-cache.chaotic.cx/" ];
     trusted-public-keys = [ "nyx-cache.chaotic.cx:dJxTrgMC3V3cFfyIiBQDQorG6k1LsqurH/srpMSq7qk=" ];
   };
-
-  # Mullvad VPN (GUI dahil)
-  services.mullvad-vpn = {
-    enable = true;
-    package = pkgs.mullvad-vpn;
-  };
-
-  # LocalSend — yerel ağda dosya paylaşımı (firewall 53317'yi kendisi açar)
-  programs.localsend = {
-    enable = true;
-    openFirewall = true;
-  };
-
-  environment.systemPackages = with pkgs; [
-    # Netflix: Widevine'lı Chrome app-mode sarmalayıcısı (google-chrome getirir)
-    netflix
-
-    # Claude Desktop Cowork VM sandbox'ı (resmî gereksinim: qemu + OVMF + virtiofsd)
-    qemu_kvm
-    virtiofsd
-  ];
-
-  # Vesktop/Bitwarden token saklama (Secret Service). Kilit girişte ly'nin
-  # PAM entegrasyonundan açılıyor (nixpkgs ly modülü enableGnomeKeyring'i
-  # services.gnome.gnome-keyring.enable'dan mkDefault ile zaten alıyor).
-  services.gnome.gnome-keyring.enable = true;
-
-  # Cowork için KVM erişimi
-  users.users.zixar.extraGroups = [ "kvm" ];
 }

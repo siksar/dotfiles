@@ -1,4 +1,4 @@
-# OpenCode — terminal AI coding agent (paket: modules/apps/default.nix'te
+# OpenCode — terminal AI coding agent (paket: configuration.nix systemPackages'ta
 # environment.systemPackages, "LLM-assisted development" altında).
 # Sağlayıcı: NVIDIA NIM (OpenAI-uyumlu, https://integrate.api.nvidia.com/v1).
 #

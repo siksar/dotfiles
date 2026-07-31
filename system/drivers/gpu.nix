@@ -17,7 +17,7 @@
     # pininden latest'e alındı — TEST: pinli 610.43.02'de nvidia-powerd Dynamic Boost'u
     # bu AMD+NVIDIA makinede kuramıyor, GPU 30W tabanda kilitli (enforced 30W < 50W
     # varsayılan; profil/PPD/TLP ölçümle elendi; bkz. NVIDIA open-gpu-kernel-modules
-    # #392/#966 + docs/aerox16-1vh-wmi.md). SONUÇ (31 Tem 2026): sürüm avcılığı gereksizmiş —
+    # #392/#966 + Documentation/aerox16/wmi-ec.md). SONUÇ (31 Tem 2026): sürüm avcılığı gereksizmiş —
     # nvidia-powerd canlıda sağlıklı (D-Bus bağlı, çökmüyor); tek yinelenen log satırı
     # "SBIOS disable Dynamic Boost DC controller" (DC=pil; bu repo boost'u zaten yalnız
     # AC'ye kilitlemiş, muhtemelen zararsız). Gerçek kanıt versiyon değil ÖLÇÜM: ACBT WMI

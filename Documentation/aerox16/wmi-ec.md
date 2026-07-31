@@ -21,7 +21,7 @@ Ayrıntı: "Canlı test sonuçları" bölümü.
 | BIOS | FB0A (American Megatrends, 2026-05-28, release 5.35) |
 | EC firmware | 3.10 (DMI `ec_firmware_release`); çip büyük olasılıkla ITE IT55xx — Windows'ta HWiNFO ile kesinleşecek |
 | EC erişimi | eSPI paylaşımlı bellek: PECM @ 0xFC7E0800 (+ ECM2/USEC); klasik port-EC neredeyse boş |
-| EC sürücüsü | [tangalbert919/gigabyte-laptop-wmi](https://github.com/tangalbert919/gigabyte-laptop-wmi) → `aorus-laptop.ko` (`modules/hardware/gigabyte-wmi.nix`) |
+| EC sürücüsü | [tangalbert919/gigabyte-laptop-wmi](https://github.com/tangalbert919/gigabyte-laptop-wmi) → `aorus-laptop.ko` (`system/arch/aerox16/wmi.nix`) |
 | WMI GUID'leri | ABBC0F6F / ABBC0F72 / ABBC0F75 (WMBC/WMBD metodları) |
 | Dahili klavye | USB-HID 0414:8104 |
 | sysfs | `/sys/devices/platform/aorus_laptop/` |
@@ -437,7 +437,7 @@ kodları) — Fn'in ikincil rapor kanalı olabilir, derinleşilmedi.
 TAMAMLANDI (2026-07-05): eğri testi (ölü), preset karakterizasyonu, mod
 mekanizması, Faz D (dGPU boost zinciri çözüldü + KALICI yapıldı: AC'de
 fan_mode 2 + ACBT 80W + nvidia-powerd), Faz E (FNKS=klavye ana şalteri),
-upstream taslağı (`docs/upstream-gigabyte-wmi-report.md`), acpi_call kalıcı.
+upstream taslağı (`Documentation/upstream/gigabyte-wmi-report.md`), acpi_call kalıcı.
 
 ### Gelecek işler (kullanıcı onaylı, ayrı oturumlar)
 1. ~~**DSDT override projesi**~~ → **YAPILDI (2026-07-12)**: SSDT9 binary
@@ -457,7 +457,7 @@ upstream taslağı (`docs/upstream-gigabyte-wmi-report.md`), acpi_call kalıcı.
 
 ## Deneysel 0xED / 0xF1–F3 logu (oyun projesi Faz E — iskelet, 2026-07-05)
 
-Protokol: `docs/gaming.md` "Faz E" bölümü. Kural: tek yazım → ölç → logla →
+Protokol: `Documentation/gaming.md` "Faz E" bölümü. Kural: tek yazım → ölç → logla →
 revert. Ortam: AC + fan_mode 2 + sabit yük. Geri-okuma: 0xED → NPCF alanları
 (ACBT/AMAT); 0xF1–F3 → RAPL davranışı (Get yok).
 **YASAK:** 0x51 (3=dGPU eject) · CMOS'a yazan 0x63/0x87/0x88/0xA3/0xE6
@@ -479,7 +479,7 @@ init'i yok, profil 0 varsayılanı doğrulandı) · fan duty 18/17 @64°C · ACB
 ## Faz F — sürücü bulgu doğrulama + upstream rapor kesinleşti (2026-07-11)
 
 Pinlenen sürücü kaynağı (`912b4e9`, `aorus-laptop.c`) satır satır okundu + Part 1
-salt-okuma ölçümü yapıldı (`docs/aerox16-1vh-test-plan.md`). İki iddia netleşti — ikisi de
+salt-okuma ölçümü yapıldı (`Documentation/aerox16/test-plan.md`). İki iddia netleşti — ikisi de
 eski taslaktakinden FARKLI çıktı:
 
 ### 1. RPM "byte-swap bug"ı — sebep TERS: sürücü fazladan swap'lıyor
@@ -513,9 +513,9 @@ kaynaklıydı; sürücünün `fan_mode 1`'i no-op.)
   anına bağlı. Bkz. "Sürücü 0.2.0'a yükseltme".)
 
 ### Çıktılar
-- Upstream rapor **kesinleştirildi**: `docs/upstream-gigabyte-wmi-report.md` (issue #22
+- Upstream rapor **kesinleştirildi**: `Documentation/upstream/gigabyte-wmi-report.md` (issue #22
   yorumu; §1 ters-swap, §2 silent misdetect, §3 custom-fan ölü, §4 gpu_boost=3 eject).
-- Manuel test planı: `docs/aerox16-1vh-test-plan.md` (Part 1 salt-okuma = yukarıdaki
+- Manuel test planı: `Documentation/aerox16/test-plan.md` (Part 1 salt-okuma = yukarıdaki
   ölçüm; Part 2 korumalı yazma testleri, gpu_boost 3 yasak kutusu dahil).
 
 ### Uygulanan local fix — sessiz mod misdetect'i (2026-07-11)
@@ -525,7 +525,7 @@ kaynaklıydı; sürücünün `fan_mode 1`'i no-op.)
 > "Sürücü 0.2.0'a yükseltme" bölümünde.
 
 Seçenek B (heuristik düzeltmesi, feature-detect) local patch olarak uygulandı:
-`modules/hardware/aorus-laptop-silent-0x57.patch` — probe artık `0xFA` yerine yeni
+`aorus-laptop-silent-0x57.patch` (repoda tutulmuyor) — probe artık `0xFA` yerine yeni
 sessiz selector `0x57`'yi doğrudan yokluyor (`ret==0` ise yeni model). Wire:
 `gigabyte-wmi.nix` içine `patches = [ ... ]`. `nixos-rebuild build` + `switch` yapıldı
 (exit 0); yamalı modül `current-system`'de (srcversion `BE0D63F8…` → `1B107436…`).
@@ -685,7 +685,7 @@ keşfedilecek yol kalmadı.
 
 ## SSDT9 PC00→PCI0 düzeltmesi — initrd ACPI table upgrade (2026-07-12)
 
-Yukarıdaki "Gelecek işler #1" uygulandı. Modül: `modules/hardware/acpi-override.nix`.
+Yukarıdaki "Gelecek işler #1" uygulandı. Modül: `system/arch/aerox16/acpi.nix`.
 
 ### Sorun (özet)
 SSDT9 (`OptRf2`/`Opt2Tabl`, OemRev 0x1000, 13612 B) içindeki NVIDIA legacy
@@ -712,9 +712,9 @@ yazdığı gerçek LTGP'yi göstermez); kalıcı çözüm tablonun kendisini dü
 
 ### Kalıcı fix — binary patch + initrd upgrade
 - **iasl recompile YOK**: 'PC00' AML'de 4-baytlık NameSeg → yerinde
-  `'PC00'→'PCI0'` (×2) + checksum. Patcher: `modules/hardware/acpi/patch-ssdt9.py`
+  `'PC00'→'PCI0'` (×2) + checksum. Patcher: `system/arch/aerox16/acpi/patch-ssdt9.py`
   (boy/imza/OemId/OemTableId/geçiş-sayısı/OemRev guard'ları — biri tutmazsa
-  build FAIL). Pristine dump: `modules/hardware/acpi/ssdt9-pristine.dat`
+  build FAIL). Pristine dump: `system/arch/aerox16/acpi/ssdt9-pristine.dat`
   (sha256 `03b2207e...cb01dd`, modülde sabit; 2026-07-11 dökümü = bugünkü
   firmware, cmp ile doğrulandı).
 - **Kernel eşleşme kuralı** (drivers/acpi/tables.c, kaynaktan doğrulandı):

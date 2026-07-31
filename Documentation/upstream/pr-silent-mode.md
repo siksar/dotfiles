@@ -2,7 +2,7 @@
 
 > Durum: kullanıcı gönderecek. Gövde (---'den sonrası) İngilizce, PR açıklaması
 > olarak olduğu gibi kullanılabilir. Kod değişikliği:
-> `modules/hardware/aorus-laptop-silent-0x57.patch` (aynı diff aşağıda gömülü).
+> `aorus-laptop-silent-0x57.patch` (repoda tutulmuyor) (aynı diff aşağıda gömülü).
 > Test edildi: AERO X16 1VH, sürücü 912b4e9 + reboot → "Newer model detected".
 
 **Suggested title:** `aorus-laptop: fix silent fan mode on 2025+ AMD AERO by feature-detecting the 0x57 selector`

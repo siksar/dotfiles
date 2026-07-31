@@ -3,7 +3,7 @@
 # gamerun (dGPU PRIME offload) + gamemode (renice) + game-perf.service (scx_lavd,
 # AC'de 0xED + turbo fan) otomatik devrede.
 # MC OpenGL olduğundan gamerun'ın DLSS/Reflex/ntsync env'leri etkisiz-zararsız.
-# Ayrıntı ve gerekçeler: docs/gaming.md "Minecraft (Prism Launcher)" bölümü.
+# Ayrıntı ve gerekçeler: Documentation/gaming.md "Minecraft (Prism Launcher)" bölümü.
 { lib, pkgs, ... }:
 
 let
