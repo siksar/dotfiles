@@ -1,3 +1,5 @@
+# Limine önyükleyici (systemd-boot yerine) + Miasma teması.
+# Stylix'in limine hedefi bilerek kapalı: system/desktop/theme.nix
 { ... }:
 
 {

@@ -1,3 +1,6 @@
+# Güç yönetimi — 4.28W idle bütçesinin çekirdeği. GERİLEMEZ.
+# PPD (TLP değil) + kernel parametreleri + ASPM + zram + powertop --auto-tune.
+# Ölçüm defteri: Documentation/aerox16/power.md
 { config, pkgs, ... }:
 
 {

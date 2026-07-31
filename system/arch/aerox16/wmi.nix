@@ -1,3 +1,7 @@
+# Gigabyte WMI/EC — ağaç-dışı aorus-laptop modülü + acpi_call ile ham EC yazımı.
+# Fan eğrisi, sessiz mod, 0xED perf profili, ACBT dGPU boost bütçesi.
+# DSDT/EC sürümüne bağlı, elle tersine mühendislik: Documentation/aerox16/wmi-ec.md
+# UYARI: 0x4B ve 0xF1-F3 EC tarafından geri yazılıyor — denemeyin (31 Tem).
 { config, pkgs, ... }:
 
 let

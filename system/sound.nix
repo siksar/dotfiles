@@ -1,3 +1,4 @@
+# Ses: PipeWire (PulseAudio kapalı) + rtkit gerçek-zamanlı öncelik.
 { ... }:
 
 {

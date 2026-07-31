@@ -1,3 +1,4 @@
+# Starship prompt (renkleri Stylix'ten gelir — elle renk verme).
 { ... }:
 
 {

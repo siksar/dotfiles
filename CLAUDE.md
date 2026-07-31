@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Flake-based NixOS configuration for a single machine: a Gigabyte AERO X16 (EG61H) laptop
 with an AMD Ryzen AI 7 350 (Krackan Point, Zen 5) + Radeon 860M iGPU + NVIDIA RTX 5060
-Max-Q dGPU (hybrid graphics). Full hardware profile lives in `CONTEXT.md`. One user
+Max-Q dGPU (hybrid graphics). Full hardware profile lives in `README.md`. One user
 (`zixar`), one host (`nixos`). Comments and commit messages are in Turkish.
 
 The flake lives at `/home/zixar/nixos-zixar` (a plain user-owned git repo, not root's
@@ -42,7 +42,7 @@ units, there is no `power_now`; compute W as `current_now × voltage_now / 1e12`
 
 ### Lint / inspection tooling
 
-`deadnix`, `statix` and `nixfmt-rfc-style` are installed system-wide
+`deadnix`, `statix` and `nixfmt` are installed system-wide
 (`configuration.nix`, `environment.systemPackages`) — invoke them directly. Do **not**
 reach for `nix run nixpkgs#…`: that resolves the *registry's* nixpkgs instead of this
 flake's pinned one. How to run them is `--help`; what follows is only what `--help`
@@ -62,6 +62,64 @@ won't tell you.
 - **`nix store diff-closures /nix/var/nix/profiles/system-{N,N+1}-link`** after a switch
   catches closure growth before it shows up as idle power.
 
+## Finding things
+
+**`MAINTAINERS` is the topic → file map — start there.** It uses the Linux kernel's
+format (`F:` file pattern, `S:` status, `T:` doc, `W:` warning), so it greps:
+`grep -A8 'GÜÇ' MAINTAINERS`, `grep -B3 'F:.*sched' MAINTAINERS`. It carries the
+warnings that would otherwise cost you a measurement session to rediscover (which EC
+selectors self-revert, which basenames can't be renamed, what's BIOS-locked).
+`README.md` has the tree map and the hardware table.
+
+The tree is named **by topic, not by purpose** — `system/kernel/sched.nix`, not
+`gaming.nix`. Three layers, FHS semantics:
+
+| Layer | Eval context | Holds |
+|---|---|---|
+| `system/` | NixOS module | machine plumbing — arch, drivers, kernel, init, net, security, desktop |
+| `usr/` | NixOS module | system-wide installed programs |
+| `home/` | Home Manager module | the user layer |
+| `lib/` | plain data | what *both* layers read (theme, schemes, wallpapers) |
+
+The two NixOS layers and the HM layer are **separate eval contexts and cannot import
+each other** — mixing them is a hard error, not a lint. A topic that touches both gets
+two files (`system/kernel/sched.nix` + `home/apps/games.nix`).
+
+### Renaming rule — this one bites
+
+`${./foo}` copies a path into the store and **the store path's name is the basename**.
+So:
+
+- **`.nix` module files rename freely** — they're only `import`ed; their paths never
+  enter a derivation.
+- **Data files/dirs reached via `${./…}` or `src = ./…` may MOVE but NOT be renamed.**
+  Currently: `system/arch/aerox16/acpi/*`, `keyboard-rgb/src/`, `home/desktop/wm/*.lua`,
+  `home/desktop/theme/*`, `bar/waybar-themes/`, `bar/waybar-mono*.css`,
+  `launcher/rofi-themes/`, `launcher/rofi-mono-overrides.rasi`, `lib/schemes/*.yaml`,
+  `lib/wallpapers/*`.
+- **Comments inside `''…''` strings are NOT Nix comments** — they're script text and
+  they hash. A typo fix inside `wmi.nix`'s `postPatch` recompiles the out-of-tree
+  kernel module and rehashes initrd. (Learned the expensive way, 31 Jul 2026.)
+
+### Proving a move didn't change anything
+
+Comparing `drvPath` before/after is cheaper than building and proves the whole build
+graph:
+
+```bash
+git add -A   # MANDATORY — Nix only sees git-TRACKED files; an unstaged new path
+             # fails with "file not found"
+nix eval --raw .#nixosConfigurations.nixos.config.system.build.toplevel.drvPath
+nix eval --raw .#homeConfigurations.zixar.activationPackage.drvPath
+```
+
+Identical output = the move is provably safe. Different = diff the two `.drv` files and
+find out *why* before proceeding; check `system-path` first, since an unchanged
+`system-path` means the package set is intact and only generated files moved. Note that
+**module import order is not a no-op**: list-type options (`services.udev.extraRules`
+and friends) concatenate in evaluation order, so reordering imports legitimately changes
+the closure even when nothing semantic changed.
+
 ## Architecture
 
 **Two entry points sharing one Home Manager tree** (`flake.nix`):
@@ -80,14 +138,14 @@ HM config that only one of the two entry points can see.
 ### Desktop: Hyprland + ly (display manager), themed by Stylix
 
 The desktop is a single session — Hyprland 0.56 (Lua config) + Matugen dynamic
-theming (Waybar/Rofi/SwayNC/awww/Cava) — toggled by `rice.hyprland.enable = true;`
+theming (Waybar/Rofi/SwayNC/awww/Cava) — toggled by `desktop.hyprland.enable = true;`
 in `configuration.nix`. The flag is a safety valve, not an A/B switch: turning it
 off leaves the system without a working session, since ly has nothing else to
 offer. GNOME and an opt-in Sway + noctalia-shell rice both lived here until
 2026-07-30, when the user settled on Hyprland alone; GNOME's silent providers
 (bluetooth, udisks2, gvfs, the GTK portal, a polkit agent, the Adwaita icon theme,
 hyprlock/hypridle for screen lock, hyprctl-based AC/BAT refresh-rate switching) were
-absorbed into `hyprland-rice/{system,hm}.nix` first, then GNOME and the Sway rice
+absorbed into `system/desktop/session.nix` + `home/desktop/session.nix` first, then GNOME and the Sway rice
 were deleted — see git history around that date if you need the "what GNOME was
 quietly doing" audit. An older Hyprland + Caelestia/dms/noctalia + SDDM rice lives
 on the `rice/caelestia` branch, unrelated to the current setup.
@@ -103,7 +161,7 @@ vendored `atif-1402/minimal-waybar-themes` ports, all recolored from one shared
 monochrome palette) switchable without a rebuild via `waybar-theme --pick` /
 SUPER+W — see `Documentation/desktop.md`'s "Waybar çoklu tema sistemi" section. The rofi
 launcher is a vendored `adi1090x/rofi` type-5/style-4 painted from that *same* palette
-(`rofi-themes.nix`), so it tracks the waybar themes rather than matugen — the trade-off
+(`home/desktop/launcher/themes.nix`), so it tracks the waybar themes rather than matugen — the trade-off
 and rofi 2.0's gradient parser trap are in the same doc's "Rofi launcher teması" section.
 The HM side follows the system flag automatically via `osConfig` — never add a second
 toggle. This works on both the embedded and standalone HM paths only because of the
@@ -149,7 +207,7 @@ activation-script ordering wrong is the most common way this repo's `hms`/rebuil
 
 ### Power management — the 4.28W idle budget is a hard constraint
 
-`modules/hardware/{power,power-display,gigabyte-wmi}.nix` implement an idle-power budget
+`system/kernel/{power,power-display}.nix` + `system/arch/aerox16/wmi.nix` implement an idle-power budget
 that several commits worth of measurement went into (kernel params, ASPM, zram, powertop
 --auto-tune device autosuspend, brightness/webcam/refresh-by-power-source). The CPU/
 platform-profile layer is **power-profiles-daemon** (`power.nix`) — it **replaced TLP**
@@ -162,7 +220,7 @@ polling) survives in `power-display.nix` — which **also sets the PPD profile p
 TLP's job) and there's no desktop power slider, so power-saver's 2.0 GHz cap would
 otherwise stick on AC and make the desktop sluggish. BAT stays power-saver, so the idle budget is
 untouched (the freq cap only bites under load). **Anything
-added under `modules/hardware/` or `home/apps/games.nix` must not run or poll while
+added under `system/` or `home/apps/games.nix` must not run or poll while
 idle** — see the design constraint comment at the top of `system/kernel/sched.nix`
 ("pil/idle tabanı 4.28W GERİLEMEZ"). scx_lavd, zram priority, gamemode hooks etc. are all
 gated to only activate during an actual gaming session (`game-perf.service`), never at
@@ -201,7 +259,7 @@ only lever; 100°C is by-design (Zen5 mobile Tjmax), not a fault. When touching 
 
 ### Docs directory
 
-`docs/` holds durable, hand-maintained investigation logs (not code comments) — most
+`Documentation/` holds durable, hand-maintained investigation logs (not code comments) — most
 substantially `aerox16-1vh-wmi.md` (WMI/EC reverse-engineering measurements) and
 `gaming.md` (launch options reference for the user). Treat these as living lab notebooks:
 extend them when you add a measurement or change a documented behavior, don't let the

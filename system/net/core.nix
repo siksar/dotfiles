@@ -1,3 +1,5 @@
+# Ağ yığını: NetworkManager, systemd-resolved önbelleği, BBR+fq+TFO,
+# TR regdomain, kablo↔WiFi hakemi (kablo takılınca WiFi kapanır).
 { pkgs, ... }:
 
 let

@@ -1,3 +1,5 @@
+# Hibrit grafik: AMD 860M iGPU (amdgpu) + NVIDIA RTX 5060 Max-Q (PRIME offload).
+# dGPU boştayken D3cold'da uyur; oyunlar gamerun ile offload eder (home/apps/games.nix).
 { config, pkgs, ... }:
 
 {

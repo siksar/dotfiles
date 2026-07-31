@@ -1,0 +1,222 @@
+			 NIXOS-ZIXAR KONU HARİTASI
+		    Gigabyte AERO X16 (EG61H) / host: nixos
+
+Linux çekirdeğinin MAINTAINERS biçimi. "Şunu nerede değiştiririm?" sorusunun
+tek cevap yeri. Alan kodları:
+
+	F:	Dosya/dizin deseni (o konuya ait olan her şey)
+	S:	Durum — Maintained / Kilitli / Arşiv / Denenmedi
+	T:	İlgili doküman (lab defteri)
+	W:	Uyarı — dokunmadan önce oku
+	N:	Not
+
+Arama:  grep -A8 'GÜÇ' MAINTAINERS      |  grep -B2 'F:.*sched' MAINTAINERS
+
+═══════════════════════════════════════════════════════════════════════════
+GİRİŞ NOKTALARI (kült dosyalar — hepsi kökte)
+═══════════════════════════════════════════════════════════════════════════
+S:	Maintained
+F:	flake.nix
+F:	configuration.nix
+F:	home.nix
+F:	hardware-configuration.nix
+N:	flake.nix     = Makefile: girdiler (nixpkgs/HM/stylix/chaotic/…) + iki çıktı
+	configuration.nix = Kconfig: SİSTEM katmanının tek import listesi
+	home.nix      = Kconfig: KULLANICI katmanının tek import listesi
+	hardware-configuration.nix = üretilmiş, elle düzenleme
+W:	İki flake çıktısı AYNI home.nix'i okur (gömülü HM + standalone `hms`).
+	Yalnız birinin görebileceği HM config'i EKLEME. Bunu ayakta tutan şey
+	flake.nix'teki extraSpecialArgs.osConfig geçişi — oraya dokunmak
+	desktop.hyprland bayrağını standalone yolda sessizce false'a düşürür.
+
+═══════════════════════════════════════════════════════════════════════════
+GIGABYTE WMI / EC — FAN, PERF PROFİLİ, dGPU BOOST
+═══════════════════════════════════════════════════════════════════════════
+S:	Maintained — kırılgan, DSDT/EC sürümüne özgü, elle tersine mühendislik
+F:	system/arch/aerox16/wmi.nix
+T:	Documentation/aerox16/wmi-ec.md
+T:	Documentation/upstream/gigabyte-wmi-report.md
+T:	Documentation/upstream/pr-silent-mode.md
+W:	0x4B (dGPU TGP) ve 0xF1-F3 (CPU SPL/SPPT/FPPT) EC tarafından otomatik
+	geri yazılıyor — 31 Tem 2026'da doğrulandı. BİR DAHA DENEME.
+W:	postPatch bir shell STRING'i; içindeki '#' satırları Nix yorumu değil.
+	Oradaki bir yazım düzeltmesi bile kernel modülünü yeniden derletir.
+N:	Çalışan kollar: 0xED perf profili (GPU 38W→70-83W ölçüldü),
+	ACBT 0x4C Dynamic Boost bütçesi, fan_mode 0x57 sessiz mod (yamalı probe).
+
+ACPI / DSDT OVERRIDE
+S:	Maintained — REBOOT sonrası Faz C doğrulaması hâlâ bekliyor
+F:	system/arch/aerox16/acpi.nix
+F:	system/arch/aerox16/acpi/
+T:	Documentation/aerox16/wmi-ec.md  ("SSDT9 PC00->PCI0" bölümü)
+W:	acpi/ dizin adı ve içindeki dosya adları store yoluna girer — TAŞINABİLİR
+	ama YENİDEN ADLANDIRILAMAZ.
+
+CPU UNDERVOLT / CURVE OPTIMIZER
+S:	KİLİTLİ — Gigabyte BIOS/PSP kilidi (12 Tem 2026). Kol yok.
+T:	Documentation/aerox16/undervolt.md
+N:	100°C by-design (Zen5 mobile Tjmax), arıza değil. Tek lever iştahı
+	kısmak: bkz. system/kernel/sched.nix'teki GPU-öncelik politikası.
+
+═══════════════════════════════════════════════════════════════════════════
+GÜÇ YÖNETİMİ — 4.28W idle bütçesi
+═══════════════════════════════════════════════════════════════════════════
+S:	Maintained — 4.28W GERİLEMEZ, bu bir kabul kriteri
+F:	system/kernel/power.nix
+F:	system/kernel/power-display.nix
+T:	Documentation/aerox16/power.md          ← tabanın nasıl ölçüldüğü
+F:	scripts/power-audit.sh                  ← ham döküm üretici
+W:	system/ veya home/apps/games.nix altına eklenen HİÇBİR ŞEY boşta
+	koşmamalı/yoklamamalı. Yeni AC/BAT davranışı = udev(ACAD) + oneshot
+	servis; timer/polling DEĞİL.
+N:	PPD (power-profiles-daemon), TLP değil — TLP'nin eşzamanlı
+	governor+EPP+platform_profile yazımı amd-pstate=active ile kavga
+	ediyordu. AC→balanced / BAT→power-saver geçişini power-display yapar
+	(PPD kendi başına AC/BAT izlemez, o TLP'nin işiydi).
+N:	Watt hesabı: firmware power_now BİLDİRMEZ →
+	current_now × voltage_now / 1e12, /sys/class/power_supply/BAT1/
+
+UYKU / HİBERNASYON
+S:	Kurulu ama ELLE TEST BEKLİYOR (30 Tem)
+F:	system/kernel/power.nix                 (suspend-then-hibernate, 25dk)
+N:	Donanım s2idle-only — deep/S3 YOK. Hibernate bu makinede hiç
+	çalıştırılmadı, ilk denemede doğrula.
+
+═══════════════════════════════════════════════════════════════════════════
+OYUN — launch zinciri
+═══════════════════════════════════════════════════════════════════════════
+S:	Maintained
+F:	system/kernel/sched.nix                 (gamemode, scx_lavd, ntsync, zram)
+F:	home/apps/games.nix                     (gamerun sarmalayıcı, MangoHud)
+F:	home/apps/minecraft.nix                 (Prism + mc-run→gamerun + JVM)
+F:	usr/steam.nix                           (Steam, Proton-GE/CachyOS)
+T:	Documentation/gaming.md                 ← launch options tablosu
+N:	Zincir: Steam launch options `gamerun %command%` → gamerun (PRIME
+	offload, DLSS, Reflex, ntsync, GR_PIN) → gamemoderun → gamemode
+	start/stop hook → game-perf.service (scx_lavd + AC'de 0xED profili).
+N:	CPU politikası GPU-ÖNCELİKLİ: game-perf PPD'yi `performance` değil
+	`balanced` yapar — paylaşımlı Dynamic Boost bütçesi (ACBT 80W) dGPU'ya
+	gitsin diye. CPU-bound oyunlar `GR_CPUMAX=1 gamerun …` ile geri alır.
+W:	Bu zinciri değiştirirsen Documentation/gaming.md'deki tabloyu da güncelle.
+W:	scx_lavd/gamemode/zram önceliği yalnız game-perf.service içinde açılır,
+	boot'ta DEĞİL — idle bütçesi yüzünden.
+
+═══════════════════════════════════════════════════════════════════════════
+MASAÜSTÜ — Hyprland tek oturum
+═══════════════════════════════════════════════════════════════════════════
+S:	Maintained — TEK oturum. GNOME + Sway 30 Tem 2026'da silindi.
+F:	system/desktop/session.nix              (sistem: Hyprland, portal, polkit…)
+F:	home/desktop/session.nix                (HM: bar/launcher/tema motoru)
+F:	home/desktop/wm/                        (Lua config: binds, rules, theme…)
+F:	home/desktop/CLAUDE.md                  ← rice-içi tuzaklar, otomatik yüklenir
+T:	Documentation/desktop.md                ← tasarım dokümanı, ÖNCE OKU
+W:	`desktop.hyprland.enable = false` sistemi oturumsuz bırakır (ly'de
+	başka seçenek yok). Bayrak A/B anahtarı değil, güvenlik valfi.
+W:	withUWSM = true ZORUNLU; onsuz oturum dosyası var ama "Unit not found"
+	ile düşer. defaultSession = "hyprland-uwsm" bu yüzden pinli.
+W:	wm/*.lua ve theme/* dosya adları store yoluna girer — yeniden
+	adlandırılamaz.
+
+BAR / LAUNCHER / BİLDİRİM
+S:	Maintained
+F:	home/desktop/bar/                       (waybar + 16 tema, SUPER+W ile seçilir)
+F:	home/desktop/launcher/                  (rofi, adi1090x type-5/style-4 portu)
+F:	home/desktop/notify/                    (swaync)
+F:	home/desktop/theme/                     (matugen şablonları)
+T:	Documentation/desktop.md   ("Waybar çoklu tema" + "Rofi launcher teması")
+N:	Waybar temaları tek monokrom paletten boyanır; rofi matugen'i DEĞİL o
+	paleti izler. Tema değişimi rebuild GEREKTİRMEZ (waybar-theme --pick).
+
+TEMA / RENK (Stylix)
+S:	Maintained — renklerin TEK kaynağı
+F:	lib/theme.nix                           ← palet burada değişir (tek satır)
+F:	lib/theme-standalone.nix                (yalnız standalone HM yolu)
+F:	lib/schemes/                            (özel base16 paletleri)
+F:	lib/wallpapers/
+F:	system/desktop/theme.nix
+W:	Per-app renk AYARLAMA. Stylix GTK/ghostty/vscodium/vesktop/starship'i
+	kendi hedefleriyle boyar.
+W:	schemes/ ve wallpapers/ dosya adları store yoluna girer.
+N:	lib/ altında olmalarının sebebi: hem sistem hem kullanıcı katmanı okuyor
+	(home/desktop/session.nix duvar kağıdını buradan alıyor).
+
+GİRİŞ EKRANI
+S:	Maintained
+F:	system/desktop/login.nix                (ly, TTY üzerinde TUI greeter)
+N:	Stylix'in ly hedefi YOK — renkler config.lib.stylix.colors'tan elle
+	besleniyor (ly 1.4.1, 32-bit 0xSSRRGGBB truecolor).
+
+═══════════════════════════════════════════════════════════════════════════
+DONANIM — diğer
+═══════════════════════════════════════════════════════════════════════════
+GRAFİK (hibrit AMD iGPU + NVIDIA dGPU)
+S:	Maintained
+F:	system/drivers/gpu.nix
+N:	PRIME offload; dGPU boştayken D3cold. AQ_DRM_DEVICES yerleşimi kritik —
+	bkz. home/desktop/CLAUDE.md.
+
+KLAVYE RGB
+S:	Kurulu, SWITCH + test BEKLİYOR (29 Tem)
+F:	system/drivers/input/keyboard-rgb/
+T:	Documentation/aerox16/keyboard-rgb.md
+N:	Klavye standart HID LampArray konuşuyor — renk için tersine mühendislik
+	GEREKMEDİ.
+W:	src/ dizin adı store yoluna girer (package.nix).
+
+Fn TUŞLARI
+S:	Çözümsüz — donanım/firmware sınırı
+N:	Fn+F* Wayland'de HİÇ keysym üretmiyor (wev/seat seviyesinde bile olay
+	yok). Fan tuşu Fn+F7 dahil. SUPER+M binding'inin varlık sebebi bu.
+
+═══════════════════════════════════════════════════════════════════════════
+ÖNYÜKLEME / TEMEL SİSTEM
+═══════════════════════════════════════════════════════════════════════════
+S:	Maintained
+F:	system/init/limine.nix                  (önyükleyici + Miasma teması)
+F:	system/init/locale.nix
+F:	system/init/plymouth.nix                ← KULLANILMIYOR, import edilmiyor
+F:	system/sound.nix                        (PipeWire)
+F:	system/security/users.nix
+F:	system/security/keyring.nix             (gnome-keyring / Secret Service)
+F:	system/security/onepassword.nix
+F:	system/virt.nix                         (qemu/virtiofsd — Cowork VM)
+T:	Documentation/1password.md
+
+AĞ
+S:	Maintained — SWITCH + ölçüm doğrulaması kullanıcıda (20 Tem)
+F:	system/net/core.nix                     (NM, resolved, BBR+fq+TFO, regdomain)
+F:	system/net/vpn.nix                      (Mullvad)
+F:	system/net/localsend.nix
+N:	resolved cache-only, DoT kapalı (şifreli DNS'i Mullvad verir).
+	Kablo takılınca WiFi otomatik kapanır (NM dispatcher + boot oneshot).
+
+═══════════════════════════════════════════════════════════════════════════
+UYGULAMALAR
+═══════════════════════════════════════════════════════════════════════════
+SİSTEM GENELİ (usr/)
+S:	Maintained
+F:	usr/steam.nix  usr/netflix.nix  usr/firefox.nix  usr/local-ai.nix
+N:	local-ai = NPU öncelikli yerel AI (XDNA2/FastFlowLM + Lemonade).
+	NPU oyunla İLGİSİZ — FSR4/DLSS shader/tensor core kullanır.
+
+KULLANICI (home/apps/)
+S:	Maintained
+F:	home/apps/
+W:	Runtime'da yazılan HM config'leri (vesktop settings.json) "mutable-copy
+	trick" ister. Deseni home/apps/vesktop.nix'ten BİREBİR kopyala —
+	activation sırasını yanlış kurmak `hms`/rebuild'i bozmanın en yaygın yolu.
+
+KABUK / TERMİNAL
+S:	Maintained
+F:	home/shell/fish.nix  starship.nix  ghostty.nix  tmux.nix
+N:	Kullanıcının fish'inde grep→rg, cat→bat aliaslı. `\|` alternation
+	sessizce eşleşmez; fish glob'unda [...] yok.
+
+═══════════════════════════════════════════════════════════════════════════
+DOKÜMANTASYON
+═══════════════════════════════════════════════════════════════════════════
+S:	Maintained — yaşayan lab defterleri, kod ile birlikte güncellenir
+F:	Documentation/
+F:	CLAUDE.md
+N:	Documentation/archive/ DONMUŞ kayıt: içindeki yollar ve durumlar
+	kasıtlı olarak eski, düzeltilmez.

@@ -1,3 +1,4 @@
+# Kullanıcı hesapları ve sistem geneli kabuk kaydı (fish).
 { pkgs, ... }:
 
 {

@@ -1,3 +1,5 @@
+# ACPI/DSDT override — fabrika SSDT9'unun NVIDIA dGPU güç tablosu hatası.
+# initrd'e yamalı tablo enjekte eder. Ölçüm: Documentation/aerox16/wmi-ec.md
 { pkgs, ... }:
 
 let
