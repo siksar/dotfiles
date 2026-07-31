@@ -130,7 +130,7 @@ tık → swaync paneli) + fan profili + saat (12h, tık → tarih). Ağ modülü
 IP/gateway GÖSTERMEZ (kullanıcı isteği; kaynakta ethernet formatı
 `{ipaddr}/{cidr}` idi).
 
-Kaynağa göre bilinçli sapmalar (`hm.nix` yorumlarında da işaretli):
+Kaynağa göre bilinçli sapmalar (`wm/main.lua` yorumlarında da işaretli):
 
 - `power-profiles-daemon` modülü → **`custom/fan`**: waybar'da güç profili yerine
   fan modu gösterilir (PPD sistemde açık ama bu modül fan_mode'u izler).
@@ -151,13 +151,13 @@ Kaynağa göre bilinçli sapmalar (`hm.nix` yorumlarında da işaretli):
 Yukarıdaki tasarım artık **16 seçenekten biri** ("current" adıyla), yanına
 `atif-1402/minimal-waybar-themes` reposundaki 15 varyant (V1 … V7 ve alt
 sürümleri) porte edildi. Amaç: hepsini yan yana deneyip birini seçmek, hepsini
-**tek bir monokrom paletten** boyamak. Kod: `waybar-themes.nix`,
-`waybar-mono.css`, `waybar-mono-overrides.css`, `waybar-omarchy-compat.nix`,
+**tek bir monokrom paletten** boyamak. Kod: `bar/themes.nix`,
+`waybar-mono.css`, `waybar-mono-overrides.css`, `bar/omarchy-compat.nix`,
 vendor'lanmış temalar `waybar-themes/<V>/`.
 
 **Çakışma çözümü — store'dan çalıştırma.** HM'in ürettiği
 `~/.config/waybar/{config,style.css}` symlink'lerine hiç dokunulmadı. Her tema
-store'da kendi dizininde durur; `waybar-launch` (hm.nix) state dosyasına göre
+store'da kendi dizininde durur; `waybar-launch` (`bar/waybar.nix`) state dosyasına göre
 `waybar -c <dizin>/config.jsonc -s <dizin>/style.css` ile başlatır — `"current"`
 (veya bilinmeyen bir değer) argümansız `waybar`'a düşer, yani HM modülünün
 ürettiği bar. `systemd.user.services.waybar.Service.ExecStart` bu script'e
@@ -173,7 +173,7 @@ kadar önemli, yoksa temanın kendi kuralları kazanır. Palet dosyasına ASLA
 tema-özel renk eklenmez; bir override bir temada tutmuyorsa (farklı sınıf adı)
 düzeltme override dosyasına eklenir, palet dokunulmaz.
 
-**mkTheme (waybar-themes.nix) build-time'da üç şey yapar:**
+**mkTheme (bar/themes.nix) build-time'da üç şey yapar:**
 1. `@import "../omarchy/current/theme/waybar.css";` → mutlak palet yolu
    (13/15 tema bunu kullanıyor; 2'si — V1, V1.5 — hiç `@import` etmiyor,
    literal hex/keyword renk kullanıyordu, o ikisinde renkler elle `@değişken`
@@ -183,7 +183,7 @@ düzeltme override dosyasına eklenir, palet dokunulmaz.
 3. `patchShebangs` + `chmod +x` — hepsi `#!/bin/bash` veya
    `#!/usr/bin/env bash` ile geliyor, NixOS'ta `/bin/bash` yok.
 
-**omarchy uyumluluk katmanı** (`waybar-omarchy-compat.nix`): ~180 `omarchy-*`
+**omarchy uyumluluk katmanı** (`bar/omarchy-compat.nix`): ~180 `omarchy-*`
 çağrısını tema başına elle düzeltmek yerine, aynı isimlerde ince shim'ler
 üretilip **yalnız `waybar-launch`'ın PATH'ine** eklendi (`home.packages`'a
 sızmaz). Karşılıklar: `omarchy-menu` → rofi drun / rofi tabanlı güç menüsü
@@ -233,7 +233,7 @@ yerine, vendor'lanmış dosyalarda doğrudan):
   script — store'un salt-okunur olmasıyla zaten uyumsuzdu) ve `custom/mode`
   modülü kaldırıldı.
 
-**Geçiş — rebuild'siz.** `waybar-theme` (`home.packages`, `hm.nix`):
+**Geçiş — rebuild'siz.** `waybar-theme` (`home.packages`, `bar/waybar.nix`):
 `--list` (16 isim), `<ad>` (state dosyasına yaz + `systemctl --user restart
 waybar.service`), `--pick` (rofi seçici), `--reset` (Nix varsayılanına dön).
 Kısayol **SUPER+W** (`lua/binds.lua`). Temiz kurulumdaki varsayılan
@@ -259,7 +259,7 @@ değiştiriyordu. İkisi bu yüzden zaten uyumsuzdu. Kullanıcı çatalı **saf
 monokrom** yönünde çözdü: rofi artık `waybar-mono.css`'i okuyor, bedeli rofi'nin
 duvar kağıdını takip etmemesi.
 
-**Tek renk kaynağı.** `rofi-themes.nix`, `waybar-mono.css`'teki
+**Tek renk kaynağı.** `launcher/themes.nix`, `waybar-mono.css`'teki
 `@define-color ad #hex;` satırlarını Nix tarafında ayrıştırıp attrset'e çevirir.
 Paleti Nix'e kopyalamak yerine CSS'i okumasının nedeni: waybar o dosyayı
 `@import` ile okumak **zorunda**, iki kopya kaçınılmaz olarak ayrışırdı. Sonuç:
@@ -507,7 +507,7 @@ Eskiden GNOME'un dconf kısayollarıyla bire bir eşleşecek şekilde seçilenle
 GNOME'un PrintScreen'i ve SUPER+L'si, Sway rice'ın grim/slurp'ı kaldırılınca
 (2026-07-30) rice kendi karşılıklarını kazandı:
 
-- **Ekran görüntüsü** — `hypr-screenshot` (`hm.nix`, eskiden sway rice'ta olan
+- **Ekran görüntüsü** — `hypr-screenshot` (`session.nix`, eskiden sway rice'ta olan
   `sway-screenshot`'ın portu): grim/slurp wlr-screencopy protokolünü kullanır,
   compositor bağımsız. `region` (bölge seç + satty ile düzenle, varsayılan),
   `fullscreen`, `clipboard` (bölge → doğrudan panoya) modları var.
@@ -518,7 +518,7 @@ GNOME'un PrintScreen'i ve SUPER+L'si, Sway rice'ın grim/slurp'ı kaldırılınc
 - **Idle** — `services.hypridle`, `hyprland-session.target`'a bağlı: 5 dk
   boşta DPMS off, 10 dk boşta `loginctl lock-session` (→ hyprlock). Suspend
   YOK — s2h zinciri zaten logind'de kurulu (`power.nix`), ikinci bir yazar
-  çakışırdı. `waybar-omarchy-compat.nix`'teki `omarchy-toggle-idle` /
+  çakışırdı. `bar/omarchy-compat.nix`'teki `omarchy-toggle-idle` /
   `idle-indicator.sh` `hypridle.service`'i durdurup başlatarak devre dışı
   bırakır.
 - **AC/BAT refresh-rate** — `power-display.nix`'in kullanıcı servisi artık

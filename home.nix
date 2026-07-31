@@ -4,6 +4,10 @@
   imports = [
     # desktop/ — Hyprland oturumu, bar, launcher, tema motoru
     ./home/desktop/session.nix
+    ./home/desktop/theme/matugen.nix
+    ./home/desktop/bar/waybar.nix
+    ./home/desktop/launcher/rofi.nix
+    ./home/desktop/notify/swaync.nix
 
     # shell/ — kabuk ve terminal ortamı
     ./home/shell/fish.nix

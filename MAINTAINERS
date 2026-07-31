@@ -106,7 +106,7 @@ MASAÜSTÜ — Hyprland tek oturum
 ═══════════════════════════════════════════════════════════════════════════
 S:	Maintained — TEK oturum. GNOME + Sway 30 Tem 2026'da silindi.
 F:	system/desktop/session.nix              (sistem: Hyprland, portal, polkit…)
-F:	home/desktop/session.nix                (HM: bar/launcher/tema motoru)
+F:	home/desktop/session.nix                (HM: WM, kilit, hypridle, polkit)
 F:	home/desktop/wm/                        (Lua config: binds, rules, theme…)
 F:	home/desktop/CLAUDE.md                  ← rice-içi tuzaklar, otomatik yüklenir
 T:	Documentation/desktop.md                ← tasarım dokümanı, ÖNCE OKU
