@@ -83,7 +83,7 @@
         modules = [
           ./home.nix
           stylix.homeModules.stylix
-          ./modules/desktop/stylix-standalone.nix
+          ./lib/theme-standalone.nix
         ];
       };
     };

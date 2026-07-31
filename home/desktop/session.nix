@@ -34,7 +34,7 @@ let
   # (config.stylix.image) bağımsız: rice kendi içinde tam kendi kendine yeterli
   # kalsın diye. İlk renk tohumu ve theme-apply --restore fallback'i burayı
   # kullanır; SUPER+T ile her zaman değiştirilebilir.
-  defaultWallpaper = ../wallpapers/misty-forest.jpg;
+  defaultWallpaper = ../../lib/wallpapers/misty-forest.jpg;
 
   # Referans repo ile aynı matugen kipi: koyu + Material You "tonal spot".
   # NOT: matugen HCT renk uzayı kullanır (Material You standardı) — "Oklab"
@@ -246,14 +246,14 @@ let
   # waybarThemes: { "V1" = <derivation>; … } — her biri build-time'da yeniden
   # yazılmış bağımsız config.jsonc/style.css dizini (bkz. waybar-themes.nix).
   # waybarCompat: omarchy-* shim'leri, YALNIZ waybar-launch'un PATH'ine girer.
-  waybarThemes = import ./waybar-themes.nix { inherit pkgs lib; };
-  waybarCompat = import ./waybar-omarchy-compat.nix { inherit pkgs; };
+  waybarThemes = import ./bar/themes.nix { inherit pkgs lib; };
+  waybarCompat = import ./bar/omarchy-compat.nix { inherit pkgs; };
 
   # --- Rofi teması (adi1090x/rofi type-5/style-4 portu) ---
   # style4:     üst kaynak + mono renk katmanı birleştirilmiş tek .rasi
   # monoColors: aynı paletin @değişken sürümü (wallpaper-grid.rasi import eder)
   # İkisi de waybar-mono.css'ten beslenir — waybar temalarıyla tek renk kaynağı.
-  rofiThemes = import ./rofi-themes.nix { inherit pkgs lib; };
+  rofiThemes = import ./launcher/themes.nix { inherit pkgs lib; };
 
   # ExecStart override — HM'in ürettiği ~/.config/waybar/{config,style.css}
   # symlink'lerine hiç dokunmadan, rofi/state dosyasıyla seçilen temayı store
@@ -341,7 +341,7 @@ in
     # Tema duvar kağıtları (recursive: kullanıcı dizine kendi dosyasını da
     # atabilir). SUPER+T'nin wallpaper-picker'ı ve --random burayı okur.
     home.file."Pictures/Wallpapers" = {
-      source = ../wallpapers;
+      source = ../../lib/wallpapers;
       recursive = true;
     };
 
@@ -406,11 +406,11 @@ in
       # config gerçek Lua olarak okunur/düzenlenir. hyprland.lua bunları
       # otomatik require eder (alfabetik: autostart, binds, main, rules, theme).
       extraLuaFiles = {
-        autostart = ./lua/autostart.lua;
-        binds = ./lua/binds.lua;
-        main = ./lua/main.lua;
-        rules = ./lua/rules.lua;
-        theme = ./lua/theme.lua;
+        autostart = ./wm/autostart.lua;
+        binds = ./wm/binds.lua;
+        main = ./wm/main.lua;
+        rules = ./wm/rules.lua;
+        theme = ./wm/theme.lua;
       };
     };
 
@@ -468,14 +468,14 @@ in
         output_path = '${cfgHome}/hypr/hyprlock-colors.conf'
       '';
 
-      "matugen/templates/hypr-colors.lua".source = ./templates/hypr-colors.lua;
-      "matugen/templates/waybar-colors.css".source = ./templates/waybar-colors.css;
-      "matugen/templates/rofi-colors.rasi".source = ./templates/rofi-colors.rasi;
-      "matugen/templates/swaync-colors.css".source = ./templates/swaync-colors.css;
-      "matugen/templates/cava-config".source = ./templates/cava-config;
-      "matugen/templates/terminal-sequences".source = ./templates/terminal-sequences;
-      "matugen/templates/keyboard-color".source = ./templates/keyboard-color;
-      "matugen/templates/hyprlock-colors.conf".source = ./templates/hyprlock-colors.conf;
+      "matugen/templates/hypr-colors.lua".source = ./theme/hypr-colors.lua;
+      "matugen/templates/waybar-colors.css".source = ./theme/waybar-colors.css;
+      "matugen/templates/rofi-colors.rasi".source = ./theme/rofi-colors.rasi;
+      "matugen/templates/swaync-colors.css".source = ./theme/swaync-colors.css;
+      "matugen/templates/cava-config".source = ./theme/cava-config;
+      "matugen/templates/terminal-sequences".source = ./theme/terminal-sequences;
+      "matugen/templates/keyboard-color".source = ./theme/keyboard-color;
+      "matugen/templates/hyprlock-colors.conf".source = ./theme/hyprlock-colors.conf;
 
       # Ana rofi teması — adi1090x/rofi type-5/style-4 portu. Üst kaynak dosya
       # + mono renk katmanı build-time'da TEK dosyada birleştirilir
@@ -678,7 +678,7 @@ in
       # göreli @import store'da arardı)
       style = ''
         @import "${cfgHome}/waybar/colors.css";
-      '' + builtins.readFile ./waybar-style.css;
+      '' + builtins.readFile ./bar/waybar-style.css;
     };
     # Çoklu tema geçişi: HM'in ürettiği unit'in ExecStart'ı waybar-launch ile
     # değiştirilir — targets/systemd.enable bloğu YUKARIDA aynen kalıyor
@@ -710,7 +710,7 @@ in
       };
       style = ''
         @import "${cfgHome}/swaync/colors.css";
-      '' + builtins.readFile ./swaync-style.css;
+      '' + builtins.readFile ./notify/swaync-style.css;
     };
     # swaync yalnız Hyprland oturumunda çalışsın (HM modülü generic
     # graphical-session.target'a bağlar → mkForce ile daralt)

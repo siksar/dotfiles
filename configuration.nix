@@ -6,34 +6,42 @@
   imports = [
     ./hardware-configuration.nix
 
-    # Boot
-    ./modules/boot/limine.nix
+    # ══ system/ — makinenin tesisatı ═══════════════════════════════════════
+    # arch/ — YALNIZ bu donanımda anlamlı, taşınamaz (EC/WMI, DSDT override).
+    # Başka bir makineye geçilirse ilk silinecek dizin burasıdır.
+    ./system/arch/aerox16/wmi.nix
+    ./system/arch/aerox16/acpi.nix
 
-    # Hardware
-    ./modules/hardware/gpu.nix
-    ./modules/hardware/power.nix
-    ./modules/hardware/power-display.nix
-    ./modules/hardware/gigabyte-wmi.nix
-    ./modules/hardware/keyboard-rgb/system.nix
-    ./modules/hardware/gaming.nix
-    ./modules/hardware/acpi-override.nix
+    # drivers/ — aygıt sürücüleri ve aygıt-başı ayar
+    ./system/drivers/gpu.nix
+    ./system/drivers/input/keyboard-rgb/system.nix
 
-    # Desktop
-    ./modules/desktop/ly.nix
-    ./modules/desktop/stylix.nix
-    ./modules/desktop/firefox.nix
-    ./modules/desktop/hyprland-rice/system.nix
+    # kernel/ — çekirdek davranışı: güç, zamanlayıcı, bellek
+    ./system/kernel/power.nix
+    ./system/kernel/power-display.nix
+    ./system/kernel/sched.nix
 
-    # Uygulamalar
-    ./modules/apps/default.nix
-    ./modules/apps/local-ai.nix
-    ./modules/apps/onepassword.nix
+    # init/ — önyükleyici ve yerel ayar (plymouth.nix var ama KULLANILMIYOR)
+    ./system/init/limine.nix
+    ./system/init/locale.nix
 
-    # System
-    ./modules/networking.nix
-    ./modules/locale.nix
-    ./modules/audio.nix
-    ./modules/users.nix
+    # net/ sound/ — dizin import'u default.nix'e çözülür
+    ./system/net
+    ./system/sound
+
+    # security/ — hesaplar, anahtarlık, parola yöneticisi
+    ./system/security/users.nix
+    ./system/security/onepassword.nix
+
+    # desktop/ — oturum katmanı (Hyprland + ly + Stylix)
+    ./system/desktop/session.nix
+    ./system/desktop/login.nix
+    ./system/desktop/theme.nix
+
+    # ══ usr/ — sistem geneli kurulan programlar ════════════════════════════
+    ./usr/steam.nix
+    ./usr/local-ai.nix
+    ./usr/firefox.nix
   ];
 
 

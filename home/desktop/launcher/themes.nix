@@ -17,7 +17,7 @@ let
   # okumak ZORUNDA (@import ile), o yüzden tek yön bu.
   palette =
     let
-      lines = lib.splitString "\n" (builtins.readFile ./waybar-mono.css);
+      lines = lib.splitString "\n" (builtins.readFile ../bar/waybar-mono.css);
       hits = lib.filter (m: m != null) (
         map (l: builtins.match " *@define-color +([a-zA-Z0-9_-]+) +(#[0-9a-fA-F]+) *; *" l) lines
       );

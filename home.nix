@@ -2,19 +2,24 @@
 
 {
   imports = [
-    ./modules/desktop/hyprland-rice/hm.nix
-    ./modules/desktop/fish.nix
-    ./modules/desktop/ghostty.nix
-    ./modules/desktop/shell.nix
-    ./modules/apps/vesktop.nix
-    ./modules/apps/zen.nix
-    ./modules/apps/claude-desktop.nix
-    ./modules/apps/media.nix
-    ./modules/apps/gaming.nix
-    ./modules/apps/minecraft.nix
-    ./modules/apps/opencode.nix
-    ./modules/apps/vscodium.nix
-    ./modules/apps/tui.nix
+    # desktop/ — Hyprland oturumu, bar, launcher, tema motoru
+    ./home/desktop/session.nix
+
+    # shell/ — kabuk ve terminal ortamı
+    ./home/shell/fish.nix
+    ./home/shell/starship.nix
+    ./home/shell/ghostty.nix
+    ./home/shell/tmux.nix
+
+    # apps/ — kullanıcı uygulamaları
+    ./home/apps/vesktop.nix
+    ./home/apps/zen.nix
+    ./home/apps/vscodium.nix
+    ./home/apps/claude-desktop.nix
+    ./home/apps/media.nix
+    ./home/apps/games.nix
+    ./home/apps/minecraft.nix
+    ./home/apps/opencode.nix
   ];
 
   home.username      = "zixar";

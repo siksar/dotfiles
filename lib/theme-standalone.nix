@@ -4,5 +4,5 @@
 { pkgs, ... }:
 
 {
-  stylix = import ./stylix-base.nix { inherit pkgs; };
+  stylix = import ./theme.nix { inherit pkgs; };
 }
