@@ -19,6 +19,9 @@ let
     #   GR_PRESET=latest → DLSS render preset'i zorla (varsayılan: sürücü/oyun preset'i)
     #   GR_NTSYNC=1   → Proton ntsync'i zorla aç (GR_NTSYNC=0 ile kapat)
     #   GR_SMOOTH=1   → sürücü Smooth Motion (DLSS'siz oyunlara framegen; FG/MFG ile BİRLEŞMEZ)
+    #   GR_LL=1       → düşük gecikme kare tempolama (D3D11+D3D12). YALNIZ Proton-CachyOS.
+    #                   Reflex'i çeviri katmanında uygular + VRR-farkında pacing (165Hz).
+    #                   FG/MFG ile BİRLEŞMEZ; Reflex/Waitable-Swapchain'siz oyunda no-op.
     #   GR_WL=1       → Proton Wayland (deneysel; Steam Overlay/Input bozulur)
     #   GR_PIN=big    → yalnız Zen5 "big" çekirdekler (HOI4 gibi tek-çekirdek oyunlar)
     #   GR_PIN=fast   → yalnız en hızlı 2 çekirdek (prefcore 208: cpu4/6 + SMT)
@@ -102,6 +105,31 @@ let
         echo "gamerun: UYARI — GR_SMOOTH, GR_MFG/GR_DYNFG ile birleşmez; Smooth Motion YOK SAYILDI" >&2
       else
         export NVPRESENT_ENABLE_SMOOTH_MOTION=1
+      fi
+    fi
+
+    # --- Düşük gecikme kare tempolama (GR_LL) — YALNIZ Proton-CachyOS ---
+    # netborg-afps/{dxvk,vkd3d}-low-latency, proton-cachyos 11.0-20260703'te geldi
+    # (GE-Proton'da YOK — Steam'de o oyuna Proton-CachyOS seçilmeli, yoksa no-op).
+    # Reflex'i çeviri katmanının İÇİNDE uygular (VK_NV_low_latency2'ye dönüştürmeden)
+    # + Waitable DXGI Swapchain ile kare tempolar.
+    #
+    # low-latency-vrr-165: v-blank'i hesaba katıp v-sync tamponlama gecikmesini keser.
+    # Bu makineye özel uyuyor — 165Hz panel + Hyprland vrr=2 (tam ekranda VRR açık) +
+    # gamerun varsayılanı tam ekran. Farklı hedef için: DXVK_FRAME_PACE=... GR_LL=1 …
+    #
+    # SINIRLAR (üstakım README):
+    #  • Frame Generation DESTEKLENMİYOR → GR_MFG/GR_DYNFG ile birleşmez (aşağıda guard).
+    #  • Oyun ya Reflex marker'ı göndermeli ya Waitable Swapchain kullanmalı; yoksa NO-OP.
+    #  • CPU-bound sahnede tavan FPS'i DÜŞÜREBİLİR (kareler CPU'da örtüşmüyor).
+    #  • D3D12 tarafı "initial-release"; VRR pacing modu D3D12'de henüz yok.
+    if [ "''${GR_LL:-0}" = "1" ]; then
+      if [ -n "''${GR_MFG:-}''${GR_DYNFG:-}" ]; then
+        echo "gamerun: UYARI — GR_LL, GR_MFG/GR_DYNFG ile birleşmez (vkd3d-low-latency FG desteklemiyor); low-latency YOK SAYILDI" >&2
+      else
+        export PROTON_DXVK_LOWLATENCY=1                                      # D3D11
+        export PROTON_VKD3D_LOWLATENCY=1                                     # D3D12
+        export DXVK_FRAME_PACE="''${DXVK_FRAME_PACE:-low-latency-vrr-165}"
       fi
     fi
 

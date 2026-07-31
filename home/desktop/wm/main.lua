@@ -65,7 +65,7 @@ hl.config({
         -- bırakıldı, ileride border_size geri açılırsa renkler hazır olsun.
         border_size = 0,
         resize_on_border = true,  -- kaynakta false; kullanıcı alışkanlığı korundu
-        allow_tearing    = false, -- kaynakta true; VRR/oyun akışını gamerun yönetir
+        allow_tearing    = false, -- kaynakta true; gerek yok: misc.vrr=2 tam ekranda VRR açıyor
         layout           = "dwindle",
     },
 

@@ -62,6 +62,7 @@ boşta scx inactive, zram pasif, gamemoded uykuda.
 | DLSS render preset'i zorla (en yeni) | `GR_PRESET=latest gamerun %command%` |
 | ntsync'i zorla aç / kapat | `GR_NTSYNC=1 gamerun %command%` / `GR_NTSYNC=0 …` |
 | Smooth Motion (DLSS'i OLMAYAN oyuna sürücü framegen) | `GR_SMOOTH=1 gamerun %command%` |
+| **Düşük gecikme** kare tempolama (yalnız Proton-CachyOS; FG ile birleşmez) | `GR_LL=1 gamerun %command%` |
 | Tek-çekirdek sim oyunu (HOI4/Stellaris/Factorio) | `GR_PIN=big gamerun %command%` |
 | CPU tam güç (CPU-bound oyun; varsayılan balanced/GPU-öncelik) | `GR_CPUMAX=1 gamerun %command%` |
 | Proton Wayland (deneysel) | `GR_WL=1 gamerun %command%` |
@@ -308,6 +309,56 @@ oynanabilir kılar) tutarlı.
   kendi APU notu) → yine düzelmedi
 **Sonuç:** Bu donanım/yazılım yığınında (RDNA 3.5 iGPU + OptiScaler + Linux) FG şu an
 güvenilir değil — daha fazla ini ayarı denemek yerine yalnız upscale ile kalınıyor.
+
+## Düşük gecikme kare tempolama — `GR_LL=1` (31 Tem 2026)
+
+Proton-CachyOS **11.0-20260703** (bizim pinlediğimiz sürüm, 22 Tem 2026'da yayınlandı)
+netborg-afps'in iki eklentisini getirdi. Store'daki `version` dosyalarından
+doğrulandı — tahmin değil:
+
+```
+files/lib/wine/dxvk/version              dxvk (v3.0.2-2)                 ← D3D11 tabanı
+files/lib/wine/dxvk-low-latency/version  low-latency-framepacing-2.7.1   ← PROTON_DXVK_LOWLATENCY
+files/lib/wine/vkd3d-low-latency/version vkd3d-low-latency initial-rel.  ← PROTON_VKD3D_LOWLATENCY
+files/lib/wine/vkd3d-proton/version      vkd3d-proton (vkd3d-1.1-5438)
+```
+
+**GE-Proton11-1'de bu env'lerin ikisi de YOK** (`grep PROTON_.*LOWLATENCY proton` boş
+döner) → Steam'de o oyuna **Proton-CachyOS seçilmezse `GR_LL=1` sessizce no-op**.
+
+**Ne yapıyor:** NVIDIA Reflex API'sini çeviri katmanının *içinde* uyguluyor —
+`VK_NV_low_latency2`'ye dönüştürmeden. Ayrıca Waitable DXGI Swapchain ile kare
+tempoluyor. `gamerun` `DXVK_FRAME_PACE=low-latency-vrr-165` seçiyor: bu mod v-blank'i
+hesaba katıp fazladan v-sync tamponlama gecikmesini kesiyor. Bu makinede uyum tam —
+165 Hz panel + Hyprland `misc.vrr = 2` (tam ekranda VRR açık) + `gamerun`'ın tam ekran
+varsayılanı. Başka hedef istenirse `:-` deseniyle ezilir:
+`DXVK_FRAME_PACE=low-latency-vrr-120 GR_LL=1 gamerun %command%`.
+
+**Neden varsayılan DEĞİL de opt-in (üstakım README'sindeki sınırlar):**
+
+| Sınır | Sonuç |
+|---|---|
+| Frame Generation **desteklenmiyor** | `GR_MFG`/`GR_DYNFG` ile birleşmez — `gamerun` uyarıp GR_LL'i yok sayar |
+| Oyun Reflex marker'ı (Simulation Start + Present Begin) göndermeli, ya da Waitable Swapchain kullanmalı | Desteklemeyen oyunda **hiçbir etkisi yok** |
+| Kareler `dxgi.present()` öncesi CPU'da örtüşmüyor | CPU-bound sahnede **tavan FPS düşebilir** |
+| D3D12 tarafı "initial-release" | VRR pacing modu D3D12'de henüz yok (planlı) |
+| Intel GPU / AMD Anti-Lag 2 | Desteklenmiyor — bizde ilgisiz (NVIDIA offload) |
+
+**Ölçüm nasıl yapılır:** FPS değil **gecikme** ölçülmeli — bu bir FPS özelliği değil.
+Aynı sahnede `GR_LL=1` ile ve olmadan input→ekran hissini karşılaştır; `nvidia-smi dmon`
+ile GPU kullanımının düşmediğini teyit et (düşüyorsa CPU-bound sınırına takıldın demektir,
+o oyunda kapat).
+
+Kaynaklar: [vkd3d-low-latency](https://github.com/netborg-afps/vkd3d-low-latency) ·
+[dxvk-low-latency](https://github.com/netborg-afps/dxvk-low-latency) ·
+[proton-cachyos 11.0-20260703](https://github.com/CachyOS/proton-cachyos/releases/tag/cachyos-11.0-20260703-slr) ·
+[GamingOnLinux duyurusu](https://www.gamingonlinux.com/2026/07/proton-cachyos-adds-support-for-vkd3d-low-latency-upgrades-d7vk-and-more/)
+
+**DXVK 3.0.2 zaten aktif** (25 Haz 2026): dxbc-spirv derleyicisi eski shader çeviri
+kodunun yerini aldı — üretilen SPIR-V daha kompakt, bazı oyunlarda ~1 GiB daha az sistem
+belleği, shader derlemesi tamamen worker thread'lere taşındı (açılış süresi + stutter).
+Aksiyon gerekmiyor, Proton güncellemesiyle geldi.
+[DXVK 3.0 duyurusu](https://www.phoronix.com/news/DXVK-3.0-Release)
 
 ## 31 Tem 2026 — donanım-performans denetimi (CPU/iGPU/dGPU/RAM/SSD/NPU)
 

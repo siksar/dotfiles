@@ -87,7 +87,7 @@ OYUN — launch zinciri
 ═══════════════════════════════════════════════════════════════════════════
 S:	Maintained
 F:	system/kernel/sched.nix                 (gamemode, scx_lavd, ntsync, zram)
-F:	home/apps/games.nix                     (gamerun sarmalayıcı, MangoHud)
+F:	home/apps/games.nix                     (gamerun sarmalayıcısı)
 F:	home/apps/minecraft.nix                 (Prism + mc-run→gamerun + JVM)
 F:	usr/steam.nix                           (Steam, Proton-GE/CachyOS)
 T:	Documentation/gaming.md                 ← launch options tablosu
@@ -174,7 +174,6 @@ N:	Fn+F* Wayland'de HİÇ keysym üretmiyor (wev/seat seviyesinde bile olay
 S:	Maintained
 F:	system/init/limine.nix                  (önyükleyici + Miasma teması)
 F:	system/init/locale.nix
-F:	system/init/plymouth.nix                ← KULLANILMIYOR, import edilmiyor
 F:	system/sound.nix                        (PipeWire)
 F:	system/security/users.nix
 F:	system/security/keyring.nix             (gnome-keyring / Secret Service)

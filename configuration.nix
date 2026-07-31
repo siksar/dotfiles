@@ -21,7 +21,7 @@
     ./system/kernel/power-display.nix
     ./system/kernel/sched.nix
 
-    # init/ — önyükleyici ve yerel ayar (plymouth.nix var ama KULLANILMIYOR)
+    # init/ — önyükleyici ve yerel ayar
     ./system/init/limine.nix
     ./system/init/locale.nix
 
