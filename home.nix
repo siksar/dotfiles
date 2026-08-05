@@ -23,6 +23,7 @@
     ./home/apps/media.nix
     ./home/apps/games.nix
     ./home/apps/minecraft.nix
+    ./home/apps/emu.nix
     ./home/apps/opencode.nix
   ];
 

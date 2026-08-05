@@ -183,13 +183,31 @@ F:	system/security/onepassword.nix
 F:	system/virt.nix                         (qemu/virtiofsd — Cowork VM)
 T:	Documentation/1password.md
 
-AĞ
+AĞ ÇEKİRDEĞİ
 S:	Maintained — SWITCH + ölçüm doğrulaması kullanıcıda (20 Tem)
 F:	system/net/core.nix                     (NM, resolved, BBR+fq+TFO, regdomain)
-F:	system/net/vpn.nix                      (Mullvad)
 F:	system/net/localsend.nix
 N:	resolved cache-only, DoT kapalı (şifreli DNS'i Mullvad verir).
 	Kablo takılınca WiFi otomatik kapanır (NM dispatcher + boot oneshot).
+
+DPI BYPASS (ZAPRET)
+S:	Maintained — 01 Ağu 2026, Mullvad'ın yerine kondu
+F:	system/net/zapret.nix                    (nfqws daemon + nftables queue kuralı)
+W:	Mullvad ile AYNI ANDA çalışmaz — vpn.nix'te mullvad enable=false. İkisini
+	bir arada tutmanın temiz yolu yok: ikisi de output paketlerini manipüle
+	eder, tun0/default-route ile nfqueue kuralı çakışır. Geri açmak istenirse
+	vpn.nix'i true, zapret.nix'i (import veya systemd wantedBy) false yap.
+N:	nfqws, fake/split2 desync — TCP 80/443 + UDP 443 (QUIC). Boot'ta başlar,
+	idle'da CPU sıfır (paket geldikçe çalışır). 4.28W bütçesine dokunmaz.
+N:	Strateji ayarı: TR'de Discord/Telegram/YouTube/Google için ölçülmüş genel
+	strateji `fake,split2 --autottl --fooling=badseq --fake-tls-mod=rndsni`.
+	Tek tek alan adı kırılımı `sudo blockcheck example.com` ile doğrulanır.
+N:	nfnetlink_queue modülü boot.kernelModules'a elle ekli (auto-load etmez).
+
+VPN (DEVRE DIŞI)
+S:	Devre dışı — 01 Ağu 2026, zapret.nix'in yerine geçti
+F:	system/net/vpn.nix                       (Mullvad, enable=false)
+N:	Geri açmak için bkz. yukarıdaki DPI BYPASS uyarısı.
 
 ═══════════════════════════════════════════════════════════════════════════
 UYGULAMALAR

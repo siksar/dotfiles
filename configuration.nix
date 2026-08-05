@@ -25,9 +25,10 @@
     ./system/init/limine.nix
     ./system/init/locale.nix
 
-    # net/ — ağ yığını, VPN, yerel paylaşım
+    # net/ — ağ yığını, VPN (devre dışı), DPI bypass, yerel paylaşım
     ./system/net/core.nix
     ./system/net/vpn.nix
+    ./system/net/zapret.nix
     ./system/net/localsend.nix
 
     ./system/sound.nix
@@ -147,6 +148,11 @@
     claude-code
     codex
     opencode
+
+    # DualSense (PS5) / DualShock4 (PS4) controller CLI — LED/şarj/trigger okuma,
+    # USB pairing modu. On-demand CLI; daemon DEĞİL → idle 4.28W bütçesine dokunmaz.
+    # Emülatör controller desteği (hidapi/evdev/SDL3) home/apps/emu.nix'te.
+    dualsensectl
   ];
 
   system.stateVersion = "26.05";
