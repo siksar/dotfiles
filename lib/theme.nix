@@ -1,6 +1,7 @@
 # Stylix taban tema verisi — TEK kaynak.
-# Hem NixOS modülü (stylix.nix) hem standalone HM (stylix-standalone.nix)
-# bunu tüketir. Modül DEĞİL, saf fonksiyon — target ayarları tüketicilerde.
+# Hem NixOS modülü (system/desktop/theme.nix) hem standalone HM
+# (lib/theme-standalone.nix) bunu tüketir.
+# Modül DEĞİL, saf fonksiyon — target ayarları tüketicilerde.
 { pkgs }:
 
 let

@@ -5,9 +5,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 Flake-based NixOS configuration for a single machine: a Gigabyte AERO X16 (EG61H) laptop
-with an AMD Ryzen AI 7 350 (Krackan Point, Zen 5) + Radeon 860M iGPU + NVIDIA RTX 5060
-Max-Q dGPU (hybrid graphics). Full hardware profile lives in `README.md`. One user
+with hybrid graphics (AMD Radeon 860M iGPU + NVIDIA RTX 5060 Max-Q dGPU). One user
 (`zixar`), one host (`nixos`). Comments and commit messages are in Turkish.
+**The hardware table, the tree map and the expected lint output live in `README.md`** —
+this file carries the rules and the traps, not the inventory. Don't duplicate them back
+in here; a fact with two homes is a fact that goes stale (that is exactly how the stale
+paths found on 8 Aug 2026 got in).
 
 The flake lives at `/home/zixar/nixos-zixar` (a plain user-owned git repo, not root's
 `/etc/nixos`). `/etc/nixos` is kept as a symlink to it for tooling that still assumes
@@ -36,27 +39,25 @@ nh home switch -b hm-backup
 There is no test suite. Validation is `nixos-rebuild build` succeeding, followed by
 `switch` and manual verification (rebooting/relogging, checking a systemd unit, watching
 a sensor file under `/sys`, etc.). Changes to power/thermal/WMI behavior are validated by
-measurement (`powertop`, `nvtop`/`nvidia-smi`, battery draw — the firmware reports charge
-units, there is no `power_now`; compute W as `current_now × voltage_now / 1e12` from
-`/sys/class/power_supply/BAT1/`), not by a build passing.
+**measurement**, not by a build passing — the how is in
+`Documentation/aerox16/power.md` (note the firmware reports charge units, so there is no
+`power_now` to read).
 
 ### Lint / inspection tooling
 
-`deadnix`, `statix` and `nixfmt` are installed system-wide
-(`configuration.nix`, `environment.systemPackages`) — invoke them directly. Do **not**
-reach for `nix run nixpkgs#…`: that resolves the *registry's* nixpkgs instead of this
-flake's pinned one. How to run them is `--help`; what follows is only what `--help`
-won't tell you.
+`deadnix`, `statix` and `nixfmt` are installed system-wide — invoke them directly. Do
+**not** reach for `nix run nixpkgs#…`: that resolves the *registry's* nixpkgs instead of
+this flake's pinned one. README has the commands and their expected output; what follows
+is only what neither `--help` nor README will tell you.
 
 - **`statix check .` must stay filtered or it tells you to break the config.** The
   `statix.toml` beside `flake.nix` disables `repeated_keys` (it wants each file's
   `boot`/`services`/`programs` blocks merged into one attrset, destroying the
   topic-by-topic grouping the Turkish section comments are built around) and
   `empty_pattern` (`{ ... }:` → `_:`, cosmetic and against NixOS module convention).
-  With those two off the repo reports **zero findings**, so treat any statix output
-  at all as a real regression.
-- **`deadnix .`** reports exactly one hit — an unused `pkgs` in
-  `hardware-configuration.nix`, which is generated; leave it.
+- **Both linters have a zero-noise baseline, so any deviation is a regression**: statix
+  clean, deadnix exactly one hit (the generated `hardware-configuration.nix` — leave
+  it). Don't update this line to match a new finding; fix the finding.
 - **Never run `nixfmt` tree-wide.** It reflows every file and wipes the hand-aligned
   comment columns this config relies on for readability.
 - **`nix store diff-closures /nix/var/nix/profiles/system-{N,N+1}-link`** after a switch
@@ -72,18 +73,14 @@ selectors self-revert, which basenames can't be renamed, what's BIOS-locked).
 `README.md` has the tree map and the hardware table.
 
 The tree is named **by topic, not by purpose** — `system/kernel/sched.nix`, not
-`gaming.nix`. Three layers, FHS semantics:
+`gaming.nix`. Four layers with FHS semantics (`system/`, `usr/`, `home/`, `lib/`);
+README draws the map, and the rule that matters here is this one:
 
-| Layer | Eval context | Holds |
-|---|---|---|
-| `system/` | NixOS module | machine plumbing — arch, drivers, kernel, init, net, security, desktop |
-| `usr/` | NixOS module | system-wide installed programs |
-| `home/` | Home Manager module | the user layer |
-| `lib/` | plain data | what *both* layers read (theme, schemes, wallpapers) |
-
-The two NixOS layers and the HM layer are **separate eval contexts and cannot import
-each other** — mixing them is a hard error, not a lint. A topic that touches both gets
-two files (`system/kernel/sched.nix` + `home/apps/games.nix`).
+`system/` and `usr/` are NixOS modules, `home/` is a Home Manager module. They are
+**separate eval contexts and cannot import each other** — mixing them is a hard error,
+not a lint. A topic that touches both therefore gets two files
+(`system/kernel/sched.nix` + `home/apps/games.nix`), and `lib/` exists precisely because
+plain data (theme, schemes, wallpapers) has to be readable from both sides.
 
 ### Renaming rule — this one bites
 
@@ -97,6 +94,11 @@ So:
   `home/desktop/theme/*`, `bar/waybar-themes/`, `bar/waybar-mono*.css`,
   `launcher/rofi-themes/`, `launcher/rofi-mono-overrides.rasi`, `lib/schemes/*.yaml`,
   `lib/wallpapers/*`.
+- **`builtins.readFile ./x` does NOT bind the basename** — it inlines the *content* at
+  eval time, no store copy, no derivation name. That's the only reason
+  `bar/waybar-style.css` and `notify/swaync-style.css` are absent from the list above
+  while their neighbours are on it; check *how* a data file is consumed before assuming
+  it's pinned.
 - **Comments inside `''…''` strings are NOT Nix comments** — they're script text and
   they hash. A typo fix inside `wmi.nix`'s `postPatch` recompiles the out-of-tree
   kernel module and rehashes initrd. (Learned the expensive way, 31 Jul 2026.)
@@ -146,10 +148,13 @@ silently break it.
 The **display manager is ly** (`system/desktop/login.nix`), a TUI greeter on the TTY —
 its theming and the `defaultSession` trap are in `system/desktop/CLAUDE.md`.
 
-**Stylix is the single source of truth for colors** (`system/desktop/theme.nix` /
-`stylix-base.nix`). Custom base16 palettes live in `lib/schemes/*.yaml`;
-switching is a one-line change of `palette` in `stylix-base.nix` (currently
-`kanagawa-dragon`) + rebuild — the wallpaper is keyed off the same variable.
+**Stylix is the single source of truth for colors.** The base data — palette, opacity,
+fonts, cursor — lives in `lib/theme.nix`, which is a plain *function*, not a module, so
+both entry points can consume it: `system/desktop/theme.nix` imports it and layers the
+NixOS-only target overrides on top, `lib/theme-standalone.nix` imports it for the
+standalone HM path. Custom base16 palettes live in `lib/schemes/*.yaml`; switching is a
+one-line change of `palette` in `lib/theme.nix` (currently `kanagawa-dragon`) + rebuild —
+the wallpaper is keyed off the same variable.
 Stylix targets auto-theme GTK, ghostty, vscodium, vesktop, starship, etc. — don't set
 per-app colors manually.
 
@@ -217,6 +222,15 @@ wrapper and MangoHud config) together implement the launch chain documented in
 Reflex, ntsync, and CPU pinning (`GR_PIN`), then `exec`s `gamemoderun`, whose
 start/stop hooks drive `game-perf.service` (scx_lavd + the WMI 0xED perf profile on AC).
 
+`gamerun` has **three** callers, not one — its env contract is load-bearing for all of
+them, so read them before changing what it exports:
+
+| Caller | Entry point | Note |
+|---|---|---|
+| Steam | launch options `gamerun %command%` | the documented path |
+| `home/apps/minecraft.nix` | `mc-run` → `gamerun`, via Prism's `WrapperCommand` | adds MC-only OpenGL env first, so it can't leak into Steam |
+| `home/apps/emu.nix` | `emu-run {rpcs3\|shadps4}` → `gamerun` | native Vulkan; the DLSS/Reflex/Proton vars are inert-but-harmless here |
+
 The CPU power policy during gaming is **GPU-priority** (2026-07-18): `game-perf` sets
 PPD to `balanced`, **not** `performance`, so the shared NVIDIA Dynamic Boost budget
 (ACBT 80W) favors the dGPU instead of starving it — full rationale is in
@@ -226,10 +240,64 @@ board (see `Documentation/aerox16/undervolt.md`), so capping its power appetite 
 only lever; 100°C is by-design (Zen5 mobile Tjmax), not a fault. When touching this chain, update
 `Documentation/gaming.md`'s launch-options table to match.
 
+### Networking — zapret and Mullvad are mutually exclusive
+
+`system/net/core.nix` is the base (NetworkManager, systemd-resolved as a cache-only
+stub, BBR + fq + TCP Fast Open, regdomain TR, and a wired→WiFi-off arbiter built as an
+NM dispatcher script plus a boot oneshot — not a poller, same rule as the power layer).
+
+Turkish ISP DPI is worked around by **zapret** (`system/net/censorship.nix`, 1 Aug 2026):
+an `nfqws` daemon fed by its own `inet zapret` nftables table (OUTPUT hook at mangle
+priority, `queue flags bypass to 200`, so the packet takes the normal kernel path if
+nfqws is down). It starts at boot but costs nothing idle — it only runs when a packet
+arrives, so the 4.28 W budget is untouched.
+
+**This replaced Mullvad, and the two cannot both be on** (`system/net/vpn.nix` keeps
+Mullvad at `enable = false`). Both manipulate output packets; the nfqueue rule collides
+with tun0/default-route. To go back, flip `vpn.nix` on and take `censorship.nix` out —
+there is no clean way to keep both.
+
+The desync strategy in `censorship.nix` is **measured, not guessed** — `blockcheck` output
+against a blocked SNI is what picks it, because Turkish DPI is selective (a strategy
+that works on YouTube can still fail on a blacklisted domain). Verify a single domain
+with `sudo blockcheck example.com`, and keep the comment in the file matching the args
+directly below it.
+
+**Encrypted DNS lives in the same file, on purpose** (8 Aug 2026). nfqws rescues the
+traffic; it does nothing about DNS, so a hijacked plain UDP/53 answer still sends you to
+the wrong address. `censorship.nix` therefore also runs `dnscrypt-proxy` (DoH):
+app → `127.0.0.53` (resolved stub + cache) → `127.0.0.54` (dnscrypt) → HTTPS to
+Cloudflare/Google. Two traps live in that block:
+
+- **`services.resolved.settings.Resolve.Domains = [ "~." ]` is load-bearing.** Without
+  it resolved prefers NetworkManager's per-link DHCP DNS — the ISP's server — and the
+  whole DoH chain is bypassed. The cost is that captive portals (hotel/airport WiFi)
+  work *by* DNS hijacking, so they cannot complete while it's set.
+- **Never hand-write `sources` / `minisign_key`.** The module's `upstreamDefaults = true`
+  merges upstream's TOML, which already carries the resolver list, the signing key and a
+  `/var/cache/dnscrypt-proxy/…` path matching the unit's `CacheDirectory`. The merge is
+  shallow (`jq add`), so defining `sources` yourself also deletes upstream's
+  `[sources.relays]`.
+
+The predecessor of this block, `system/net/dns.nix`, was deleted in the same commit: it
+had never been in any import list, so it had never been evaluated, and it carried three
+fatal errors (a `services.resolved.dns` option that does not exist, `":53"` ports in
+`fallbackDns`, and a corrupted `minisign_key`). **A Nix file that nothing imports is not
+"pending", it is untested** — check `configuration.nix`/`home.nix` before trusting one.
+
 ### Docs directory
 
-`Documentation/` holds durable, hand-maintained investigation logs (not code comments) — most
-substantially `aerox16-1vh-wmi.md` (WMI/EC reverse-engineering measurements) and
-`gaming.md` (launch options reference for the user). Treat these as living lab notebooks:
-extend them when you add a measurement or change a documented behavior, don't let the
-code and the doc drift apart.
+`Documentation/` holds durable, hand-maintained investigation logs (not code comments).
+Treat them as living lab notebooks: extend them when you add a measurement or change a
+documented behavior, don't let the code and the doc drift apart.
+
+| Path | Holds |
+|---|---|
+| `aerox16/wmi-ec.md` | WMI/EC reverse-engineering measurements — the selector values |
+| `aerox16/power.md` | how the 4.28 W idle baseline was measured |
+| `aerox16/undervolt.md` | why Curve Optimizer is platform-locked |
+| `aerox16/keyboard-rgb.md` | the HID LampArray finding |
+| `aerox16/test-plan.md`, `aerox16/dsdt.dsl.txt` | validation checklist, decompiled DSDT |
+| `desktop.md`, `gaming.md`, `1password.md` | design docs / user-facing references |
+| `upstream/` | reports written to be sent upstream |
+| `archive/` | **FROZEN** — paths and statuses inside are deliberately stale. Do not "fix" them. |

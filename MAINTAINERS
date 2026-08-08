@@ -91,6 +91,7 @@ S:	Maintained
 F:	system/kernel/sched.nix                 (gamemode, scx_lavd, ntsync, zram)
 F:	home/apps/games.nix                     (gamerun sarmalayıcısı)
 F:	home/apps/minecraft.nix                 (Prism + mc-run→gamerun + JVM)
+F:	home/apps/emu.nix                       (emu-run→gamerun; RPCS3 + shadPS4)
 F:	usr/steam.nix                           (Steam, Proton-GE/CachyOS)
 T:	Documentation/gaming.md                 ← launch options tablosu
 N:	Zincir: Steam launch options `gamerun %command%` → gamerun (PRIME
@@ -99,6 +100,9 @@ N:	Zincir: Steam launch options `gamerun %command%` → gamerun (PRIME
 N:	CPU politikası GPU-ÖNCELİKLİ: game-perf PPD'yi `performance` değil
 	`balanced` yapar — paylaşımlı Dynamic Boost bütçesi (ACBT 80W) dGPU'ya
 	gitsin diye. CPU-bound oyunlar `GR_CPUMAX=1 gamerun …` ile geri alır.
+W:	gamerun'ın ÜÇ çağıranı var — Steam launch options, mc-run (Prism
+	WrapperCommand), emu-run (rpcs3|shadps4). Export ettiği env'i
+	değiştirirsen üçünü de gözden geçir; yalnız Steam'i test etmek yetmez.
 W:	Bu zinciri değiştirirsen Documentation/gaming.md'deki tabloyu da güncelle.
 W:	scx_lavd/gamemode/zram önceliği yalnız game-perf.service içinde açılır,
 	boot'ta DEĞİL — idle bütçesi yüzünden.
@@ -192,20 +196,42 @@ N:	resolved cache-only, DoT kapalı (şifreli DNS'i Mullvad verir).
 
 DPI BYPASS (ZAPRET)
 S:	Maintained — 01 Ağu 2026, Mullvad'ın yerine kondu
-F:	system/net/zapret.nix                    (nfqws daemon + nftables queue kuralı)
+F:	system/net/censorship.nix                (nfqws daemon + nftables queue kuralı)
 W:	Mullvad ile AYNI ANDA çalışmaz — vpn.nix'te mullvad enable=false. İkisini
 	bir arada tutmanın temiz yolu yok: ikisi de output paketlerini manipüle
 	eder, tun0/default-route ile nfqueue kuralı çakışır. Geri açmak istenirse
-	vpn.nix'i true, zapret.nix'i (import veya systemd wantedBy) false yap.
-N:	nfqws, fake/split2 desync — TCP 80/443 + UDP 443 (QUIC). Boot'ta başlar,
+	vpn.nix'i true, censorship.nix'i (import veya systemd wantedBy) false yap.
+N:	nfqws `fake` desync — TCP 80/443 + UDP 443 (QUIC). Boot'ta başlar,
 	idle'da CPU sıfır (paket geldikçe çalışır). 4.28W bütçesine dokunmaz.
-N:	Strateji ayarı: TR'de Discord/Telegram/YouTube/Google için ölçülmüş genel
-	strateji `fake,split2 --autottl --fooling=badseq --fake-tls-mod=rndsni`.
+N:	Ölçülmüş strateji (blockcheck, pornhub.com üstünde 01 Ağu 2026):
+	  TCP 80/443 : --dpi-desync=fake --dpi-desync-ttl=3 --dpi-desync-fooling=ts
+	  UDP 443    : --dpi-desync=fake,udplen --dpi-desync-autottl
+	               --dpi-desync-repeats=6
 	Tek tek alan adı kırılımı `sudo blockcheck example.com` ile doğrulanır.
+W:	TR DPI'sı SEÇİCİ: YouTube/Google'da çalışan strateji kara listedeki bir
+	SNI'de (pornhub, xvideos) başarısız olabilir. "Google açılıyor" doğrulama
+	DEĞİLDİR — strateji değiştirirsen kara listedeki bir alan adıyla ölç.
 N:	nfnetlink_queue modülü boot.kernelModules'a elle ekli (auto-load etmez).
 
+ŞİFRELİ DNS (DoH)
+S:	Kurulu — SWITCH + doğrulama kullanıcıda (08 Ağu 2026)
+F:	system/net/censorship.nix                (dnscrypt-proxy, 127.0.0.54, DoH)
+N:	Sansür aşmanın 2. kolu, bilerek censorship.nix'in İÇİNDE: nfqws trafiği,
+	DoH ise isim çözümlemeyi kurtarır — aynı sorunun iki yarısı.
+	Zincir: uygulama → 127.0.0.53 (resolved) → 127.0.0.54 (dnscrypt) → DoH.
+N:	Eski system/net/dns.nix 08 Ağu 2026'da SİLİNDİ. Hiçbir import listesinde
+	olmadığı için hiç eval edilmemiş, üç ölümcül hatası vardı (olmayan
+	`services.resolved.dns` seçeneği, fallbackDns'te ":53" portu, bozuk
+	minisign_key). Niyeti taşındı, hataları taşınmadı.
+W:	`Resolve.Domains = [ "~." ]` ŞART — yoksa resolved NM'in per-link
+	(operatör) DNS'ini tercih eder ve DoH boşa gider. BEDELİ: captive portal
+	(otel/havalimanı WiFi) hijack'le çalıştığı için açılmaz; gezerken kaldır.
+W:	`sources`/`minisign_key` ELLE YAZMA — modülün upstreamDefaults=true'su
+	üstakımın TOML'unu birleştirir; sığ birleşme (jq add) yüzünden `sources`
+	tanımlarsan [sources.relays] bloğunu da silersin.
+
 VPN (DEVRE DIŞI)
-S:	Devre dışı — 01 Ağu 2026, zapret.nix'in yerine geçti
+S:	Devre dışı — 01 Ağu 2026, censorship.nix'in yerine geçti
 F:	system/net/vpn.nix                       (Mullvad, enable=false)
 N:	Geri açmak için bkz. yukarıdaki DPI BYPASS uyarısı.
 

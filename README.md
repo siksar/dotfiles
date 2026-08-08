@@ -61,7 +61,8 @@ değil; `kernel/`, `desktop/`). Sözlük Linux çekirdeğinden alınma.
 │   ├── drivers/               gpu, input/keyboard-rgb
 │   ├── kernel/                power, power-display, sched
 │   ├── init/                  limine, locale
-│   ├── net/                   core, vpn, localsend
+│   ├── net/                   core, censorship (zapret DPI bypass + DoH),
+│   │                          vpn (Mullvad, kapalı), localsend
 │   ├── security/              users, keyring, onepassword
 │   ├── desktop/               session, login (ly), theme (stylix)
 │   ├── sound.nix
