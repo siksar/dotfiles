@@ -214,11 +214,19 @@ W:	TR DPI'sı SEÇİCİ: YouTube/Google'da çalışan strateji kara listedeki bi
 N:	nfnetlink_queue modülü boot.kernelModules'a elle ekli (auto-load etmez).
 
 ŞİFRELİ DNS (DoH)
-S:	Kurulu — SWITCH + doğrulama kullanıcıda (08 Ağu 2026)
-F:	system/net/censorship.nix                (dnscrypt-proxy, 127.0.0.54, DoH)
+S:	Kurulu — 1. switch denemesi 127.0.0.54 çakışmasıyla düştü, adres
+	127.0.0.2'ye alındı; YENİ SWITCH + doğrulama kullanıcıda (09 Ağu 2026)
+W:	127.0.0.54 KULLANILAMAZ — systemd-resolved'in İKİNCİ dinleyicisi (proxy
+	stub) orada. resolved .53 ile .54'ü BİRLİKTE tutar → bind "address
+	already in use" ile FATAL, servis start-limit-hit'e girer. Üstüne
+	resolved'e DNS=127.0.0.54 demek onu kendine yöneltmektir; döngüyü fark
+	edip girdiyi sessizce düşürür ve sorgular per-link DHCP DNS'ine kaçar
+	(resolvectl'de Global'de "DNS Servers" satırı hiç görünmez = bu belirti).
+	5353 de SEÇME — mDNS orada.
+F:	system/net/censorship.nix                (dnscrypt-proxy, 127.0.0.2, DoH)
 N:	Sansür aşmanın 2. kolu, bilerek censorship.nix'in İÇİNDE: nfqws trafiği,
 	DoH ise isim çözümlemeyi kurtarır — aynı sorunun iki yarısı.
-	Zincir: uygulama → 127.0.0.53 (resolved) → 127.0.0.54 (dnscrypt) → DoH.
+	Zincir: uygulama → 127.0.0.53 (resolved) → 127.0.0.2 (dnscrypt) → DoH.
 N:	Eski system/net/dns.nix 08 Ağu 2026'da SİLİNDİ. Hiçbir import listesinde
 	olmadığı için hiç eval edilmemiş, üç ölümcül hatası vardı (olmayan
 	`services.resolved.dns` seçeneği, fallbackDns'te ":53" portu, bozuk

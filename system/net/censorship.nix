@@ -190,7 +190,7 @@ in
   # DNS'i verecek kimse kalmadı → bu blok onun yerine geçer.
   #
   # ZİNCİR:  uygulama → 127.0.0.53  (resolved stub + önbellek)
-  #                   → 127.0.0.54  (dnscrypt-proxy)
+  #                   → 127.0.0.2   (dnscrypt-proxy)
   #                   → HTTPS/443 içinde Cloudflare + Google DoH
   # Sorgu HTTPS gövdesinde gittiği için DPI ne soruyu ne cevabı görebilir.
   #
@@ -210,8 +210,17 @@ in
   services.dnscrypt-proxy = {
     enable = true;
     settings = {
-      # resolved'in stub'ı 127.0.0.53'te; çakışmamak için .54.
-      listen_addresses = [ "127.0.0.54:53" ];
+      # ⚠ 127.0.0.54 KULLANILAMAZ — systemd-resolved'in İKİNCİ dinleyicisi
+      # (proxy stub) orada oturuyor. resolved .53 ile .54'ü BİRLİKTE tutar;
+      # .54'e bind denemesi "listen udp4 127.0.0.54:53: bind: address already
+      # in use" ile FATAL verir. 09 Ağu 2026'da ölçüldü: servis 5 kez restart
+      # edip start-limit-hit'e girdi. Üstüne resolved'e DNS=127.0.0.54 demek
+      # onu KENDİSİNE yöneltmek olur; döngüyü fark edip girdiyi sessizce
+      # düşürür (resolvectl'de Global'de DNS Servers satırı hiç görünmez) ve
+      # sorgular per-link DHCP DNS'ine kaçar → tüm zincir etkisiz kalır.
+      # Bu yüzden ayrı bir loopback adresi: 127.0.0.2, standart 53 portu
+      # (5353 SEÇME — mDNS orada).
+      listen_addresses = [ "127.0.0.2:53" ];
 
       # Cloudflare birincil (privacy-first politika), Google yedek.
       server_names = [ "cloudflare" "google" ];
@@ -245,7 +254,7 @@ in
   # resolved'in upstream'i artık dnscrypt. DNS= satırını resolved modülü
   # networking.nameservers'tan besliyor; dnscrypt modülü buraya mkDefault ile
   # 127.0.0.1 koyuyor (orada kimse dinlemiyor) — bu tanım onu eziyor.
-  networking.nameservers = [ "127.0.0.54" ];
+  networking.nameservers = [ "127.0.0.2" ];
 
   # `~.` = "HER alan adı için global DNS'i kullan". BU SATIR OLMAZSA tüm kurulum
   # boşa gider: NetworkManager DHCP'den aldığı per-link DNS'i (operatörün

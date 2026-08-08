@@ -266,7 +266,7 @@ directly below it.
 **Encrypted DNS lives in the same file, on purpose** (8 Aug 2026). nfqws rescues the
 traffic; it does nothing about DNS, so a hijacked plain UDP/53 answer still sends you to
 the wrong address. `censorship.nix` therefore also runs `dnscrypt-proxy` (DoH):
-app → `127.0.0.53` (resolved stub + cache) → `127.0.0.54` (dnscrypt) → HTTPS to
+app → `127.0.0.53` (resolved stub + cache) → `127.0.0.2` (dnscrypt) → HTTPS to
 Cloudflare/Google. Two traps live in that block:
 
 - **`services.resolved.settings.Resolve.Domains = [ "~." ]` is load-bearing.** Without
