@@ -1,12 +1,12 @@
 # Mullvad VPN (daemon + GUI) — 01 Ağu 2026'da DEVRE DIŞI.
-# NEDEN: system/net/zapret.nix eklendi. Mullvad tun0 arayüzünü default route'a
+# NEDEN: system/net/censorship.nix eklendi. Mullvad tun0 arayüzünü default route'a
 # yazar; zapret'in nfqueue kuralı OUTPUT hook'unda paketleri NFQ'ya çeker. İkisi
 # aynı output paketlerini manipüle etmeye kalkınca tun0'a giden paketler
 # zapret'e düşer → karşılıklı bozulma. Tek cihazda ikisini bir arada tutmanın
 # temiz yolu yok; yalın zapret tercih edildi.
 #
-# Geri açmak için enable = true yap, ama o zaman zapret.nix'i de kapat
-# (system/net/zapret.nix'i configuration.nix'ten import'tan kaldır veya
+# Geri açmak için enable = true yap, ama o zaman censorship.nix'i de kapat
+# (system/net/censorship.nix'i configuration.nix'ten import'tan kaldır veya
 # systemd.services.zapret.wantedBy = []  yap). DNS etkileşimi notu aşağıda
 # kalıyor — geri açan kişi hatırlasın diye.
 #

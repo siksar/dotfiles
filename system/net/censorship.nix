@@ -1,0 +1,260 @@
+# Sansür aşma katmanı — İKİ kol, tek dosya:
+#   1) zapret/nfqws  : DPI'nin TCP/UDP durum makinesini bozar (trafik)
+#   2) dnscrypt-proxy: DNS'i HTTPS'e sokar (isim çözümleme)  ← dosyanın sonunda
+# İkisi AYNI sorunun iki yarısı: nfqws doğru adrese giden trafiği kurtarır,
+# DoH ise adresin kendisinin sahte olmamasını sağlar. Biri olmadan diğeri yarım.
+#
+# nfqws NFQueue daemon'u + nftables yönlendirmesi: 80/443 TCP ve 443 UDP'yi
+# (QUIC) NFQ 200'e yönlendirir, nfqws de fake desync ile DPI'yı şaşırtır.
+#
+# NEDEN nfqws (tpws DEĞİL): tpws bir transparent proxy; uygulamaların onu nasıl
+# geçeceği protokole özgü ve QUIC'i uçtan uca proxy edemez. nfqws paket
+# işlemede çalışır — kaynaktan hedefe giden trafiği yerinde bozar; QUIC dâhil her
+# L7'ye uygulanabilir. Tek daemon yeter.
+#
+# Mullvad ile ÇAKIŞMA: vpn.nix'te mullvad `enable = false` yapıldı (01 Ağu 2026).
+# NEDEN: Mullvad tun0 arayüzünü default route'a yazar; zapret'in nfqueue kuralı
+# OUTPUT hook'unda paketleri NFQ'ya çeker. İkisi aynı output paketlerini manipüle
+# etmeye kalkınca tun0'a giden paketler zapret'e düşer → karşılıklı bozulma. Tek
+# cihazda ikisini bir arada tutmanın temiz yolu yok; yalın zapret tercih edildi.
+#
+# İDLE BÜTÇESİ: nfqws paket geldikçe çalışır. Paket akışı olmadan CPU kullanımı
+# sıfır (epoll wait). 4.28W idle tabanına dokunmaz. Tek maliyet: NFQueue kuralı
+# her output paketinde nftables'dan geçer — ama kural match etmeyen paketler
+# (kurulmuş/established flow, 80/443 dışı portlar) accept ile kernel'den devam
+# eder, ek CPU yok.
+#
+# STRATEJİ — aşağıdaki nfqwsArgs ile BİREBİR aynı kalmalı:
+#   TCP 80/443 : --dpi-desync=fake --dpi-desync-ttl=3 --dpi-desync-fooling=ts
+#   UDP 443    : --dpi-desync=fake,udplen --dpi-desync-autottl
+#                --dpi-desync-repeats=6
+# Bu iki yerin sapması gerçek bir hataya yol açtı: 08 Ağu 2026 denetimine kadar
+# burada `fake,split2 --autottl --fooling=badseq --fake-tls-mod=rndsni` yazılıydı
+# (kodda öyle bir argüman YOK) ve yanlış hali MAINTAINERS'a da kopyalanmıştı.
+# Argümanları değiştirirsen bu paragrafı ve MAINTAINERS'ı aynı commit'te güncelle.
+#
+# Konfigürasyon değişimi: blok içeriği `--hostlist` ile sınırlamak (yalnız
+# engellenmiş alan adlarına uygula) yerine evrensel bırak — trafiğin %99'u
+# engellenmemiş olsa da fake paket maliyeti ihmal edilebilir ve "her alan adını
+# elle bakım" derdi yok.
+#
+# blockcheck ile bireysel alan adı kırılımı doğrulanır:
+#   sudo blockcheck example.com
+{ pkgs, ... }:
+
+let
+  inherit (pkgs) zapret;
+  # NFQueue numarası. 200 — modüllerin varsayılan boş aralığı; çakışma yok.
+  NFQ_NUM = 200;
+
+  # nfqws daemon argümanları. `--new` ile ayrı strateji blokları.
+  # filter-l3 / filter-tcp / filter-udp — her strateji için trafik filtresi.
+  #
+  # ════════════════════════════════════════════════════════════════════════
+  # BYPASS YÖNTEMLERİYLE OYNAMAK — buradan başla
+  # ════════════════════════════════════════════════════════════════════════
+  # Yöntem adlarını EZBERDEN yazma; geçerli liste sürüme bağlı ve değişiyor:
+  #   nfqws --help | less        → o an kurulu sürümün desteklediği tüm
+  #                                --dpi-desync yöntemleri ve fooling modları
+  #
+  # DOĞRU İŞ AKIŞI (rebuild etmeden dene, sonra kalıcılaştır):
+  #   1) sudo systemctl stop zapret          # kuyruğu boşalt, çakışma olmasın
+  #   2) sudo nfqws --qnum=200 --dpi-desync=<deneme> ...   # elle, ön planda
+  #      (nftables kuralı ayakta kalır; nfqws düşerse `queue flags bypass`
+  #       sayesinde trafik normal yoldan akmaya devam eder → internet kesilmez)
+  #   3) çalışan kombinasyonu nfqwsArgs'a yaz, rebuild, `systemctl status zapret`
+  #   4) STRATEJİ paragrafını (dosya başı) ve MAINTAINERS'ı güncelle
+  #
+  # Ya da doğrudan ölçtür — blockcheck WORKING/FAILED tablosu basar:
+  #   sudo blockcheck example.com
+  #
+  # ⚠ TR DPI'sı SEÇİCİ — en pahalı tuzak bu:
+  # Operatör yalnız kara listedeki alan adları için SNI yakalıyor, gerisinde
+  # gevşek davranıyor. Dolayısıyla "YouTube/Google açılıyor" bir doğrulama
+  # DEĞİLDİR. Strateji değiştirdiğinde MUTLAKA kara listedeki bir alan adıyla
+  # ölç, yoksa hiçbir şeyi bozmadığını sanarak bozarsın.
+  #
+  # ÖLÇÜM (blockcheck, pornhub.com, 01 Ağu 2026) — WORKING çıkanlar:
+  #   fake --ttl=3  |  fakedsplit --ttl=3 --split-pos=1  |  hostfakesplit --ttl=3
+  # Seçilen: `fake`. Mantığı: TLS el sıkışmasının başında SAHTE bir ClientHello
+  # gönder; kısa TTL (3) ile bu paket DPI'yı geçtikten hemen sonra ölür, sunucuya
+  # hiç varmaz. DPI sahte olanı gerçek sanıp durumunu ona göre kurar, gerçek
+  # ClientHello'yu artık "yeni bağlantı" gibi denetlemez → RST gelmez.
+  #   --dpi-desync-ttl=3  : sabit 3 hop (ev↔DSLAM↔operatör DPI'sı tipik mesafe).
+  #                         autottl yerine sabit, çünkü bu hatta ölçülen değer bu.
+  #   --dpi-desync-fooling=ts : sahte paketin TCP Timestamp option'ını bozar →
+  #                         gerçek sunucu paketi zaten atar, yalnız DPI yutar.
+  # HTTP (80) ve HTTPS (443) AYNI profili kullanır; blockcheck ikisinde de
+  # WORKING gördü, ayırmaya gerek kalmadı.
+  nfqwsArgs = [
+    "--qnum=${toString NFQ_NUM}"
+    # --- HTTP+HTTPS strategi (port 80/443) ---
+    # blockcheck WORKING: `nfqws --dpi-desync=fake --dpi-desync-ttl=3`
+    # ve `nfqws --dpi-desync=fake --dpi-desync-fooling=ts`
+    # `--dpi-desync-fooling=ts` kullanıldı (sabıt TTL ile birleşince en sağlam).
+    "--new"
+    "--filter-l3=ipv4"
+    "--filter-tcp=80,443"
+    "--dpi-desync=fake"
+    "--dpi-desync-ttl=3"
+    "--dpi-desync-fooling=ts"
+    # --- UDP strategi (443/QUIC) ---
+    # `fake,udplen`: once fake QUIC Initial, sonra paket uzunlugunu degistir.
+    # fake-quic-mod YOK (nfqws v72.13); default fake yeterli.
+    "--new"
+    "--filter-l3=ipv4"
+    "--filter-udp=443"
+    "--filter-l7=quic"
+    "--dpi-desync=fake,udplen"
+    "--dpi-desync-autottl"
+    "--dpi-desync-repeats=6"
+  ];
+
+  # nfqws args'ı tek shell string'ine celeleştir (her arg tek tırnak içinde).
+  nfqwsCmd = "${zapret}/bin/nfqws " + (pkgs.lib.concatMapStringsSep " " (a: "'${a}'") nfqwsArgs);
+in
+{
+  # nfnetlink_queue kernelde mevcut; auto-load etmez, elle yükle. nf_conntrack
+  # zaten varsayılan yüklü ama emin olalım (UDP conntrack için).
+  boot.kernelModules = [ "nfnetlink_queue" "nf_conntrack" ];
+
+  # NixOS nftables — localsend (openFirewall) ile entegre çalışır. `tables`
+  # seçeneği firewall kurallarını bozmadan yeni tablo ekler; networking.firewall
+  # kendi `inet filter` tablosunu kurar, bizim `inet zapret` ayrı.
+  networking.nftables.enable = true;
+  networking.nftables.tables.zapret = {
+    family = "inet";
+    # content = tüm tablo (chain tanımları dahil). OUTPUT hook, mangle priority —
+    # routing'den ÖNCE, paket henüz hazezlenmemiş. nfqws fake paketleri kendi raw
+    # socket'inden oluşturur; onlar bu hook'tan GEÇMEZ (socket → pmtu bypass) →
+    # sonsuz döngü yok.
+    content = ''
+      chain zapret_out {
+        type filter hook output priority mangle; policy accept;
+
+        # established/related flow ilk paket dışında NFQ'ya gönderme — DPI düzeltme
+        # yalnız bağlantının ilk paketinde anlamlı. established paketleri kernel
+        # kendisi forward etsin, nfqws'i yorma.
+        ct state { established, related } accept comment "zapret: established flow bypass"
+        ct state invalid accept comment "zapret: invalid state bypass"
+
+        # TCP 80/443 — ilk paket (new) kuyrukla. flags bypass: nfqws düşerse paket
+        # kernel normal yolundan devam etsin (servis boot'ta henüz hazırken).
+        # nft queue sözdizimi: `queue [flags F] to N` — flags önce, sonra `to N`.
+        ip protocol tcp tcp dport { 80, 443 } ct state new queue flags bypass to ${toString NFQ_NUM} comment "zapret: TCP 80/443 -> nfqws"
+
+        # UDP 443 (QUIC) — ct state new ilk paket (kernel UDP conntrack açıyorsa).
+        # nfqws kendisi de conntrack sürdürdüğü için tekrar tekrar paket düşmez.
+        ip protocol udp udp dport 443 ct state new queue flags bypass to ${toString NFQ_NUM} comment "zapret: UDP 443 (QUIC) -> nfqws"
+      }
+    '';
+  };
+
+  # nfqws daemon — arka planda, boot'ta başlar.
+  # Type=simple: --daemon fork'lamıyor, doğrudan foreground'da systemd kontrol ediyor.
+  # Bu stderr'ın journal'a düşmesini sağlar; hata anında görürüz. --daemon kaldırıldı.
+  # Sandbox: nfqws nfqueue socket için NETLINK + raw socket açar; PrivateTmp ve
+  # RestrictNamespaces kuralı nfnetlink'i kırabiliyor. Sandbox'ı minimum tutalım —
+  # paket geldikçe çalışan daemon, gerçek bir sandbox attack surface'i değil.
+  systemd.services.zapret = {
+    description = "Zapret nfqws — DPI bypass (fake/split desync)";
+    wantedBy = [ "multi-user.target" ];
+    # nftables kuralları yüklendikten SONRA başlat; nfqueue kuralı olmazsa nfqws
+    # paket almaz (kabul edilebilir ama Toast mesajı olur).
+    after  = [ "nftables.service" "network.target" ];
+    wants  = [ "nftables.service" ];
+    path = [ zapret pkgs.nftables ];
+    serviceConfig = {
+      Type = "simple";
+      ExecStart = nfqwsCmd;
+      # durdurma: --user=nobody drop ettiği için root SIGTERM atar.
+      ExecStop = "${pkgs.coreutils}/bin/kill $MAINPID";
+      Restart = "on-failure";
+      RestartSec = "3";
+      # güvenlik: nfqueue'ya erişmesi için CAP_NET_ADMIN + CAP_NET_RAW gerek.
+      # PrivateTmp=true / RuntimeDirectory zapret'i sağlar; sandbox kalan
+      # kısıtları çıkardım çünkü nfqws nfnetlink raw socket açamıyordu.
+      CapabilityBoundingSet = [ "CAP_NET_ADMIN" "CAP_NET_RAW" "CAP_SYS_NICE" ];
+      AmbientCapabilities = [ "CAP_NET_ADMIN" "CAP_NET_RAW" "CAP_SYS_NICE" ];
+      RuntimeDirectory = "zapret";
+      RuntimeDirectoryMode = "0755";
+    };
+  };
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # 2. KOL — ŞİFRELİ DNS (DoH), dnscrypt-proxy üstünden
+  # ══════════════════════════════════════════════════════════════════════════
+  # nfqws trafiği kurtarır ama DNS'i kurtarmaz: operatör düz UDP/53 sorgusuna
+  # sahte IP döndürürse (DNS hijack) bağlantı hiç doğru adrese kurulmaz, bozacak
+  # bir TLS el sıkışması bile olmaz. Mullvad kapatıldığından (vpn.nix) şifreli
+  # DNS'i verecek kimse kalmadı → bu blok onun yerine geçer.
+  #
+  # ZİNCİR:  uygulama → 127.0.0.53  (resolved stub + önbellek)
+  #                   → 127.0.0.54  (dnscrypt-proxy)
+  #                   → HTTPS/443 içinde Cloudflare + Google DoH
+  # Sorgu HTTPS gövdesinde gittiği için DPI ne soruyu ne cevabı görebilir.
+  #
+  # TARİHÇE (08 Ağu 2026): bu blok system/net/dns.nix'ten buraya taşındı. O dosya
+  # hiçbir import listesinde olmadığı için HİÇ eval edilmemişti ve üç ölümcül
+  # hata taşıyordu — buraya hiçbiri geçmedi:
+  #   (1) `services.resolved.dns` diye bir seçenek yok (şema settings.Resolve.*),
+  #   (2) fallbackDns'e "1.1.1.1:53" yazılmış (resolved port kabul etmez),
+  #   (3) minisign_key bozuktu → imza doğrulaması, dolayısıyla daemon çökerdi.
+  #
+  # `sources` / `minisign_key` BİLEREK yazılmadı. Modülün upstreamDefaults=true
+  # varsayılanı yukarı-akışın example-dnscrypt-proxy.toml'unu bizim settings'in
+  # altına birleştirir; resolver listesi, imza anahtarı ve
+  # /var/cache/dnscrypt-proxy/… önbellek yolu (servisin CacheDirectory'siyle
+  # uyumlu) oradan gelir. ELLE YAZMA: birleştirme sığ (jq add), `sources` anahtarı
+  # tanımlarsan üstakımın [sources.relays] bloğunu da silersin.
+  services.dnscrypt-proxy = {
+    enable = true;
+    settings = {
+      # resolved'in stub'ı 127.0.0.53'te; çakışmamak için .54.
+      listen_addresses = [ "127.0.0.54:53" ];
+
+      # Cloudflare birincil (privacy-first politika), Google yedek.
+      server_names = [ "cloudflare" "google" ];
+
+      # Bootstrap: DoH sunucusunun ADINI çözmek için gereken ilk sorgu. Doğrudan
+      # IP verildiği için burada tavuk-yumurta yok ve SNI de yok → DPI bu ilk
+      # temasta engelleyecek bir isim göremez.
+      bootstrap_resolvers = [ "1.1.1.1:53" "8.8.8.8:53" ];
+
+      # DNSSEC kapalı — core.nix'teki resolved ayarıyla aynı gerekçe: katılık
+      # captive portal ve bazı yanlış imzalanmış alan adlarını kırıyor.
+      require_dnssec = false;
+      require_nolog = true;
+      require_nofilter = true;
+
+      # Kendi önbelleği; resolved da önbellekliyor ama bu negative caching ve
+      # min-TTL biliyor → tekrar sorgular ağa hiç çıkmaz.
+      cache = true;
+      cache_size = 4096;
+      cache_min_ttl = 600;
+      cache_max_ttl = 86400;
+
+      # IPv6 yok bu hatta; zapret de IPv4-only filtreliyor.
+      block_ipv6 = true;
+
+      # Yalnız hatalar — journal'ı şişirmesin.
+      log_level = 0;
+    };
+  };
+
+  # resolved'in upstream'i artık dnscrypt. DNS= satırını resolved modülü
+  # networking.nameservers'tan besliyor; dnscrypt modülü buraya mkDefault ile
+  # 127.0.0.1 koyuyor (orada kimse dinlemiyor) — bu tanım onu eziyor.
+  networking.nameservers = [ "127.0.0.54" ];
+
+  # `~.` = "HER alan adı için global DNS'i kullan". BU SATIR OLMAZSA tüm kurulum
+  # boşa gider: NetworkManager DHCP'den aldığı per-link DNS'i (operatörün
+  # sunucusunu) resolved'e yazar, resolved per-link'i global'e TERCİH eder ve
+  # sorgular yine düz UDP/53 ile operatöre gider → hijack ayakta kalır.
+  # BEDELİ: captive portal (otel/havalimanı WiFi) tam olarak DNS hijack'iyle
+  # çalışır; bu satır varken portal sayfası açılmaz. Gezerken geçici kaldır.
+  services.resolved.settings.Resolve.Domains = [ "~." ];
+
+  # blockcheck — elle çağrılır, sudo blockcheck example.com.
+  environment.systemPackages = [ zapret ];
+}

@@ -25,10 +25,11 @@
     ./system/init/limine.nix
     ./system/init/locale.nix
 
-    # net/ — ağ yığını, VPN (devre dışı), DPI bypass, yerel paylaşım
+    # net/ — ağ yığını, VPN (devre dışı), sansür aşma (DPI bypass + DoH),
+    #        yerel paylaşım
     ./system/net/core.nix
     ./system/net/vpn.nix
-    ./system/net/zapret.nix
+    ./system/net/censorship.nix
     ./system/net/localsend.nix
 
     ./system/sound.nix
