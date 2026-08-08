@@ -103,22 +103,8 @@ So:
 
 ### Proving a move didn't change anything
 
-Comparing `drvPath` before/after is cheaper than building and proves the whole build
-graph:
-
-```bash
-git add -A   # MANDATORY — Nix only sees git-TRACKED files; an unstaged new path
-             # fails with "file not found"
-nix eval --raw .#nixosConfigurations.nixos.config.system.build.toplevel.drvPath
-nix eval --raw .#homeConfigurations.zixar.activationPackage.drvPath
-```
-
-Identical output = the move is provably safe. Different = diff the two `.drv` files and
-find out *why* before proceeding; check `system-path` first, since an unchanged
-`system-path` means the package set is intact and only generated files moved. Note that
-**module import order is not a no-op**: list-type options (`services.udev.extraRules`
-and friends) concatenate in evaluation order, so reordering imports legitimately changes
-the closure even when nothing semantic changed.
+Moving/renaming/reordering modules? The `drvPath` before/after procedure is the
+`verifying-a-refactor` skill (`.claude/skills/verifying-a-refactor/`).
 
 ## Architecture
 
@@ -141,14 +127,7 @@ The desktop is a single session — Hyprland 0.56 (Lua config) + Matugen dynamic
 theming (Waybar/Rofi/SwayNC/awww/Cava) — toggled by `desktop.hyprland.enable = true;`
 in `configuration.nix`. The flag is a safety valve, not an A/B switch: turning it
 off leaves the system without a working session, since ly has nothing else to
-offer. GNOME and an opt-in Sway + noctalia-shell rice both lived here until
-2026-07-30, when the user settled on Hyprland alone; GNOME's silent providers
-(bluetooth, udisks2, gvfs, the GTK portal, a polkit agent, the Adwaita icon theme,
-hyprlock/hypridle for screen lock, hyprctl-based AC/BAT refresh-rate switching) were
-absorbed into `system/desktop/session.nix` + `home/desktop/session.nix` first, then GNOME and the Sway rice
-were deleted — see git history around that date if you need the "what GNOME was
-quietly doing" audit. An older Hyprland + Caelestia/dms/noctalia + SDDM rice lives
-on the `rice/caelestia` branch, unrelated to the current setup.
+offer.
 
 The full design doc — the SUPER+T wallpaper→matugen theme chain, why `withUWSM = true`
 is mandatory (the session file exists even without it but fails with "Unit not
@@ -156,26 +135,16 @@ found"), the Lua config integration — is `Documentation/desktop.md`; read it b
 touching the rice. The rice-internal gotchas (`AQ_DRM_DEVICES` placement, `withUWSM`,
 session-target binding, matugen's source-color-index requirement) live in
 `home/desktop/CLAUDE.md`, which loads automatically when you work in
-that directory. Waybar itself ships 16 selectable themes (the original bar plus 15
-vendored `atif-1402/minimal-waybar-themes` ports, all recolored from one shared
-monochrome palette) switchable without a rebuild via `waybar-theme --pick` /
-SUPER+W — see `Documentation/desktop.md`'s "Waybar çoklu tema sistemi" section. The rofi
-launcher is a vendored `adi1090x/rofi` type-5/style-4 painted from that *same* palette
-(`home/desktop/launcher/themes.nix`), so it tracks the waybar themes rather than matugen — the trade-off
-and rofi 2.0's gradient parser trap are in the same doc's "Rofi launcher teması" section.
+that directory. Waybar's 16-theme system and the vendored rofi theme — the design, the
+shared monochrome palette, and rofi 2.0's gradient parser trap — are in
+`Documentation/desktop.md` + `home/desktop/CLAUDE.md`.
 The HM side follows the system flag automatically via `osConfig` — never add a second
 toggle. This works on both the embedded and standalone HM paths only because of the
 flake's `extraSpecialArgs.osConfig` pass-through, so changes to `flake.nix` can
 silently break it.
 
-The **display manager is ly** (`system/desktop/login.nix`), a TUI greeter on the TTY.
-ly 1.4.1 takes 32-bit `0xSSRRGGBB` truecolor, so it's themed by feeding
-`config.lib.stylix.colors` (kanagawa-dragon) directly into
-`services.displayManager.ly.settings` (Stylix has no ly target).
-`services.displayManager.defaultSession = "hyprland-uwsm"` (`configuration.nix`)
-picks the working session entry: the `hyprland` package also installs a plain
-"Hyprland" desktop file that does **not** work here (no uwsm systemd units without
-`withUWSM = true`), and ly otherwise lists both.
+The **display manager is ly** (`system/desktop/login.nix`), a TUI greeter on the TTY —
+its theming and the `defaultSession` trap are in `system/desktop/CLAUDE.md`.
 
 **Stylix is the single source of truth for colors** (`system/desktop/theme.nix` /
 `stylix-base.nix`). Custom base16 palettes live in `lib/schemes/*.yaml`;
