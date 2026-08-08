@@ -21,8 +21,8 @@
 # İDLE BÜTÇESİ: nfqws paket geldikçe çalışır. Paket akışı olmadan CPU kullanımı
 # sıfır (epoll wait). 4.28W idle tabanına dokunmaz. Tek maliyet: NFQueue kuralı
 # her output paketinde nftables'dan geçer — ama kural match etmeyen paketler
-# (kurulmuş/established flow, 80/443 dışı portlar) accept ile kernel'den devam
-# eder, ek CPU yok.
+# (akışın 6. paketinden sonrası, 80/443 dışı portlar) accept ile kernel'den
+# devam eder, ek CPU yok.
 #
 # STRATEJİ — aşağıdaki nfqwsArgs ile BİREBİR aynı kalmalı:
 #   TCP 80/443 : --dpi-desync=fake --dpi-desync-ttl=3 --dpi-desync-fooling=ts
@@ -88,11 +88,19 @@ let
   # WORKING gördü, ayırmaya gerek kalmadı.
   nfqwsArgs = [
     "--qnum=${toString NFQ_NUM}"
-    # --- HTTP+HTTPS strategi (port 80/443) ---
+    # ⚠ BURAYA `--new` KOYMA — ilk profil OTOMATİK yaratılır (üstakım readme,
+    # "Multiple strategies": "First profile is created automatically and does
+    # not require --new"). Baştaki bir `--new` fazladan bir profil daha açar ve
+    # o profil BOŞ olur; boş filtre "her paketi eşler" demektir, profiller de
+    # ilk eşleşende durur → bütün trafik hiçbir desync taşımayan 1. profile
+    # düşer, 2. ve 3. profile sıra HİÇ gelmez. 09 Ağu 2026'da bulundu; belirti
+    # sessiz: servis sağlıklı görünür, tek ipucu başlangıç kaydındaki profil
+    # sayısıdır. DOĞRULAMA: `journalctl -u zapret | grep "user defined"`
+    # → "2 user defined desync profile(s)" demeli. 3 diyorsa bu hata geri geldi.
+    # --- HTTP+HTTPS strategi (port 80/443) — 1. profil, --new'siz ---
     # blockcheck WORKING: `nfqws --dpi-desync=fake --dpi-desync-ttl=3`
     # ve `nfqws --dpi-desync=fake --dpi-desync-fooling=ts`
-    # `--dpi-desync-fooling=ts` kullanıldı (sabıt TTL ile birleşince en sağlam).
-    "--new"
+    # `--dpi-desync-fooling=ts` kullanıldı (sabit TTL ile birleşince en sağlam).
     "--filter-l3=ipv4"
     "--filter-tcp=80,443"
     "--dpi-desync=fake"
@@ -125,27 +133,40 @@ in
   networking.nftables.tables.zapret = {
     family = "inet";
     # content = tüm tablo (chain tanımları dahil). OUTPUT hook, mangle priority —
-    # routing'den ÖNCE, paket henüz hazezlenmemiş. nfqws fake paketleri kendi raw
-    # socket'inden oluşturur; onlar bu hook'tan GEÇMEZ (socket → pmtu bypass) →
-    # sonsuz döngü yok.
+    # routing'den ÖNCE, paket henüz hazırlanmamış. nfqws fake paketleri kendi raw
+    # socket'inden gönderir ve bunlar output hook'una GERİ düşer; döngüyü kesen
+    # şey aşağıdaki 0x40000000 mark kuralıdır (üstakımın yaptığı da bu).
     content = ''
       chain zapret_out {
         type filter hook output priority mangle; policy accept;
 
-        # established/related flow ilk paket dışında NFQ'ya gönderme — DPI düzeltme
-        # yalnız bağlantının ilk paketinde anlamlı. established paketleri kernel
-        # kendisi forward etsin, nfqws'i yorma.
-        ct state { established, related } accept comment "zapret: established flow bypass"
+        # ⚠ BURADA `ct state new` KULLANMA — 09 Ağu 2026'da tam bunun yüzünden
+        # TCP kolu hiç çalışmıyordu. `new` yalnız SYN'i eşler; oysa DPI'nın
+        # baktığı şey TLS ClientHello (ya da HTTP GET), o da el sıkışmadan SONRA,
+        # yani conntrack ESTABLISHED durumundayken gider. Üstelik zincirin
+        # başında bir `ct state established accept` durduğu için ClientHello
+        # nfqws'e hiç ulaşmıyor, desync uygulanacak paket eline geçmiyordu.
+        # Belirti: DNS doğru IP'yi döndürüyor ama TLS el sıkışması RST yiyor
+        # (`curl: (35) Recv failure: Connection reset by peer`).
+        # Doğrusu üstakımın kendi örneği (usr/share/docs/nftables.txt):
+        # bağlantının İLK 6 paketini kuyrukla — SYN, ACK ve ClientHello bu
+        # aralığa girer. Sayaç zaten sınırladığı için ayrı bir established
+        # kestirmesine gerek yok; idle bütçesi de korunur (uzun akışlar 6.
+        # paketten sonra kernel yolundan devam eder, nfqws'e hiç uğramaz).
+        #
+        # nfqws'in KENDİ ürettiği sahte paketler 0x40000000 mark taşır; onları
+        # geri kuyruğa almak sonsuz döngü olur (üstakımın standart koruması).
+        meta mark and 0x40000000 == 0x40000000 accept comment "zapret: nfqws desync mark bypass"
         ct state invalid accept comment "zapret: invalid state bypass"
 
-        # TCP 80/443 — ilk paket (new) kuyrukla. flags bypass: nfqws düşerse paket
+        # TCP 80/443 — akışın ilk 6 paketi. flags bypass: nfqws düşerse paket
         # kernel normal yolundan devam etsin (servis boot'ta henüz hazırken).
         # nft queue sözdizimi: `queue [flags F] to N` — flags önce, sonra `to N`.
-        ip protocol tcp tcp dport { 80, 443 } ct state new queue flags bypass to ${toString NFQ_NUM} comment "zapret: TCP 80/443 -> nfqws"
+        ip protocol tcp tcp dport { 80, 443 } ct original packets 1-6 queue flags bypass to ${toString NFQ_NUM} comment "zapret: TCP 80/443 -> nfqws"
 
-        # UDP 443 (QUIC) — ct state new ilk paket (kernel UDP conntrack açıyorsa).
-        # nfqws kendisi de conntrack sürdürdüğü için tekrar tekrar paket düşmez.
-        ip protocol udp udp dport 443 ct state new queue flags bypass to ${toString NFQ_NUM} comment "zapret: UDP 443 (QUIC) -> nfqws"
+        # UDP 443 (QUIC) — aynı gerekçe: QUIC Initial ilk pakette gelse de
+        # retry/coalesce halinde sonraki paketlere kayabiliyor.
+        ip protocol udp udp dport 443 ct original packets 1-6 queue flags bypass to ${toString NFQ_NUM} comment "zapret: UDP 443 (QUIC) -> nfqws"
       }
     '';
   };
@@ -167,7 +188,13 @@ in
     serviceConfig = {
       Type = "simple";
       ExecStart = nfqwsCmd;
-      # durdurma: --user=nobody drop ettiği için root SIGTERM atar.
+      # nfqws UID=0 olarak KALIR; yetki düşürmüyoruz (`--user` YOK). Eklemeye
+      # kalkarsan CAP_SETGID/CAP_SETUID da vermen gerekir: 02–09 Ağu 2026 arası
+      # tam bu yüzden `initgroups: Operation not permitted` ile 44.193 kez üst
+      # üste çöktü — yani zapret bir hafta boyunca fiilen ÖLÜYDÜ. Belirti sinsi:
+      # `systemctl is-active` anlık yakalarsa "active" der, çünkü RestartSec=3
+      # ile sürekli yeniden doğuyor. Sağlığı NRestarts ile bak, is-active ile değil:
+      #   systemctl show zapret -p NRestarts -p ExecMainStartTimestamp
       ExecStop = "${pkgs.coreutils}/bin/kill $MAINPID";
       Restart = "on-failure";
       RestartSec = "3";

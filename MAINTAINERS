@@ -212,6 +212,20 @@ W:	TR DPI'sı SEÇİCİ: YouTube/Google'da çalışan strateji kara listedeki bi
 	SNI'de (pornhub, xvideos) başarısız olabilir. "Google açılıyor" doğrulama
 	DEĞİLDİR — strateji değiştirirsen kara listedeki bir alan adıyla ölç.
 N:	nfnetlink_queue modülü boot.kernelModules'a elle ekli (auto-load etmez).
+W:	nfqwsArgs BAŞINA `--new` KOYMA. İlk profil otomatik yaratılır; baştaki
+	`--new` fazladan BOŞ bir profil açar, boş filtre her paketi eşler ve
+	eşleşme ilk profilde durur → hiçbir desync uygulanmaz. Servis sağlıklı
+	görünür. TEK ipucu başlangıç kaydıdır, profil sayısı strateji sayısına
+	eşit OLMALI:  journalctl -u zapret -b | grep "user defined"   → "2".
+	09 Ağu 2026'da bulundu; 01 Ağu'dan beri TCP kolu hiç çalışmamıştı.
+W:	nftables kuralında `ct state new` KULLANMA — yalnız SYN'i eşler, oysa
+	DPI'nın baktığı TLS ClientHello el sıkışmadan SONRA (ESTABLISHED) gider.
+	Üstakımın örneği: `ct original packets 1-6`. Belirti: DNS doğru IP'yi
+	döndürür ama TLS'te RST ("curl: (35) Recv failure: Connection reset").
+W:	Sağlığı `systemctl is-active` ile ÖLÇME — RestartSec=3 ile çöken servis
+	de "active" görünür. 02–09 Ağu 2026 arası nfqws `initgroups: Operation
+	not permitted` ile 44.193 kez çöktü, bir hafta fiilen ölüydü ve fark
+	edilmedi. Doğrusu: systemctl show zapret -p NRestarts.
 
 ŞİFRELİ DNS (DoH)
 S:	ÇALIŞIYOR — switch edildi ve doğrulandı (09 Ağu 2026).
