@@ -214,8 +214,12 @@ W:	TR DPI'sı SEÇİCİ: YouTube/Google'da çalışan strateji kara listedeki bi
 N:	nfnetlink_queue modülü boot.kernelModules'a elle ekli (auto-load etmez).
 
 ŞİFRELİ DNS (DoH)
-S:	Kurulu — 1. switch denemesi 127.0.0.54 çakışmasıyla düştü, adres
-	127.0.0.2'ye alındı; YENİ SWITCH + doğrulama kullanıcıda (09 Ağu 2026)
+S:	ÇALIŞIYOR — switch edildi ve doğrulandı (09 Ağu 2026).
+	test.nextdns.io: "protocol":"DOH", profil atanıyor, PoP edgeuno-ist-1,
+	DoH el sıkışması 69ms. (1. denemede 127.0.0.54 çakışmasıyla düşmüştü.)
+N:	Düz UDP dönemindeki test yanıtında "profile" alanı YOKTU, DoH'a geçince
+	geldi → sorgular o zaman profile atanmıyordu, filtreler muhtemelen
+	uygulanmıyordu. DoH yalnız şifreleme değil, profili de devreye soktu.
 W:	127.0.0.54 KULLANILAMAZ — systemd-resolved'in İKİNCİ dinleyicisi (proxy
 	stub) orada. resolved .53 ile .54'ü BİRLİKTE tutar → bind "address
 	already in use" ile FATAL, servis start-limit-hit'e girer. Üstüne
