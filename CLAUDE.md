@@ -267,17 +267,32 @@ directly below it.
 traffic; it does nothing about DNS, so a hijacked plain UDP/53 answer still sends you to
 the wrong address. `censorship.nix` therefore also runs `dnscrypt-proxy` (DoH):
 app → `127.0.0.53` (resolved stub + cache) → `127.0.0.2` (dnscrypt) → HTTPS to
-Cloudflare/Google. Two traps live in that block:
+**NextDNS**, the personal profile the router was already handing out over *plain* UDP.
+Four traps live in that block:
 
+- **`127.0.0.54` is not a free address — it is systemd-resolved's second listener**
+  (the proxy stub; resolved holds `.53` and `.54` together). Binding it dies with
+  `address already in use`, and pointing `DNS=` at it aims resolved at itself, which it
+  silently drops — the symptom is `resolvectl status` showing no `DNS Servers` under
+  Global while queries quietly fall back to per-link DHCP DNS. Don't use `5353` either
+  (mDNS).
 - **`services.resolved.settings.Resolve.Domains = [ "~." ]` is load-bearing.** Without
   it resolved prefers NetworkManager's per-link DHCP DNS — the ISP's server — and the
   whole DoH chain is bypassed. The cost is that captive portals (hotel/airport WiFi)
   work *by* DNS hijacking, so they cannot complete while it's set.
-- **Never hand-write `sources` / `minisign_key`.** The module's `upstreamDefaults = true`
-  merges upstream's TOML, which already carries the resolver list, the signing key and a
-  `/var/cache/dnscrypt-proxy/…` path matching the unit's `CacheDirectory`. The merge is
-  shallow (`jq add`), so defining `sources` yourself also deletes upstream's
-  `[sources.relays]`.
+- **The settings merge is shallow.** `upstreamDefaults = true` puts upstream's TOML
+  *under* ours via `jq add`, so any top-level key you define replaces upstream's whole
+  table of that name. That is used deliberately here: `sources = { }` switches off the
+  resolver-list download (a `raw.githubusercontent.com` fetch at boot — a prime blocking
+  target in TR — that would loop against `Restart=always`). Know which way you're using
+  it before you add a key.
+- **`require_nolog` / `require_nofilter` must stay `false`** with NextDNS: it filters and
+  logs by design, and leaving them true makes dnscrypt disqualify its only server.
+
+dnscrypt takes **no raw DoH URLs** — servers are declared as DNS stamps. The stamp here
+was generated against the spec, decoded back to verify, and the endpoint was proven with
+a live RFC 8484 query before being wired in. Changing the profile means regenerating the
+stamp; it cannot be hand-edited (length-prefixed base64url).
 
 The predecessor of this block, `system/net/dns.nix`, was deleted in the same commit: it
 had never been in any import list, so it had never been evaluated, and it carried three

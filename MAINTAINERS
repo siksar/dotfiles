@@ -234,9 +234,18 @@ N:	Eski system/net/dns.nix 08 Ağu 2026'da SİLİNDİ. Hiçbir import listesinde
 W:	`Resolve.Domains = [ "~." ]` ŞART — yoksa resolved NM'in per-link
 	(operatör) DNS'ini tercih eder ve DoH boşa gider. BEDELİ: captive portal
 	(otel/havalimanı WiFi) hijack'le çalıştığı için açılmaz; gezerken kaldır.
-W:	`sources`/`minisign_key` ELLE YAZMA — modülün upstreamDefaults=true'su
-	üstakımın TOML'unu birleştirir; sığ birleşme (jq add) yüzünden `sources`
-	tanımlarsan [sources.relays] bloğunu da silersin.
+N:	Sunucu = NextDNS kişisel profili (df5fa1), statik DNS stamp ile. Router
+	zaten NextDNS anycast'i dağıtıyordu ama DÜZ UDP ile (test.nextdns.io
+	"protocol": "UDP" dedi) — DoH profili korur ve şifreler. dnscrypt ham
+	DoH URL'si KABUL ETMEZ; stamp elle üretilir, elle DÜZENLENEMEZ.
+W:	require_nolog / require_nofilter FALSE kalmalı — NextDNS tanımı gereği
+	filtreler ve loglar; true bırakılırsa dnscrypt tek sunucusunu eler.
+W:	settings birleşmesi SIĞ (jq add): tanımladığın her üst düzey anahtar
+	üstakımın aynı adlı tablosunu bütünüyle EZER. Burada bilerek kullanıldı —
+	`sources = { }` resolver listesi indirmesini kapatıyor (boot'ta
+	raw.githubusercontent.com'dan ~2MB; TR'de engellenmeye aday host,
+	Restart=always ile döngü riski). Anahtar eklerken hangi yönde
+	kullandığını bil.
 
 VPN (DEVRE DIŞI)
 S:	Devre dışı — 01 Ağu 2026, censorship.nix'in yerine geçti

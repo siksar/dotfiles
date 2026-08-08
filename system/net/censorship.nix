@@ -191,8 +191,15 @@ in
   #
   # ZİNCİR:  uygulama → 127.0.0.53  (resolved stub + önbellek)
   #                   → 127.0.0.2   (dnscrypt-proxy)
-  #                   → HTTPS/443 içinde Cloudflare + Google DoH
+  #                   → HTTPS/443 içinde NextDNS DoH (kişisel profil df5fa1)
   # Sorgu HTTPS gövdesinde gittiği için DPI ne soruyu ne cevabı görebilir.
+  #
+  # NEDEN NextDNS (Cloudflare/Google değil): router zaten NextDNS anycast'ini
+  # (45.90.28.81 / 45.90.30.81) dağıtıyordu, yani filtre/log profili kullanımda.
+  # 09 Ağu 2026'da ölçüldü — https://test.nextdns.io `"protocol": "UDP"` dedi:
+  # profil çalışıyordu ama sorgular ŞİFRESİZ gidiyordu. DoH'u Cloudflare'e
+  # kurmak şifrelerdi ama profili kaybettirirdi; NextDNS'in kendi DoH ucuna
+  # bağlamak ikisini birden verir.
   #
   # TARİHÇE (08 Ağu 2026): bu blok system/net/dns.nix'ten buraya taşındı. O dosya
   # hiçbir import listesinde olmadığı için HİÇ eval edilmemişti ve üç ölümcül
@@ -201,12 +208,10 @@ in
   #   (2) fallbackDns'e "1.1.1.1:53" yazılmış (resolved port kabul etmez),
   #   (3) minisign_key bozuktu → imza doğrulaması, dolayısıyla daemon çökerdi.
   #
-  # `sources` / `minisign_key` BİLEREK yazılmadı. Modülün upstreamDefaults=true
-  # varsayılanı yukarı-akışın example-dnscrypt-proxy.toml'unu bizim settings'in
-  # altına birleştirir; resolver listesi, imza anahtarı ve
-  # /var/cache/dnscrypt-proxy/… önbellek yolu (servisin CacheDirectory'siyle
-  # uyumlu) oradan gelir. ELLE YAZMA: birleştirme sığ (jq add), `sources` anahtarı
-  # tanımlarsan üstakımın [sources.relays] bloğunu da silersin.
+  # BİRLEŞTİRME UYARISI: modülün upstreamDefaults=true varsayılanı üstakımın
+  # example-dnscrypt-proxy.toml'unu bizim settings'imizin ALTINA koyar, ama
+  # birleşme SIĞ (jq add) — burada tanımladığın her üst düzey anahtar üstakımın
+  # aynı adlı tablosunu bütünüyle EZER. `sources` bunun en tehlikeli örneği.
   services.dnscrypt-proxy = {
     enable = true;
     settings = {
@@ -222,8 +227,28 @@ in
       # (5353 SEÇME — mDNS orada).
       listen_addresses = [ "127.0.0.2:53" ];
 
-      # Cloudflare birincil (privacy-first politika), Google yedek.
-      server_names = [ "cloudflare" "google" ];
+      # Tek sunucu: NextDNS kişisel profili, statik DNS stamp ile.
+      # dnscrypt ham DoH URL'si KABUL ETMEZ — sunucular yalnız stamp olarak
+      # tanımlanır. Stamp elle üretildi (spesifikasyon: dnscrypt.info/stamps):
+      #   0x02 (DoH) | props=1 (yalnız DNSSEC) | addr boş | hash yok
+      #   | host "dns.nextdns.io" | path "/df5fa1"
+      # Üretim sonrası geri çözülerek doğrulandı ve uca gerçek bir RFC8484
+      # sorgusu atıldı → HTTP 200, NOERROR, 2 A kaydı (09 Ağu 2026).
+      # Profil kimliğini değiştirirsen SADECE path değişir; stamp'i yeniden
+      # üretmen gerekir, elle düzenlenemez (base64url gövdesi uzunluk-önekli).
+      # NOT: df5fa1 bir parola değil ama bu dosya git'te — ele geçiren kişi
+      # senin NextDNS profilin üzerinden sorgu yapıp log'unu kirletebilir.
+      server_names = [ "nextdns-df5fa1" ];
+      static."nextdns-df5fa1".stamp =
+        "sdns://AgEAAAAAAAAAAAAOZG5zLm5leHRkbnMuaW8HL2RmNWZhMQ";
+
+      # Üstakımın resolver listesini indirmesini BİLEREK kapatıyoruz (boş tablo
+      # üstakımınkini ezer — yukarıdaki sığ birleşme uyarısı burada işimize
+      # yarıyor). Statik stamp varken listeye ihtiyaç yok, ve indirme gerçek bir
+      # arıza kaynağı: dnscrypt boot'ta raw.githubusercontent.com'dan ~2MB
+      # public-resolvers.md çekip minisign ile doğrulamaya çalışır — TR'de tam
+      # da engellenmeye aday bir host. Restart=always ile birleşince döngü olur.
+      sources = { };
 
       # Bootstrap: DoH sunucusunun ADINI çözmek için gereken ilk sorgu. Doğrudan
       # IP verildiği için burada tavuk-yumurta yok ve SNI de yok → DPI bu ilk
@@ -233,8 +258,13 @@ in
       # DNSSEC kapalı — core.nix'teki resolved ayarıyla aynı gerekçe: katılık
       # captive portal ve bazı yanlış imzalanmış alan adlarını kırıyor.
       require_dnssec = false;
-      require_nolog = true;
-      require_nofilter = true;
+      # İkisi de FALSE olmak ZORUNDA: NextDNS tanımı gereği filtreler (reklam/
+      # izleyici engelleme, zaten istediğimiz şey) ve panelde log tutar. true
+      # bırakılırsa dnscrypt kendi sunucusunu bu ölçütlerle eleyip elinde hiç
+      # sunucu kalmadan başlar. Stamp'in props'u da (yalnız DNSSEC biti) bu
+      # gerçeği dürüstçe bildiriyor.
+      require_nolog = false;
+      require_nofilter = false;
 
       # Kendi önbelleği; resolved da önbellekliyor ama bu negative caching ve
       # min-TTL biliyor → tekrar sorgular ağa hiç çıkmaz.
