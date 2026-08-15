@@ -37,7 +37,11 @@
 
     # --- AMD GPU / CPU ---
     "amd_pstate=active"            # Strix Point/Zen 5 EPP scaling
-    "amdgpu.gfx_off=1"            # RDNA 3.5 iGPU sleep
+    # KALDIRILDI 16 Ağu 2026: "amdgpu.gfx_off=1". Böyle bir parametre YOK —
+    # kernel logu açıkça reddediyor: "amdgpu: unknown parameter 'gfx_off' ignored".
+    # `modinfo amdgpu` 95 parametre listeliyor, gfx içeren tek isim async_gfx_ring.
+    # Yani satır boot'tan beri hiçbir şey yapmıyordu. GFXOFF zaten amdgpu'da
+    # varsayılan açık; niyet karşılanıyor, parametreye gerek yok.
     "amdgpu.abmlevel=4"           # eDP panel Auto Brightness Management (max seviye)
 
     # --- Enerji Verimliliği ---
@@ -69,8 +73,17 @@
   '';
 
   # Kernel sysctl power tuning
+  #
+  # KALDIRILDI 16 Ağu 2026: "vm.laptop_mode" = 5. Kernel bunu artık UYGULAMIYOR —
+  # mm/page-writeback.c:2233 laptop_mode_handler() yazımı alıp atıyor ve boot'ta
+  # şunu basıyor: "systemd-sysctl: vm.laptop_mode is deprecated. Ignoring setting."
+  # (`sysctl -n vm.laptop_mode` yine 5 okur; değişkene yazılıyor, davranışa bağlı değil.)
+  #
+  # UYARI — vm.dirty_writeback_centisecs'i powertop EZİYOR: powertop --auto-tune
+  # bu düğüme 1500 yazar ve systemd-sysctl'den SONRA koşar (ölçüldü: sysctl 20:58:22,
+  # powertop 20:58:25). O yüzden istenen 6000 aşağıdaki power-tunables-restore
+  # servisiyle geri yazılıyor. Buradaki değeri değiştirirsen ORAYI da değiştir.
   boot.kernel.sysctl = {
-    "vm.laptop_mode"              = 5;    # Disk yazma gecikmesi → daha az wakeup
     "vm.dirty_writeback_centisecs" = 6000; # 60s writeback → disk uykuda kalır
     "vm.dirty_expire_centisecs"   = 6000;
     "kernel.nmi_watchdog"         = 0;    # runtime'da da watchdog kapalı
@@ -82,18 +95,66 @@
   # Girdi cihazları autosuspend'den muaf: powertop yukarıdaki auto-tune'da HER
   # USB cihazını "auto"ya çeker — dahili klavyenin asıl HID arayüzü
   # (GIGABYTE 0414:8104) bunun kurbanı olup gerçek `runtime_status=suspended`a
-  # düşüyor (uyanma gecikmesi = tuş girişinde gecikme). Fare (Glorious Model I,
-  # 22d4:1503) ve klavyenin ikinci arayüzü (BY Tech, 258a:0049) kernelin
-  # USB_QUIRK_NO_AUTOSUSPEND listesinde olduğu için zaten "on" geliyor, ama bu
-  # örtük davranışa güvenmek yerine üçünü de açıkça sabitliyoruz — birkaç mW
-  # için girdi gecikmesine değmez. `nixos-rebuild switch` sonrası zaten takılı
-  # cihazlara uygulanması için replug/reboot gerekir (yalnız yeni "add" olayında
-  # tetiklenir).
+  # düşüyor (uyanma gecikmesi = tuş girişinde gecikme).
+  #
+  # DÜZELTME 16 Ağu 2026 — eski yorum iki şeyi yanlış anlatıyordu:
+  #
+  # 1) "Fare ve klavyenin ikinci arayüzü kernelin USB_QUIRK_NO_AUTOSUSPEND
+  #    listesinde" İDDİASI YANLIŞ. Böyle bir liste yok: v7.1'in
+  #    drivers/usb/core/quirks.c'sinde ne o sabit ne de 258a/22d4/0414 geçiyor.
+  #    O iki cihaz "on" görünüyor çünkü powertop BİTTİKTEN SONRA yeniden
+  #    enumere oldular (fare 20:58:38, klavye-2 20:58:39 — powertop 20:58:25'te
+  #    bitmişti) ve udev kuralı tazeden işledi. Yani kazara kurtuluyorlar.
+  #
+  # 2) "replug/reboot gerekir" ÇÖZÜM DEĞİL. Dahili klavye tek sefer (20:58:17)
+  #    enumere oluyor ve bir daha olmuyor; powertop her boot'ta ondan SONRA
+  #    koştuğu için reboot asla yardım etmez. Ölçüm: klavye uptime'ın %96,2'sini
+  #    askıda geçirmiş (runtime_suspended_time 14.029.429 / uptime 14.586.850 ms).
+  #
+  # Bu yüzden udev kuralı TEK BAŞINA yetmiyor; aşağıdaki
+  # power-tunables-restore.service powertop'tan sonra aynı değerleri geri yazıyor.
+  # Kural yine de kalıyor — hotplug (yeniden enumerasyon) yolunu o kapatıyor.
+  # Birkaç mW için girdi gecikmesine değmez.
   services.udev.extraRules = ''
     ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="0414", ATTR{idProduct}=="8104", ATTR{power/control}="on"
     ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="258a", ATTR{idProduct}=="0049", ATTR{power/control}="on"
     ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="22d4", ATTR{idProduct}=="1503", ATTR{power/control}="on"
   '';
+
+  # powertop --auto-tune'un ezdiği İKİ ayarı geri yazar. powertop'un kendisi
+  # kalıyor (ASPM, SATA, ses, i2c vb. onlarca ayarı hâlâ değerli) — yalnız
+  # bilinçli olarak istediğimiz bu ikisini ondan sonra geri alıyoruz.
+  # Sıralama tek kritik nokta: After=powertop.service.
+  #
+  # Ölçülen ezme davranışı (16 Ağu 2026):
+  #   vm.dirty_writeback_centisecs : 6000 -> 1500
+  #   USB power/control            : on   -> auto  (yalnız yeniden enumere
+  #                                 olmayan dahili klavyeye kalıcı zarar)
+  systemd.services.power-tunables-restore = {
+    description = "powertop --auto-tune'un ezdiği ayarları geri yaz";
+    wantedBy = [ "multi-user.target" ];
+    after    = [ "powertop.service" ];
+    wants    = [ "powertop.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = pkgs.writeShellScript "power-tunables-restore" ''
+        # 1) writeback gecikmesi — boot.kernel.sysctl'deki değerle EŞ tutulmalı
+        echo 6000 > /proc/sys/vm/dirty_writeback_centisecs
+
+        # 2) girdi cihazları: autosuspend kapalı (udev kuralıyla aynı üç cihaz)
+        for D in /sys/bus/usb/devices/*/; do
+          V=$(cat "$D/idVendor" 2>/dev/null) || continue
+          P=$(cat "$D/idProduct" 2>/dev/null) || continue
+          case "$V:$P" in
+            0414:8104|258a:0049|22d4:1503)
+              echo on > "$D/power/control" 2>/dev/null || true
+              ;;
+          esac
+        done
+      '';
+    };
+  };
 
   # --- Suspend / Hibernate ---
   # Disk swap 33,5G > 30,5G RAM → hibernate image'ı rahat sığar (zram ayrı,

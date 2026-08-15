@@ -904,3 +904,45 @@ sessizce yutmak yerine gürültüyle haber vermek. Tasarım işe yaradı.
 **Rollback:** `rev`/`hash`'i `8bd8bef8b20f3790b57a8df9b6d36df5b094ec32` +
 `sha256-WtQPFbYsrx5I10N3q4UyNiMfqIgVZBYvl/nqx32/Cb8=` yapıp yukarıdaki iki
 `substituteInPlace` bloğunu geri koymak yeterli (git geçmişinde: commit 9ba2794 öncesi).
+
+## Ortam ışığı sensörü (ALS) — AÇIK İŞ, 16 Ağu 2026
+
+**Donanım VAR.** Gigabyte bu modelde "AI Eyecare" diye pazarlıyor: ortam ışığını
+ölçüp parlaklığı ayarlıyor, kullanıcıya "sensör bölgesini kapatma" uyarısı yapılıyor.
+Kullanıcı Windows'ta kullanmış. Linux'ta **hiçbir kanaldan dışarı çıkmıyor.**
+
+### Ölçülen dört kanal
+
+| Kanal | Bulgu |
+|---|---|
+| `aorus_laptop/light_sensor` | Düğüm var, salt-okunur, WMI `0xF7` (eski metod). **Işıkta da kapalıyken de sabit `0`** — kullanıcı fenerle test etti. Bu kanal ÖLÜ. Probe `0xFC` (yeni metod) da 0 döndürdüğü için eskiye düşüyor (`aorus_laptop: Using old light sensor method`) |
+| AMD SFH | PCI cihazı **var**: `65:00.7 [1022:164a]`, `pcie_mp2_amd` bağlı, `amd_sfh` yüklü (`amd_pmf` kullanıyor). Ama **hiç sensör enumere etmemiş** — IIO cihazı yok. `amd-pmf AMDI0107:00: No Smart PC policy present` |
+| EC paylaşım penceresi | DSDT'de **`LUXM/LUXL/LUXH` alanları VAR**: `OperationRegion (PECM, SystemMemory, 0xFC7E0800, 0x1000)` içinde `Offset(0x13)`+RPM1(16)+RPM2(16)+BHEA(8) → **`LUXM=0x18, LUXL=0x19, LUXH=0x1A`**, sonraki `Offset(0x1B)` aritmetiği doğruluyor. Mutlak adres **`0xFC7E0818/19/1A`**. Hiçbir ACPI metodu bu alanları OKUMUYOR (yalnız tanımlılar) |
+| ACPI ALS / IIO | `ACPI0008` yok, `/sys/bus/iio/devices/` boş, DSDT'de `_ALI`/`_ALR`/`ambient`/`illuminance` sıfır eşleşme |
+
+Not: klasik EC arayüzü (`OperationRegion (ERAM, EmbeddedControl, Zero, 0xFF)`) yalnız
+`0x5F`/`0x60` tanımlıyor — LUX orada değil, yani `ec_sys` ile okuma garanti değil.
+
+### Bekleyen deney: `scripts/als-probe.py` — YAZILDI, ÇALIŞTIRILMADI
+
+`/dev/mem` üzerinden `0xFC7E0818`'i okur. `CONFIG_STRICT_DEVMEM=y` RAM'i korur ama
+MMIO'ya izin verir; `CONFIG_IO_STRICT_DEVMEM=y` ise bir sürücü talep etmişse kilitler
+— erişilip erişilemeyeceği denenmeden bilinmiyor.
+
+**Script kendini doğrular:** aynı pencereden `RPM1/RPM2`'yi de okuyup `hwmon`'daki
+gerçek `fanN_input` ile karşılaştırır. Tutmazsa "eşleme yanlış, LUX'a güvenme" der —
+yanlış adresten çöp okuyup "sensör bulundu" yanılgısına düşmemek için.
+
+Çalıştırma: `sudo python3 scripts/als-probe.py` — bir kez normal ışıkta, bir kez
+sensöre fener tutarak.
+
+| Sonuç | Yorum | Sonraki adım |
+|---|---|---|
+| RPM tutuyor + LUX fenerle değişiyor | kanal canlı | okuyucu + histerezisli parlaklık eşlemesi (udev+oneshot deseni değil; bu gerçek bir örnekleyici ister → idle bütçesi tasarımın merkezinde olmalı) |
+| RPM tutuyor, LUX hep 0 | adres doğru, EC yazmıyor | `amd_sfh` neden sensör bulmuyor — muhtemelen sürücü bu modeli tanımıyor, upstream işi |
+| `/dev/mem` reddedildi | `IO_STRICT_DEVMEM` kilitledi | küçük bir `ioremap` çekirdek modülü (`aorus-laptop` deseninin aynısı) |
+
+**Hipotez:** Windows'taki "AI Eyecare" muhtemelen AMD PMF'in Smart PC politikası
+üzerinden çalışıyor; o politika OEM'den gelen bir ikili ve Linux'ta yok. Doğruysa
+sensör SFH'de duruyor ve onu kimse sorgulamıyor — o zaman doğru çözüm EC'yi
+kurcalamak değil, `amd_sfh` tarafını kazmak.

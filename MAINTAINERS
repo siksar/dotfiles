@@ -77,6 +77,20 @@ F:	scripts/power-audit.sh                  ← ham döküm üretici
 W:	system/ veya home/apps/games.nix altına eklenen HİÇBİR ŞEY boşta
 	koşmamalı/yoklamamalı. Yeni AC/BAT davranışı = udev(ACAD) + oneshot
 	servis; timer/polling DEĞİL.
+W:	powertop --auto-tune SENİN AYARLARINI EZER (16 Ağu 2026 ölçümü).
+	systemd-sysctl 20:58:22'de yazar, powertop 20:58:25'te üzerine yazar.
+	Ezdiği bilinenler: vm.dirty_writeback_centisecs (6000→1500) ve HER USB
+	cihazının power/control (on→auto). power-tunables-restore.service
+	(power.nix, After=powertop.service) ikisini geri alır — yeni bir
+	sysctl/USB ayarı eklerken powertop'un onu da ezip ezmediğini KONTROL ET,
+	eziyorsa oraya ekle. udev kuralı tek başına yetmez: yalnız yeniden
+	enumere olan cihazı kurtarır, dahili klavye hiç yeniden enumere olmaz.
+W:	Ayarın uygulandığını sysfs'ten OKUYARAK doğrula, dosyada yazıyor diye
+	uygulandığını varsayma. 16 Ağu'da iki ayarın hiç çalışmadığı bulundu:
+	"amdgpu.gfx_off=1" diye bir parametre YOK (kernel: "unknown parameter
+	'gfx_off' ignored"; modinfo amdgpu ile doğrula) ve vm.laptop_mode kernel
+	tarafından deprecate edilip yok sayılıyor (mm/page-writeback.c). İkisi de
+	kaldırıldı.
 N:	PPD (power-profiles-daemon), TLP değil — TLP'nin eşzamanlı
 	governor+EPP+platform_profile yazımı amd-pstate=active ile kavga
 	ediyordu. AC→balanced / BAT→power-saver geçişini power-display yapar

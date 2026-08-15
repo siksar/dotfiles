@@ -94,9 +94,18 @@ in
                      # görevler içinde en yüksek öncelikli. Gerçek RT (SCHED_FIFO) DEĞİL:
                      # o, scx_lavd'ı bypass eder + busy-loop donma riski taşır (bilinçli).
         ioprio = 0;  # IO best-effort en yüksek öncelik
-        # hypridle org.freedesktop.ScreenSaver arayüzünü sağlar → oyun
-        # sırasında ekran kararması/kilidi bastırılır (yalnız oyun
-        # oturumunda, idle maliyeti yok; bkz. home/desktop/session.nix hypridle)
+        # DİKKAT (16 Ağu 2026): bu ayarın KONUŞACAĞI SERVİS YOK — ölçüldü.
+        # Eski yorum "hypridle org.freedesktop.ScreenSaver arayüzünü sağlar"
+        # diyordu; hypridle 9 Ağu'daki Caelestia geçişinde düştü, artık ne
+        # çalışıyor ne de home/*.nix'te tanımlı. D-Bus'ta hiçbir
+        # org.freedesktop.ScreenSaver sağlayıcısı yok, yani gamemode'un
+        # inhibit çağrısı boşa gidiyor. Idle'ı artık Caelestia yönetiyor
+        # (home/desktop/caelestia: general.idle → 300s lock, sonra dpms off).
+        # Ayar ZARARSIZ (sağlayıcı yoksa no-op) ve sağlayıcı geri gelirse
+        # kendiliğinden işler, o yüzden bırakıldı. Ama oyun sırasında ekranın
+        # kilitlenmesine karşı GÜVENCE DEĞİL: tam ekran oyun korunuyorsa bunun
+        # sayesinde değil, Wayland idle-inhibit protokolü sayesindedir.
+        # TEST EDİLMEDİ: kontrolcüyle 5+ dk klavye/fare girdisi olmadan oyna.
         inhibit_screensaver = 1;
       };
       custom = {
