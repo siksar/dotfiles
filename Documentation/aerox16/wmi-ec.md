@@ -856,3 +856,51 @@ Rollback: `rev`/`hash`'i `912b4e9` +
 `sha256-AoPKhoPk0/lJ+f+YJZPFpJEZjeY/2CY8WnZ0VmfrJ8A=` yapıp `postPatch`'i eski
 `patches = [ ./aorus-laptop-silent-0x57.patch ];` satırına döndürmek yeterli
 (dosya git geçmişinde duruyor).
+
+## Sürücü master'a yükseltme (2026-08-16) — YEREL YAMALAR SİLİNDİ
+
+**Her iki yamamız da upstream'e girdi.** Pin `8bd8bef` (0.2.0 tag, 5 Tem) →
+`8abb6655` (master, 8 Ağu). Tag yok: 0.2.0 düzeltmelerden önce, sonraki tag
+henüz kesilmemiş.
+
+### Diff'in tamamı (0.2.0 → master), üç değişiklik
+
+| Commit | Ne | Bizim karşılığımız |
+|---|---|---|
+| `fdfa76a0` | `convert_fan_rpm` swap'ı DMI dalına `"GIGABYTE AERO"` eklenerek atlanıyor | Faz F §1 — raporumuzun önerdiği biçimin **birebir aynısı** |
+| `c0b0bd14` | Probe, DMI ailesi eşleşince 0xFA yoklamasını hiç yapmadan `FAN_SILENT_MODE` (0x57) seçiyor (`goto obtain_fan_mode`) | Faz F §2 — **farklı yol, aynı sonuç** (biz `get_devstate` çağrısını değiştirmiştik, upstream kısa devre yapıyor) |
+| — | `pr_*` string'lerine `\n` eklenmesi | kozmetik |
+
+Başka fonksiyonel değişiklik yok — diff `diff -u` ile satır satır okundu, "muhtemelen
+bir şey bozulmamıştır" varsayımı yapılmadı.
+
+### Neden bu makinede tutuyor
+Upstream'in iki düzeltmesi de `dmi_get_system_info(DMI_PRODUCT_FAMILY)` üzerinde
+**tam string eşleşmesine** bağlı. Ölçüldü:
+
+```
+product_family: [GIGABYTE AERO]        ← iki dal da eşleşiyor
+product_name:   [GIGABYTE AERO X16 1VH]
+```
+
+### Doğrulama (2026-08-16)
+| Kontrol | Sonuç |
+|---|---|
+| `nixos-rebuild build` | ✅ 7 türev; `aorus-laptop-0.2.0-unstable-2026-08-08` derlendi |
+| Derlenen `.ko` doğru kodu içeriyor mu | ✅ `strings` → `"Skipping silent fan mode ID check…"` **var**; yüklü eski modülde **yok** |
+| `srcversion` | `4B2AB85A3316A028911ED17` (önceki `922D3D6F…`) |
+
+**BEKLEYEN:** switch + modül yeniden yükleme (`modprobe -r aorus_laptop &&
+modprobe aorus_laptop`) ya da reboot; sonrasında `fan1_input` makul RPM mi
+(swap sürseydi ~40000 civarı imkânsız değer yazardı) ve dmesg'de yeni
+`Skipping silent fan mode ID check` satırı var mı.
+
+### `postPatch` neden tamamen silindi
+İki `substituteInPlace --replace-fail` hedefi de master'da artık yok — bırakılsaydı
+build **açık hatayla düşerdi**. Bu, 2026-07-29'da `patches` yerine
+`--replace-fail` seçilmesinin tam olarak amaçlanan davranışı: upstream refactor'ü
+sessizce yutmak yerine gürültüyle haber vermek. Tasarım işe yaradı.
+
+**Rollback:** `rev`/`hash`'i `8bd8bef8b20f3790b57a8df9b6d36df5b094ec32` +
+`sha256-WtQPFbYsrx5I10N3q4UyNiMfqIgVZBYvl/nqx32/Cb8=` yapıp yukarıdaki iki
+`substituteInPlace` bloğunu geri koymak yeterli (git geçmişinde: commit 9ba2794 öncesi).

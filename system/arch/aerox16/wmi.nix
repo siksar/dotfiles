@@ -14,50 +14,27 @@ let
   # PWM kanalı olarak), fan_mode, charge_mode/charge_limit.
   # 0.2.0 notu: probe artık eğrinin 15 noktasını okuyor; WMBC 0x68'in içindeki
   # Sleep(100ms) yüzünden modül yüklenmesi ~1.5 sn uzuyor (idle bütçesine etkisiz).
+  #
+  # 16 Ağu 2026 — YEREL YAMALAR KALDIRILDI, ikisi de upstream'e girdi:
+  #   fdfa76a0 "Exempt byte-swapping for newer Aero models"  → hwmon RPM swap'ı
+  #            DMI dalına "GIGABYTE AERO" ekleyerek atlıyor (bizim raporumuzun
+  #            önerdiği biçimin BİREBİR aynısı, wmi-ec.md "Faz F" §1).
+  #   c0b0bd14 "Skip silent fan mode ID check for new models" → probe artık
+  #            DMI ailesi eşleşince 0xFA yoklamasını hiç yapmadan doğrudan
+  #            FAN_SILENT_MODE (0x57) seçiyor (wmi-ec.md "Faz F" §2).
+  # Bizim çözümümüzden farklı yol, aynı sonuç: bu makinede product_family tam
+  # olarak "GIGABYTE AERO" (ölçüldü) → iki dal da eşleşiyor.
+  # Tag YOK: master'a pinliyoruz, çünkü 0.2.0 (5 Tem) bu düzeltmelerden ÖNCE.
   aorus-laptop = pkgs.stdenv.mkDerivation {
     pname = "aorus-laptop";
-    version = "0.2.0";
+    version = "0.2.0-unstable-2026-08-08";
 
     src = pkgs.fetchFromGitHub {
       owner = "tangalbert919";
       repo  = "gigabyte-laptop-wmi";
-      rev   = "8bd8bef8b20f3790b57a8df9b6d36df5b094ec32";   # 0.2.0 tag (2026-07-05)
-      hash  = "sha256-WtQPFbYsrx5I10N3q4UyNiMfqIgVZBYvl/nqx32/Cb8=";
+      rev   = "8abb6655109726bca1d4fd869909d2cb0252e380";   # master (2026-08-08)
+      hash  = "sha256-172QRXUnIDcEbdOVVEKs1YV1p3gepoikex1SR493SzE=";
     };
-
-    # İki local düzeltme. İkisi de upstream 0.2.0'da HÂLÂ açık (issue #22'ye
-    # 2026-07-11'de raporlandı, tag ondan 6 gün eski) — bkz.
-    # Documentation/upstream/gigabyte-wmi-report.md.
-    #
-    # Neden `patches` değil de substituteInPlace: eski
-    # ./aorus-laptop-silent-0x57.patch'in bağlam satırı 0.2.0'da değişti
-    # (probe'un `u8 result, result2;` → `u8 result;`). `patch` böyle durumda
-    # varsayılan fuzz=2 ile SESSİZCE yapışabiliyor; --replace-fail ise hedef
-    # metin kaybolduğu an build'i açık bir hatayla düşürür.
-    postPatch = ''
-      # 1) Sessiz mod (fan_mode 1) misdetect'i. Probe 0xFA'yı yokluyor ve
-      #    "yeni cihazlar negatif döner" varsayıyor; bu şasi 0 döndürdüğü için
-      #    "eski model" sanılıp fan_modes[1]=0xFA (WMBD'de BOŞ case) oluyor →
-      #    sessiz mod no-op. Doğrudan yeni selector 0x57'yi feature-detect et.
-      #    Ölçüm: Documentation/aerox16/wmi-ec.md "Faz F" §2 (0xFA->0, 0x57->1).
-      substituteInPlace aorus-laptop.c \
-        --replace-fail \
-          'gigabyte_laptop_get_devstate(FAN_SILENT_OLD, &output)' \
-          'gigabyte_laptop_get_devstate(FAN_SILENT_MODE, &output)' \
-        --replace-fail \
-          'if (output < 0) { // -1 on newer devices' \
-          'if (ret == 0) { // 0x57 okunuyorsa yeni model'
-
-      # 2) hwmon RPM ters-swap'ı. EC değeri ZATEN doğru sırada veriyor (ham
-      #    WMBC 0xE4 -> 2970); sürücünün convert_fan_rpm'i (rol16 8) bozuyor →
-      #    fan1_input 39435. Swap yalnız "GIGABYTE GAMING" ailesinde atlanıyor,
-      #    bizimki "GIGABYTE AERO" → yanlışlıkla swap yiyor. Fonksiyonun tek
-      #    çağrı yeri olduğu için no-op'a çeviriyoruz; bu derleme zaten yalnız
-      #    bu makine için. (Upstream'e gidecek biçim DMI dalına "GIGABYTE AERO"
-      #    eklemek — Documentation/aerox16/wmi-ec.md "Faz F" §1.)
-      substituteInPlace aorus-laptop.c \
-        --replace-fail 'return rol16(fan_rpm, 8);' 'return fan_rpm;'
-    '';
 
     nativeBuildInputs = kernel.moduleBuildDependencies;
     hardeningDisable  = [ "pic" ];

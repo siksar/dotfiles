@@ -1,6 +1,14 @@
 # Draft comment for tangalbert919/gigabyte-laptop-wmi — issue #22 ("Support for Aero 16X")
 
-> Durum: kullanıcı gönderecek. İçerik pinlenen sürücü sürümü `912b4e9`'a ve canlı
+> **Durum (16 Ağu 2026): KABUL EDİLDİ — §1 ve §2 upstream'e girdi.**
+> `fdfa76a0` (RPM ters-swap → DMI dalına `GIGABYTE AERO`) ve `c0b0bd14`
+> (sessiz mod misdetect → DMI ile kısa devre), ikisi de 5 Ağu 2026. İlgili
+> issue #41 8 Ağu'da kapandı. Repodaki yerel yamalar aynı gün silindi
+> (`system/arch/aerox16/wmi.nix`, pin artık master `8abb6655`).
+> §3 (custom-fan ölü — EC firmware'i, sürücü değil) ve §4 (`gpu_boost=3` dGPU
+> eject) HÂLÂ AÇIK; issue #22 açık duruyor.
+>
+> İçerik pinlenen sürücü sürümü `912b4e9`'a ve canlı
 > salt-okuma testine (`Documentation/aerox16/test-plan.md` Part 1) göre doğrulandı.
 > Ham kanıt: `Documentation/aerox16/wmi-ec.md`. Aşağıdaki gövde (---'den sonra) İngilizce,
 > olduğu gibi yorum olarak yapıştırılabilir.
