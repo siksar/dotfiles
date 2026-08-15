@@ -62,6 +62,19 @@ is only what neither `--help` nor README will tell you.
   comment columns this config relies on for readability.
 - **`nix store diff-closures /nix/var/nix/profiles/system-{N,N+1}-link`** after a switch
   catches closure growth before it shows up as idle power.
+- **`bash scripts/verify-context.sh` is the executable gate** — both evals (system + HM),
+  statix, deadnix-against-baseline, plus a dated ground-truth block (nixpkgs rev, hyprland
+  version, kernel, both drvPaths). ~13 s. A `Stop` hook in `.claude/settings.local.json`
+  runs it automatically whenever the turn leaves an uncommitted `.nix` change, and blocks
+  on failure; on a clean tree it costs 6 ms. The `PostToolUse` parse hook beside it is a
+  *different* gate and cannot replace this one — see the rule below.
+- **A finding derived from grep/regex/reading is not a finding until something was run.**
+  On 15 Aug 2026 a textual audit of this tree produced 31 confident hits — orphan modules,
+  dead `./` refs, stale doc paths, a missing systemd unit — and **every one was false**
+  (the regex matched `./../lib/x` inside `../../lib/x`; prose shorthand like `power.nix`
+  read as a dead path; `geo-weather-sync` was already documented as removed in a `W:`
+  line). Live eval settled all 31. So: verify by execution, then report. This is also why
+  no doc-linter lives in `scripts/` — it would manufacture exactly that noise.
 
 ## Finding things
 
@@ -129,7 +142,7 @@ HM config that only one of the two entry points can see.
 
 ### Desktop: Hyprland + ly (display manager), themed by Caelestia + Stylix
 
-The desktop is a single session — Hyprland 0.56 (Lua config) + **Caelestia**, a
+The desktop is a single session — Hyprland (Lua config) + **Caelestia**, a
 Quickshell-based shell providing bar/launcher/notifications/lock/idle + its own
 runtime Material You theme engine — toggled by `desktop.hyprland.enable = true;`
 in `configuration.nix`. The flag is a safety valve, not an A/B switch: turning it
@@ -350,6 +363,10 @@ had never been in any import list, so it had never been evaluated, and it carrie
 fatal errors (a `services.resolved.dns` option that does not exist, `":53"` ports in
 `fallbackDns`, and a corrupted `minisign_key`). **A Nix file that nothing imports is not
 "pending", it is untested** — check `configuration.nix`/`home.nix` before trusting one.
+The mechanical version of that check is `scripts/verify-context.sh`, and this file is the
+reason it exists: `nix-instantiate --parse` accepts `services.resolved.dns = [ … ];`
+without a word, because the bug is semantic, not syntactic. Only eval sees it — which is
+also why the parse hook and the Stop hook are two gates, not one gate twice.
 
 ### Docs directory
 
