@@ -93,14 +93,21 @@ N:	Donanım s2idle-only — deep/S3 YOK. Hibernate bu makinede hiç
 ═══════════════════════════════════════════════════════════════════════════
 CPU — hibrit Zen5/Zen5c çekirdek politikası
 ═══════════════════════════════════════════════════════════════════════════
-S:	Maintained — 10 Ağu 2026, SWITCH + ölçüm doğrulaması kullanıcıda
+S:	Maintained — 16 Ağu 2026, debugfs ölçümüyle teşhis DÜZELTİLDİ
 F:	system/kernel/cores.nix
 T:	Documentation/aerox16/cpu-hybrid.md
-N:	Zamanlayıcı bu CPU'nun hibrit olduğunu BİLMİYOR: amd_pstate/prefcore
-	disabled, sched_itmt_enabled hiç oluşmamış, amd_hfi sürücü cihaza
-	bağlanmamış (ama firmware prefcore_ranking'i GERÇEK veriyor). Masaüstü
-	VARSAYILAN Zen5c'ye (systemd manager CPUAffinity) elle kilitlendi —
-	5GHz o çekirdeklerde yapısal olarak imkânsız.
+N:	Zamanlayıcı bu CPU'nun hibrit olduğunu BİLİYOR ve hızlıyı tercih ediyor:
+	amd_hfi AMDI0104:00'e bağlı, ITMT açık (sched_itmt_enabled = Y),
+	sched_core_priority dolu (Zen5 196/203, Zen5c 135). Masaüstü VARSAYILAN
+	Zen5c'ye (systemd manager CPUAffinity) kilitlendi — bu, kör bir kernel'e
+	protez değil, çalışan ITMT'yi güç bütçesi adına bilinçli EZMEK.
+W:	ITMT arayüzü /proc/sys altında DEĞİL, debugfs'te ve root ister:
+	/sys/kernel/debug/x86/{sched_itmt_enabled,sched_core_priority}
+	ve .../x86/amd_hfi/class_capabilities. 10 Ağu'daki "zamanlayıcı kör"
+	teşhisi kaldırılmış /proc/sys yoluna + yanlış platform düğümüne (stub
+	'amd_hfi'; gerçek cihaz AMDI0104:00) bakmaktan doğdu. Bir sysfs yolunun
+	YOKLUĞU özelliğin kapalı olduğunun kanıtı değildir — sürümün kaynağından
+	doğrula. prefcore=disabled de eksiklik değil, HFI'li tasarımlarda kasıtlı.
 W:	Maske YUMUŞAK (sched_setaffinity, cgroup AllowedCPUs DEĞİL) — taskset
 	ile her zaman delinebilir. gamerun VARSAYILAN olarak deler (taskset -c
 	0-15, lib/gamerun.nix); fish `aia` alias'ı (home/shell/fish.nix)
