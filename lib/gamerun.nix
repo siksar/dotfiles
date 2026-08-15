@@ -51,7 +51,9 @@ pkgs.writeShellScriptBin "gamerun" ''
   #                   FG/MFG ile BİRLEŞMEZ; Reflex/Waitable-Swapchain'siz oyunda no-op.
   #   GR_WL=1       → Proton Wayland (deneysel; Steam Overlay/Input bozulur)
   #   GR_PIN=big    → yalnız Zen5 "big" çekirdekler (HOI4 gibi tek-çekirdek oyunlar)
-  #   GR_PIN=fast   → yalnız en hızlı 2 çekirdek (prefcore 208: cpu4/6 + SMT)
+  #   GR_PIN=fast   → yalnız en hızlı 2 çekirdek: cpu4/6 + SMT 12/14. İki bağımsız
+  #                   firmware sıralaması da bu dörtlüyü işaret ediyor (CPPC
+  #                   prefcore_ranking 208, ITMT sched_core_priority 203).
   #   GR_PIN=0,2,4  → özel CPU listesi (taskset -c biçimi)
   #   GR_WIN=WxH    → windowed aç, verilen boyutta (varsayılan: TAM EKRAN, argümansız)
   #   GR_CPUMAX=1   → CPU-ağır oyunda tam güç (PPD performance). Varsayılan balanced:
@@ -206,11 +208,14 @@ pkgs.writeShellScriptBin "gamerun" ''
   # ve bu, fork/exec zinciriyle Steam üzerinden buraya da miras kalır. Oyun bu
   # mirası burada deler: GR_PIN verilmezse taskset -c 0-15 (tüm 16 CPU açılır).
   # big = 4× Zen5 5.09GHz (cpu 0,2,4,6 + SMT 8,10,12,14); Zen5c 3.5GHz dışarıda.
-  # GR_PIN=big/fast HÂLÂ anlamlı: prefcore=disabled olduğundan
-  # (Documentation/aerox16/cpu-hybrid.md) zamanlayıcı Zen5/Zen5c ayrımını
-  # bilmiyor — 0-15 havuzunda bile tek-çekirdek sim oyunlarının (HOI4/
-  # Stellaris/Factorio) ana thread'i şansa göre Zen5c'ye düşebilir (%31 frekans
-  # farkı). Belirsizsen GR_PIN=big ver.
+  # GR_PIN=big/fast İDDİASI ZAYIFLADI (16 Ağu 2026 düzeltmesi): zamanlayıcı
+  # Zen5/Zen5c ayrımını BİLİYOR — ITMT açık, Zen5 önceliği 203'e karşı Zen5c 135
+  # (Documentation/aerox16/cpu-hybrid.md). Yani 0-15 havuzunda tek-thread'lik iş
+  # "şansa göre" değil, TERCİHEN Zen5'e gider; eski gerekçe (prefcore=disabled →
+  # zamanlayıcı kör) yanlıştı. GR_PIN=big/fast yine de GARANTİ sunar: ITMT bir
+  # tercihtir, yük altında zamanlayıcı yine de Zen5c'ye taşıyabilir. Tek-çekirdeğe
+  # bağımlı sim oyunlarında (HOI4/Stellaris/Factorio) kullan, ama "olmazsa olmaz"
+  # değil — önce GR_PIN'siz dene.
   if [ -n "''${GR_PIN:-}" ]; then
     case "$GR_PIN" in
       big)  GR_CPUS="0,2,4,6,8,10,12,14" ;;

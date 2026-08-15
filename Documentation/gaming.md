@@ -27,7 +27,8 @@ ekliyor → kum havuzunda `/usr/bin/gamerun` oluşuyor, launch options
 **Aynı düzeltmeyle gelen ikinci değişiklik — CPU maske delme:** `system/kernel/cores.nix`
 (10 Ağu 2026, ayrıntı `Documentation/aerox16/cpu-hybrid.md`) masaüstü işlerini
 VARSAYILAN olarak Zen5c ("verimlilik") çekirdeklerine kilitliyor — zamanlayıcı bu
-CPU'nun hibrit olduğunu bilmiyor (prefcore disabled), bu yüzden elle yapılıyor.
+CPU'nun hibrit olduğunu BİLİYOR (ITMT açık) ama hızlı çekirdeği tercih ediyor;
+maske o tercihi güç bütçesi adına eziyor (düzeltme 16 Ağu 2026).
 `gamerun` artık VARSAYILAN olarak `taskset -c 0-15` ile başlıyor → oyun bu
 maskeyi kendisi için tamamen deliyor, tüm 16 CPU'ya erişiyor (`GR_PIN` ile daha
 dar pinleme hâlâ mümkün).
@@ -205,15 +206,18 @@ GE'nin per-game blocklist'ini eziyordu. Reflex açık kaldığından **performan
 
 Tüm varsayılanlar `VAR=değer gamerun %command%` ile oyun başına ezilebilir
 (sarmalayıcı `:-` deseni kullanır). `GR_PIN`: `big` = 4× Zen5 5.09GHz
-(Zen5c 3.5GHz dışarıda), `fast` = yalnız cpu4/6+SMT (prefcore 208),
-veya özel liste (`GR_PIN=0,2,4`). **Düzeltme (10 Ağu 2026):** bu makinede
-`amd_pstate/prefcore = disabled` — zamanlayıcı Zen5/Zen5c ayrımını BİLMİYOR
-(kanıt zinciri: `Documentation/aerox16/cpu-hybrid.md`), "prefcore zaten
-önceler" iddiası yanlıştı. `gamerun` VARSAYILAN olarak `taskset -c 0-15` ile
-başlar (`system/kernel/cores.nix`'in Zen5c-only masaüstü maskesini oyun için
-deler) — çoğu (çok-thread'li) oyun için bu yeterli. `GR_PIN=big` yalnız
-tek-thread'e bağımlı sim oyunlarında (HOI4/Stellaris/Factorio) ana thread'in
-şansa göre Zen5c'ye düşmesini önlemek için hâlâ gerekli. Proton sürümü olarak
+(Zen5c 3.5GHz dışarıda), `fast` = yalnız cpu4/6+SMT (iki firmware sıralaması da
+bu dörtlüyü işaret ediyor: CPPC 208, ITMT 203), veya özel liste (`GR_PIN=0,2,4`).
+**Düzeltme (16 Ağu 2026 — 10 Ağu'daki düzeltme de yanlıştı):** zamanlayıcı
+Zen5/Zen5c ayrımını **BİLİYOR** — `amd_hfi` bağlı, ITMT açık, `sched_core_priority`
+Zen5'te 196/203 Zen5c'de 135 (kanıt: `Documentation/aerox16/cpu-hybrid.md`).
+`prefcore = disabled` bir eksiklik değil, HFI'li tasarımlarda upstream'in kasıtlı
+davranışı. `gamerun` VARSAYILAN olarak `taskset -c 0-15` ile başlar
+(`system/kernel/cores.nix`'in Zen5c-only masaüstü maskesini oyun için deler) —
+çoğu oyun için bu yeterli, üstelik 0-15 havuzunda ITMT zaten tek-thread'lik işi
+Zen5'e yönlendiriyor. `GR_PIN=big` artık "şansa karşı sigorta" değil, ITMT'nin
+yalnız bir *tercih* olmasına karşı **garanti**; tek-thread'e bağımlı sim
+oyunlarında (HOI4/Stellaris/Factorio) dene, ama önce GR_PIN'siz ölç. Proton sürümü olarak
 **GE-Proton** veya **Proton Experimental / Proton 11** seç (ntsync + güncel dxvk-nvapi).
 
 ## Minecraft (Prism Launcher)
@@ -461,15 +465,16 @@ gigabyte-power-profile) → nvidia-powerd okuması → GPU tavanı zinciri KCD'd
 geliyor, nvidia-powerd'in kendi jenerik mekanizmasından değil. Sürüm avcılığına (latest
 vs pin) gerek yok.
 
-**CPU / amd-pstate prefcore — GÜNCELLENDİ 10 Ağu 2026, önceki sonuç YANLIŞTI:**
-`amd_pstate=active` doğru, `prefcore` = **disabled** hâlâ geçerli. AMA 31 Tem'deki
-"muhtemelen bu APU'nun CPPC tabloları sıralama sunmuyor" tahmini yanlış çıktı:
-`amd_pstate_prefcore_ranking` her çekirdekte GERÇEK, FARKLI değerler taşıyor
-(Zen5 196-208, Zen5c hepsi 135) — firmware sıralamayı VERİYOR, sadece
-`sched_itmt_enabled` hiç oluşmamış ve `amd_hfi` platform sürücüsü cihaza
-BAĞLANMAMIŞ (driver symlink yok) → zamanlayıcıya hiç ulaşmıyor. "scx_lavd zaten
-telafi ediyor" varsayımı da yanlıştı: scx_lavd latency-aware ama Zen5/Zen5c
-kapasite farkından HABERSİZ (`cpu_capacity` 16 CPU'da da 1024). Sonuç: bu iş
+**CPU / amd-pstate prefcore — GÜNCELLENDİ 16 Ağu 2026; 10 Ağu'daki güncelleme DE YANLIŞTI:**
+`amd_pstate=active` doğru, `prefcore` = **disabled** hâlâ geçerli — ama bu bir eksiklik
+değil, HFI'li tasarımlarda upstream'in kasıtlı davranışı (yama: *"cpufreq/amd-pstate:
+Disable preferred cores on designs with workload classification"*). Sıralamayı HFI veriyor:
+`amd_hfi` sürücüsü `AMDI0104:00`'e **bağlı**, ITMT **açık** (`sched_itmt_enabled = Y`),
+`sched_core_priority` Zen5'te 196/203 Zen5c'de 135. 10 Ağu'daki "zamanlayıcıya hiç
+ulaşmıyor" sonucu, KALDIRILMIŞ `/proc/sys/kernel/sched_itmt_enabled` yoluna ve yanlış
+platform düğümüne bakmaktan doğdu — arayüz `/sys/kernel/debug/x86/` altında, root ister.
+"scx_lavd zaten telafi ediyor" varsayımı yine de yanlış: scx_lavd latency-aware ama
+Zen5/Zen5c kapasite farkından habersiz. Sonuç: bu iş
 "bilgi amaçlı" değilmiş — `system/kernel/cores.nix` (elle Zen5c maskesi) ve
 `gamerun`'ın `taskset -c 0-15`/`GR_PIN` kolu bu yüzden eklendi. Tam kanıt
 zinciri: `Documentation/aerox16/cpu-hybrid.md`.

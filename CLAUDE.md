@@ -237,14 +237,17 @@ AC/battery-dependent behavior is applied via a udev rule on `ACAD`
 (`power_supply` online/offline) triggering a oneshot systemd service, not polling —
 follow this pattern for any new AC-state-dependent tuning rather than a timer.
 
-**CPU scheduling — Zen5/Zen5c hybrid, invisible to the scheduler** (`system/kernel/cores.nix`,
-10 Aug 2026): this CPU's fast (Zen5: `0,2,4,6`+SMT, 5.09GHz) and efficiency (Zen5c: `1,3,5,7`+SMT,
-3.5GHz) cores are unseen by the scheduler — `amd_pstate/prefcore` is disabled, `amd_hfi`'s driver
-never binds to its device, `sched_itmt_enabled` never appears, `cpu_capacity` reads 1024 on all 16
-CPUs (full evidence: `Documentation/aerox16/cpu-hybrid.md`). Without a fix, a short single-thread
-burst lands on a Zen5 core with 50/50 odds and rides `power-display.nix`'s AC-time
-`scaling_max_freq`/boost restore straight to 5GHz — not a runaway process, just an unaware
-scheduler plus willing hardware. `cores.nix` pins `systemd.settings.Manager.CPUAffinity` to
+**CPU scheduling — Zen5/Zen5c hybrid, and the scheduler DOES know** (`system/kernel/cores.nix`,
+corrected 16 Aug 2026): this CPU's fast (Zen5: `0,2,4,6`+SMT, 5.09GHz) and efficiency
+(Zen5c: `1,3,5,7`+SMT, 3.5GHz) cores are fully visible to the scheduler — `amd_hfi` is bound to
+`AMDI0104:00`, ITMT is on (`sched_itmt_enabled` = `Y`), and `sched_core_priority` carries
+Zen5 196/203 vs Zen5c 135 (full evidence: `Documentation/aerox16/cpu-hybrid.md`).
+**The ITMT interface lives in debugfs, not `/proc/sys`** — `/sys/kernel/debug/x86/`, root-only;
+the 10 Aug 2026 "scheduler is blind" claim came from probing paths that no longer exist, and
+`prefcore = disabled` is deliberate upstream behavior on designs that have workload
+classification, not a missing piece. So a short single-thread burst lands on a Zen5 core
+*by design, not by coin flip*, and rides `power-display.nix`'s AC-time `scaling_max_freq`/boost
+restore straight to 5GHz. `cores.nix` pins `systemd.settings.Manager.CPUAffinity` to
 Zen5c-only, so the whole desktop (fork/exec inheritance) runs there by default and 5GHz becomes
 structurally unreachable outside a game. The mask is soft (`sched_setaffinity`, not cgroup
 `AllowedCPUs`) — `taskset` always punches through it: `gamerun` does so unconditionally (see
