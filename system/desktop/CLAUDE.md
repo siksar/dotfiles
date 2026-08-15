@@ -15,3 +15,9 @@ ly 1.4.1 takes 32-bit `0xSSRRGGBB` truecolor, so it's themed by feeding
 picks the working session entry: the `hyprland` package also installs a plain
 "Hyprland" desktop file that does **not** work here (no uwsm systemd units without
 `withUWSM = true`), and ly otherwise lists both.
+
+ly now lists **three** session entries: `Hyprland` (the non-working plain entry above,
+unchanged), `Hyprland (uwsm-managed)` (the default, Caelestia — `defaultSession` still
+points here), and `Serpantinum` (`system/desktop/serpantinum.nix`, new — a quarantined
+second session, opt-in only by picking it at the greeter; see `home/desktop/CLAUDE.md`'s
+"Serpantinum — karantinalı ikinci oturum" for the quarantine boundary).

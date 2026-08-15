@@ -2,14 +2,61 @@
 
 *Kurulum: 2026-07-05 · Sürücü: NVIDIA 610.43.02 (open) · Kernel 7.1.1 · DLSS 4.5 dönemi*
 
+## 10 Ağu 2026 — KRİTİK: gamerun Steam'den hiç çalışmıyordu
+
+`~/.local/share/Steam/logs/console-linux.txt` bu tarihe kadar tekrarlı olarak
+`gamerun: command not found` basıyordu. Sebep: Steam launch options'ı KENDİ
+FHS/pressure-vessel kum havuzunun İÇİNDE `/bin/sh -c` ile koşuyor; o kabın
+`PATH`'i yalnız `/usr/bin:/bin`. `gamerun` Home Manager profilindeydi
+(`/etc/profiles/per-user/zixar/bin`) — kum havuzunun dışında, hiç görünmüyordu.
+
+**Sonuç:** bu belgede aşağıda anlatılan zincirin TAMAMI (dGPU PRIME offload,
+DLSS override'ları, gamemode → game-perf.service → scx_lavd + 0xED profili +
+turbo fan) bugüne kadar **bir Steam oyununda hiç tetiklenmedi**. mc-run (Prism
+WrapperCommand) ve emu-run çağırıcıları etkilenmedi — onlar `exec gamerun`'ı
+normal kullanıcı PATH'inden (HM profili) çağırıyor, kum havuzu sorunu yalnız
+Steam'e özgü.
+
+**Düzeltme:** gamerun'ın tanımı `lib/gamerun.nix`'e taşındı (`home/apps/games.nix`
+ile `usr/steam.nix`'in ortak import noktası — CLAUDE.md "Renaming rule",
+system/usr/ ile home/ ayrı eval bağlamı). `usr/steam.nix`,
+`programs.steam.extraPackages` ile onu Steam'in FHS kum havuzuna paket olarak
+ekliyor → kum havuzunda `/usr/bin/gamerun` oluşuyor, launch options
+`gamerun %command%` **olduğu gibi** çalışmaya başlıyor.
+
+**Aynı düzeltmeyle gelen ikinci değişiklik — CPU maske delme:** `system/kernel/cores.nix`
+(10 Ağu 2026, ayrıntı `Documentation/aerox16/cpu-hybrid.md`) masaüstü işlerini
+VARSAYILAN olarak Zen5c ("verimlilik") çekirdeklerine kilitliyor — zamanlayıcı bu
+CPU'nun hibrit olduğunu bilmiyor (prefcore disabled), bu yüzden elle yapılıyor.
+`gamerun` artık VARSAYILAN olarak `taskset -c 0-15` ile başlıyor → oyun bu
+maskeyi kendisi için tamamen deliyor, tüm 16 CPU'ya erişiyor (`GR_PIN` ile daha
+dar pinleme hâlâ mümkün).
+
+**Üçüncü değişiklik — bu sarmalayıcı hiç test edilmediğinden varsayılan yüzey
+daraltıldı:** `__VK_LAYER_NV_optimus=NVIDIA_only` + `__GLX_VENDOR_LIBRARY_NAME`
+(AMD cihazını gizleme), NGX updater + DLSS SR/RR override, ve NVIDIA GL shader
+cache artık VARSAYILAN KAPALI — sırasıyla `GR_NVONLY=1`, `GR_DLSS=1`, `GR_CACHE=1`
+ile opt-in (aşağıdaki tablo). Gerekçe: `NVIDIA_only` AMD Vulkan cihazını
+gizliyor — NVIDIA ICD kum havuzunda görünmezse oyun sıfır cihaz görüp anında
+kapanabilir; DLSS override bloğu ise kullanıcının OptiScaler kullanan
+oyunlarıyla (aşağıdaki "860M FSR4" bölümü) aynı katmanda çakışıyor.
+
+**Steam tarafında elle düzeltilmesi gereken (nix dışı):** üç oyunda launch
+options `"gamerun"` / `"gamerun "` yazılıydı — `%command%` YOK. Steam'de
+`%command%` içermeyen dize sarmalayıcı SAYILMAZ, oyunun argümanı olarak
+sonuna eklenir. Her launch option `gamerun %command%` biçiminde olmalı.
+
 ## Mimari özet
 
 ```
 Steam (iGPU'da açılır)
-  └─ launch options: gamerun %command%
-       ├─ dGPU PRIME offload (RTX 5060)
-       ├─ DLSS 4.5 zinciri: NGX updater + SR/RR/FG override (render_preset_latest)
-       ├─ Reflex (DXVK_NVAPI_VKREFLEX) + ntsync (PROTON_USE_NTSYNC)
+  └─ launch options: gamerun %command%   (FHS kum havuzunda /usr/bin/gamerun — 10 Ağu)
+       ├─ taskset -c 0-15 (cores.nix'in Zen5c-only masaüstü maskesini del — varsayılan;
+       │  GR_PIN=big/fast/liste ile daralt)
+       ├─ dGPU PRIME offload (RTX 5060; GR_NVONLY=1 AMD cihazını tamamen gizler — opt-in)
+       ├─ DLSS 4.5 zinciri (opt-in): GR_DLSS=1 → NGX updater + SR/RR override;
+       │  GR_FG/MFG/DYNFG → Frame Generation (render_preset_latest: GR_PRESET)
+       ├─ Reflex (DXVK_NVAPI_VKREFLEX, varsayılan açık) + ntsync (opt-in GR_NTSYNC)
        ├─ Blackwell DX12/VKD3D kaçış-flag'leri (opt-in: GR_VKD3DNOCACHE / GR_HEAP / GR_VKD3D)
        └─ exec gamemoderun
             ├─ renice -20 + ioprio 0 (oyun süreci — maksimum normal öncelik)
@@ -17,7 +64,8 @@ Steam (iGPU'da açılır)
                  ├─ scx_lavd --performance
                  ├─ AC'deyse WMBD 0xED profil 2: ACBT 160 + agresif fan eğrisi
                  │  (KCD ölçümü: GPU 38W→~70W sustained; fan %32-35→%46-49)
-                 ├─ AC'deyse fan_mode 5 (turbo/max) — "oyunlarda hep soğuk" tercihi
+                 ├─ AC'deyse fan_mode 5 (turbo/max) — fişte/uykuda ARTIK sıfırlanmıyor
+                 │  (10 Ağu düzeltmesi; "oyunlarda hep soğuk" tercihi, 2026-07-17)
                  └─ AC'deyse PPD → balanced (GPU-öncelik; GR_CPUMAX=1 ise performance)
                oyun bitince: stop → scx durur (EEVDF döner) + 0xED profil 0 +
                gigabyte-power-profile (ACBT 80/fan modu AC→0'a geri) +
@@ -29,6 +77,13 @@ Steam (iGPU'da açılır)
 tavanı; hiçbir fan bunu değiştirmez — bkz. `Documentation/aerox16/wmi-ec.md` preset
 karakterizasyonu) ve **seslidir** — bilinçli tercih. Pilde uygulanmaz (oyun zaten
 güç-limitli). Oyun bitince gigabyte-power-profile fan modunu AC→0'a (dengeli) döndürür.
+
+**Düzeltme (10 Ağu 2026):** `gigabyte-power-profile.service` daha önce fişi çekip
+takınca veya uykudan dönünce KOŞULSUZ `fan_mode=0` yazıyordu — oyunun ortasında
+turbo sessizce düşüyordu (SUPER+M ile elle seçilen mod da aynı şekilde eziliyordu).
+Artık `game-perf.service` aktifken (`systemctl is-active` ile sorgulanır) fan_mode'a
+hiç dokunmuyor; ACBT/boost bütçesi kolu aynen AC/BAT'a göre yeniden uygulanmaya
+devam ediyor (`system/arch/aerox16/wmi.nix`).
 
 Donanım tarafı zaten AC'ye bağlı otomatik: fiş takılıyken fan modu 2 ("oyun") +
 NPCF.ACBT 80W → nvidia-powerd dGPU'yu 75–85W bandına çıkarır
@@ -53,9 +108,17 @@ boşta scx inactive, zram pasif, gamemoded uykuda.
 
 ## Launch options matrisi
 
+**`%command%` ZORUNLU** — Steam'de bunu içermeyen bir launch options dizesi
+sarmalayıcı sayılmaz, oyunun argümanı olarak sonuna eklenir (`gamerun` tek
+başına yazılırsa oyun `oyun.exe gamerun` diye açılır ve gamerun hiç koşmaz).
+Her satır `gamerun %command%` biçiminde olmalı.
+
 | Amaç | Launch options |
 |---|---|
-| **Taban** (DLSS 4.5 SR/RR + Reflex, tam ekran) | `gamerun %command%` |
+| **Taban** (dGPU offload + Reflex + taskset -c 0-15, tam ekran) | `gamerun %command%` |
+| AMD Vulkan/GL cihazını gizle (yalnız NVIDIA görünsün) | `GR_NVONLY=1 gamerun %command%` |
+| DLSS NGX updater + SR/RR override (OptiScaler ile ÇAKIŞIR — o oyunlarda AÇMA) | `GR_DLSS=1 gamerun %command%` |
+| NVIDIA GL disk shader cache (kalıcı, ~12GB) | `GR_CACHE=1 gamerun %command%` |
 | MFG 4x (FG override'ı da açar; FG'yi oyun menüsünden aç) | `GR_MFG=4 gamerun %command%` |
 | Dinamik MFG — 165 FPS hedef, otomatik çarpan | `GR_DYNFG=165 gamerun %command%` |
 | DLSS FG override'ı aç (MFG'siz) | `GR_FG=1 gamerun %command%` |
@@ -143,10 +206,15 @@ GE'nin per-game blocklist'ini eziyordu. Reflex açık kaldığından **performan
 Tüm varsayılanlar `VAR=değer gamerun %command%` ile oyun başına ezilebilir
 (sarmalayıcı `:-` deseni kullanır). `GR_PIN`: `big` = 4× Zen5 5.09GHz
 (Zen5c 3.5GHz dışarıda), `fast` = yalnız cpu4/6+SMT (prefcore 208),
-veya özel liste (`GR_PIN=0,2,4`). Normal oyunlarda gerekmez — amd-pstate
-prefcore + scx_lavd zaten big çekirdekleri önceler; bu, tek-thread'i
-sabitleme garantisi isteyen sim oyunları için. Proton sürümü olarak **GE-Proton** veya
-**Proton Experimental / Proton 11** seç (ntsync + güncel dxvk-nvapi).
+veya özel liste (`GR_PIN=0,2,4`). **Düzeltme (10 Ağu 2026):** bu makinede
+`amd_pstate/prefcore = disabled` — zamanlayıcı Zen5/Zen5c ayrımını BİLMİYOR
+(kanıt zinciri: `Documentation/aerox16/cpu-hybrid.md`), "prefcore zaten
+önceler" iddiası yanlıştı. `gamerun` VARSAYILAN olarak `taskset -c 0-15` ile
+başlar (`system/kernel/cores.nix`'in Zen5c-only masaüstü maskesini oyun için
+deler) — çoğu (çok-thread'li) oyun için bu yeterli. `GR_PIN=big` yalnız
+tek-thread'e bağımlı sim oyunlarında (HOI4/Stellaris/Factorio) ana thread'in
+şansa göre Zen5c'ye düşmesini önlemek için hâlâ gerekli. Proton sürümü olarak
+**GE-Proton** veya **Proton Experimental / Proton 11** seç (ntsync + güncel dxvk-nvapi).
 
 ## Minecraft (Prism Launcher)
 
@@ -372,6 +440,9 @@ bulunan HER referans ya tarihsel açıklama yorumu ya da hâlâ gerçekten kulla
 (`gnome-keyring` servisi, `swaync` bildirim daemonu — isimlerinde "gnome"/"sway" geçiyor
 ama masaüstü ortamlarıyla ilgisiz, bağımsız araçlar). 30 Tem'deki GNOME+Sway kaldırma işi
 temizmiş — silinecek gereksiz kod yok.
+(Sonradan not: `swaync` o gün gerçekten kullanılıyordu, 9 Ağu 2026'da Caelestia
+geçişiyle kaldırıldı — bugün depoda yalnız tarihsel yorumlarda geçiyor. `gnome-keyring`
+duruyor.)
 
 **Radeon 860M / Mesa:** canlı sürücü **Mesa 26.1.5** (RADV KRACKAN1 — Krackan Point'i
 isimle tanıyor, olgun destek işareti). Mesa 26.0 (11 Şub 2026) RDNA3/3.5/4 ray-tracing
@@ -390,14 +461,18 @@ gigabyte-power-profile) → nvidia-powerd okuması → GPU tavanı zinciri KCD'd
 geliyor, nvidia-powerd'in kendi jenerik mekanizmasından değil. Sürüm avcılığına (latest
 vs pin) gerek yok.
 
-**CPU / amd-pstate prefcore:** `amd_pstate=active` (doğru), ama
-`/sys/devices/system/cpu/amd_pstate/prefcore` = **disabled**. Kernel/dmesg'de hata ya da
-açıklama yok — muhtemelen bu APU'nun CPPC tabloları çekirdek-başına silikon-kalite
-sıralaması sunmuyor (mobil/APU parçalarda yaygın, desktop parçalar gibi agresif binning
-yapılmıyor), yani devre dışı kalması bir regresyon değil "sıralanacak veri yok" durumu.
-scx_lavd zaten kendi latency-aware yerleşimini yapıyor; prefcore'un asıl etkilediği "aynı
-sınıf çekirdekler arası ince tercih" zaten scx_lavd + Zen5/Zen5c kapasite farkının altında
-ikincil kalır. Aksiyon gerektirmiyor, bilgi amaçlı.
+**CPU / amd-pstate prefcore — GÜNCELLENDİ 10 Ağu 2026, önceki sonuç YANLIŞTI:**
+`amd_pstate=active` doğru, `prefcore` = **disabled** hâlâ geçerli. AMA 31 Tem'deki
+"muhtemelen bu APU'nun CPPC tabloları sıralama sunmuyor" tahmini yanlış çıktı:
+`amd_pstate_prefcore_ranking` her çekirdekte GERÇEK, FARKLI değerler taşıyor
+(Zen5 196-208, Zen5c hepsi 135) — firmware sıralamayı VERİYOR, sadece
+`sched_itmt_enabled` hiç oluşmamış ve `amd_hfi` platform sürücüsü cihaza
+BAĞLANMAMIŞ (driver symlink yok) → zamanlayıcıya hiç ulaşmıyor. "scx_lavd zaten
+telafi ediyor" varsayımı da yanlıştı: scx_lavd latency-aware ama Zen5/Zen5c
+kapasite farkından HABERSİZ (`cpu_capacity` 16 CPU'da da 1024). Sonuç: bu iş
+"bilgi amaçlı" değilmiş — `system/kernel/cores.nix` (elle Zen5c maskesi) ve
+`gamerun`'ın `taskset -c 0-15`/`GR_PIN` kolu bu yüzden eklendi. Tam kanıt
+zinciri: `Documentation/aerox16/cpu-hybrid.md`.
 
 **NPU (XDNA2):** `amdxdna` sürücüsü tamamen AI/ML inference (kernel accel API) için;
 gaming/upscaling bağlamında (FSR4/DLSS gibi) hiçbir kullanım YOK — ikisi de shader/
@@ -439,11 +514,17 @@ swapon --show                     # zram0 prio 5 + nvme prio -1
 sysctl vm.max_map_count           # 2147483642
 hyprctl getoption misc:vrr                            # int: 2
 
+# gamerun artık Steam'in kum havuzunda bulunuyor mu (10 Ağu 2026 düzeltmesi):
+rg 'command not found' ~/.local/share/Steam/logs/console-linux.txt | tail   # yeni satır OLMAMALI
+taskset -pc <oyun pid>                                                     # 0-15 (GR_PIN yoksa)
+
 # Oyun sırasında (AC'de):
 cat /sys/kernel/sched_ext/state /sys/kernel/sched_ext/root/ops   # enabled + scx_lavd
 systemctl is-active game-perf scx                                # active / active
+cat /sys/devices/platform/aorus_laptop/fan_mode                  # 5 (turbo)
 nvidia-smi                                                       # yükte ≥75W
 nvtop                                                            # (2. terminal) dGPU'da oyun süreci + watt/util
+# fişi çek/tak veya uykudan dön → fan_mode 5'te KALMALI (10 Ağu düzeltmesi öncesi 0'a düşerdi)
 
 # DLSS init şüphesinde:
 PROTON_LOG=1 gamerun %command%    # ~/steam-<appid>.log içinde nvapi/ngx satırları
@@ -464,9 +545,11 @@ cat /sys/devices/system/cpu/cpufreq/policy0/scaling_governor     # PPD yönetimi
   pinlemek: `mkDriver { version + hash }` (Dynamic Boost gerekçesi gpu.nix'te).
 - Kernel 7.x + Blackwell'de bilinen s2idle resume hang riski (open-gpu issue #1117);
   dGPU suspend'de D3cold'da olduğundan pratikte atlanıyor — uyandırma takılırsa ilk şüpheli.
-- Tearing: mutter Wayland'de tearing (async page flip) sunmuyor — en düşük gecikme
-  yolu VRR (deneysel özellik açık). Hyprland'deki `allow_tearing` seçeneğinin
-  karşılığı yok (eski kurulum: rice/caelestia dalı).
+- Tearing: bu not GNOME/mutter döneminden kalma (mutter tearing sunmuyordu, VRR
+  tek çıkış yoluydu) — GNOME 30 Tem'de kaldırıldı, tek oturum artık Hyprland ve
+  `allow_tearing` doğrudan mevcut, ama şu an set edilmiyor. Test edilmedi;
+  düşük gecikme öncelikli bir başlıkta gerekirse Hyprland pencere kuralına
+  `immediate` eklenmesi denenebilir.
 - Renice (-20) ilk kurulumdan sonra **re-login** ister (gamemode grubu).
 - gamescope + MangoHud KALDIRILDI (22 Tem 2026): gamescope bu hibritte çöküyordu, MangoHud
   fazladan bir Vulkan katmanıydı. Ölçüm dış araçla (nvtop/nvidia-smi).

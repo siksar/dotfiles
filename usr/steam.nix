@@ -1,6 +1,7 @@
 # Steam + Proton — sistem geneli oyun çalıştırma katmanı.
 # Perf altyapısı system/kernel/sched.nix'te (scx_lavd/gamemode/ntsync/zram),
-# kullanıcı tarafı home/apps/games.nix'te (gamerun sarmalayıcı + MangoHud).
+# kullanıcı tarafı home/apps/games.nix'te (home.packages üzerinden PATH'e ekler).
+# gamerun'ın tanımı lib/gamerun.nix'te — iki tarafça ortak import edilir.
 # Kullanım / launch options tablosu: Documentation/gaming.md
 { pkgs, inputs, ... }:
 
@@ -18,6 +19,12 @@
       inputs.chaotic.packages.${pkgs.stdenv.hostPlatform.system}.proton-cachyos
     ];
     protontricks.enable = true;
+    # gamerun'u Steam'in KENDİ FHS/pressure-vessel kum havuzuna koyar (10 Ağu
+    # 2026 — bkz. lib/gamerun.nix dosya başlığı). extraPackages, nixpkgs'in
+    # steam modülünde extraPkgs'e geçer → kum havuzunda /usr/bin/gamerun oluşur.
+    # BUNSUZ launch options'taki "gamerun %command%" "command not found" verir
+    # (kum havuzunun PATH'i yalnız /usr/bin:/bin, HM profili dışarıda kalır).
+    extraPackages = [ (import ../lib/gamerun.nix { inherit pkgs; }) ];
   };
 
   # Proton-CachyOS binary cache (chaotic-nyx, kendi nixConfig'inden doğrulanan değerler) —

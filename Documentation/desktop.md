@@ -1,110 +1,212 @@
-# Hyprland + Matugen dinamik tema rice'ı
+# Hyprland masaüstü — Caelestia kabuğu (09 Ağu 2026'dan beri)
 
-Kaynak istem: "SaneAspect tasarımı — Hyprland 0.55+ (`hyprland.lua`), Matugen
-tema motoru, `enes-less/theme-switcher` referanslı, Waybar/Rofi/SwayNC/Swww/Cava".
-Bu doküman hem kurulumun **nasıl** çalıştığını hem de **neden** böyle kurulduğunu
-anlatır. Modüller: `home/desktop/`.
+Modüller: `home/desktop/`. Bu doküman hem kurulumun **nasıl** çalıştığını hem de
+**neden** böyle kurulduğunu anlatır.
 
-## Önce gerçeklik kontrolü (istemdeki iddialar)
+**09 Ağu 2026: temiz yıkım.** Elle kurulmuş waybar (16 tema) + rofi (adi1090x
+type-5/style-4) + swaync + matugen 8-şablonlu tema motoru + awww + hyprlock/hypridle
+rice'ı tek seferde söküldü, yerine **Caelestia** — Quickshell tabanlı, bar+launcher+
+bildirim+kilit+idle+runtime tema motorunu tek üründe toplayan bir kabuk — geçti.
+Geçiş dönemi seçici yok (`desktop.shell` gibi bir enum eklenmedi); eski rice'ın tasarım
+kararları (Waybar 16 tema sistemi, rofi 2.0 gradient tuzağı, matugen zinciri) artık bu
+dosyada değil, tamamen ayrı bir tarihsel referans olarak yalnız `rice/caelestia`
+dalında (eski repo düzeni, pre-reorg) okunabilir — oradan bu depoya birebir taşınan tek
+şey 7 özel Material You şeması (`home/desktop/caelestia/schemes/*.txt`).
 
-| İddia | Durum |
-|---|---|
-| Hyprland 0.55+ `hyprland.lua` ile yapılandırılıyor | **Doğru.** 0.55 (Haz 2026) hyprlang'i deprecate etti; Lua artık resmî config. Kilitli nixpkgs'te 0.55.4 var — flake input eklemek gerekmedi. |
-| HM Lua config destekliyor | **Doğru.** `configType = "lua"` + `extraLuaFiles` (HM 26.05+). |
-| `enes-less/theme-switcher` deposu | **Var.** JSON palet + `.tpl` şablon motoru; `dynamic` teması matugen'le duvar kağıdından renk üretiyor. SUPER+T/SUPER+W kısayol deseni oradan alındı. |
-| Swww paketi | **Var ama yeniden adlandı.** Kilitli nixpkgs'te `swww` → `awww` (binary'ler `awww`/`awww-daemon`, sürüm aynı 0.12.1). Modül `pkgs.awww` kullanır; betikler `awww img`/`awww query` çağırır. |
-| Matugen "Oklab renk uzayı" kullanır | **Yanlış.** Matugen, Material You standardı gereği **HCT** (Hue-Chroma-Tone, CAM16 tabanlı) kullanır; changelog'unda Oklab yok. HCT de Oklab gibi algısal-düzgün bir uzaydır — pratik sonuç (duvar kağıdından tutarlı, algısal dengeli palet) aynıdır. Oklab şart olsaydı matugen yerine başka araç gerekirdi. |
+Bu geçişin tasarım gerekçesi (Caelestia vs Noctalia karşılaştırması, cache/derleme
+maliyeti analizi, dGPU/PPD/idle risk değerlendirmesi) bu oturumun plan dosyasında
+detaylı işlendi; burada yalnız **kurulu haliyle nasıl çalıştığı** var.
 
-## Mimari — zincir
+## Caelestia kabuğu — mimari ve tasarım kararları
+
+### IPC yüzeyi
+
+Kabuğun tamamı `qs -c caelestia ipc call <target> <function> [args]` ile konuşulur;
+`caelestia` CLI'ı bunun ince bir sarmalayıcısı (`caelestia shell <target> <function>`).
+Kullanılan hedefler (`modules/*.qml`'deki `IpcHandler { target: "..." }` bloklarından
+doğrulandı):
+
+| Hedef | Fonksiyonlar | Kullanım |
+|---|---|---|
+| `drawers` | `toggle(ad)`, `list()`, `isOpen(ad)` | launcher/dashboard/sidebar/session panelleri — `ad` değerleri `ShellState`'in boolean anahtarları (`launcher`, `dashboard`, `sidebar`, `session`, `utilities`, `osd`) |
+| `lock` | `lock()`, `unlock()`, `isLocked()` | kilit ekranı |
+| `picker` | `open()`, `openFreeze()`, `openClip()`, `openFreezeClip()` | ekran bölgesi seçici (screenshot altyapısı) |
+| `wallpaper` | `get()`, `set(yol)`, `list()` | duvar kağıdı |
+| `nexus` | `open()` | kontrol merkezi (ayarlar GUI'si) |
+
+CLI'ın kendi üst-seviye komutları (`caelestia screenshot`, `caelestia clipboard`,
+`caelestia wallpaper`, `caelestia scheme`) bu IPC'leri veya kendi mantığını (fuzzel+
+cliphist, grim+swappy) kullanır — `caelestia shell …` yalnız IPC'yi doğrudan çağırmak
+gerektiğinde (ör. launcher toggle) tercih edildi, çünkü global Hyprland kısayolları
+(`global, caelestia:*`) upstream'de sık değişiyor ve doğrulaması daha zor.
+
+### Tema motoru — dinamik, olay güdümlü
 
 ```
-SUPER+T → wallpaper-picker (rofi ikon grid'i, ~/Pictures/Wallpapers)
-             └→ theme-apply <resim>
-                  ├→ awww img  (animasyonlu geçiş — kullanıcı hemen görür; awww = eski swww)
-                  └→ matugen image -m dark -t scheme-tonal-spot
-                       ├→ ~/.config/hypr/colors.lua    → post_hook: hyprctl reload
-                       ├→ ~/.config/waybar/colors.css  → post_hook: waybar restart
-                       ├→ ~/.config/rofi/colors.rasi   → (hook yok; her açılışta okunur)
-                       ├→ ~/.config/swaync/colors.css  → post_hook: swaync-client --reload-css
-                       ├→ ~/.config/cava/config        → post_hook: pkill -USR2 cava
-                       └→ ~/.config/theme-switcher/sequences
-                            → post_hook: theme-sequences-apply --all (tüm PTY'ler)
+SUPER+T → caelestia wallpaper -r (rastgele duvar kağıdı, ~/Pictures/Wallpapers)
+             └→ CLI: dynamic şema üretimi (wallpaper → Material You palet)
+                  ├→ ~/.config/hypr/scheme/current.lua  (enableHypr, Lua config algılanır)
+                  │    → home/desktop/wm/theme.lua dofile ile okur, hyprctl reload otomatik
+                  ├→ ~/.local/state/caelestia/theme/kbd-color (kullanıcı template'i)
+                  │    → postHook: kbd-rgb set "$(cat …)"
+                  ├→ gtk.css + dconf, qt5ct/qt6ct colors, btop.theme, fuzzel.ini,
+                  │    vesktop CSS'i, terminal OSC dizileri (enableGtk/Qt/Btop/Fuzzel/
+                  │    Discord/Term — hepsi home/desktop/caelestia/default.nix'te açık)
+                  └→ shell.json'daki bar/launcher/dashboard kendi Quickshell renklerini
+                       aynı anda günceller (aynı süreç içi, ayrı hook gerekmez)
 ```
 
-- **Neden önce awww (swww), sonra matugen?** Algılanan gecikme: duvar kağıdı anında
-  değişir, renkler ~yarım saniye sonra oturur (referans repo da böyle yapar).
-- **Neden referans repodaki bash+jq+sed şablon katmanı yok?** Orada statik JSON
-  temaları (catppuccin, gruvbox…) da aynı motordan geçiyor; bizde tek "dinamik"
-  tema var — matugen'in kendi şablon motoru (`{{colors.X.default.hex}}`) yeterli.
-  İkinci şablon katmanı = ikinci hata yüzeyi.
-- **Kalıcı durum:** son duvar kağıdı `~/.local/state/theme-switcher/current-wallpaper`.
-  Girişte `autostart.lua` → `theme-apply --restore` (yoksa Stylix duvar kağıdına düşer).
-- **Kaynak renk adayı seçimi (miasma bug'ı, 16 Tem):** matugen bir resimden birden
-  çok aday kaynak renk çıkarır; `--source-color-index 0` (baskın renk) koyu/soluk
-  duvar kağıtlarında hep nötr koyu gri-mavi çıkıyordu → miasma/kanagawa/tsushima
-  hepsi AYNI maviye çalan paleti veriyordu. Ölçüm (miasma): index0 `#383c43`
-  (kroma 11, mavi), index1 `#8c9373` (kroma 32, zeytin — doğrusu). theme-apply
-  artık adayları `--dry-run -j hex` ile gezip **en kromatik** olanı
-  (max−min RGB) seçer; sonuç: miasma→zeytin `#bbcf81`, gruvbox-material→altın
-  `#d8c770`, tsushima→mavi `#88d0ec` (her resim kendi paleti). Activation
-  tohumu index 0'da kaldı (tek seferlik, ilk SUPER+T düzeltir).
-- **Terminal ANSI paleti de dinamik (16 Tem, pywal deseni):** matugen
-  `templates/terminal-sequences` şablonundan OSC escape dizileri üretir
-  (`\033]4;N;#hex\a` paleti, `]10/]11/]12` fg/bg/imleç); `theme-sequences-apply`
-  bunları tema değişince `--all` ile TÜM açık PTY'lere basar, yeni terminaller
-  bash başlangıcında (yalnız Hyprland oturumunda, `HYPRLAND_INSTANCE_SIGNATURE`
-  bekçisi) kendine uygular. starship/fastfetch zaten ANSI İSİMLİ renk kullanır
-  (shell.nix) → otomatik uyar. Eşleme: 1/9=error (hep kırmızı), 2/10=yeşil
-  4/12=**primary** (starship "bold blue" dizini tema aksanı olur), 3/11/5/13/6/14
-  = primary'nin hue-döndürülmüş halleri (`| set_hue:` filtresi — tema kromalı
-  semantik renkler). Ghostty'nin statik Stylix teması taban/fallback kalır
-  (ilk açılış); OSC yalnız runtime'da üzerine boyar.
-  **Tuzak:** OSC ST sonlandırıcısı `\033\\` KULLANILAMAZ — matugen şablon motoru
-  `\\`'ı `\`'a indirger; BEL (`\a`) kullanılır. Şablonda kaçışlar metin olarak
-  durur, `printf %b` uygulama anında çözer (`grep -v '^#' | tr -d '\n'` sonrası).
-- **gruvbox-material.jpg** (`lib/wallpapers/`): elde üretilmiş sisli
-  katmanlı çam ormanı — miasma tarzında, gruvbox-material paletiyle (zemin
-  #32302f→#7d7450 sis, katmanlar #5e5c42→#222619, sis #d8c07a). SVG+awk üretimi;
-  seçilince matugen ~gruvbox-material paleti türetir (primary ~#d8c770).
-  Kullanıcı tercihi: bundan sonra duvar kağıtları hep bu "miasma tarzı"
-  (sisli, koyu, katmanlı doğa, desatüre) olacak.
+- **Neden `dynamic` (matugen'in doğrudan devamı)?** Eski zincirin SUPER+T davranışına
+  (duvar kağıdından anlık Material You üretimi) en yakın karşılık. Görsel grid seçici
+  (eski `rofi wallpaper-grid.rasi`) yok — launcher'ı (SUPER+SPACE) `>wallpaper <ad>`
+  action prefix'iyle açmak en yakın interaktif eşdeğer.
+- **Özel şemalar paket-yaması ile geliyor.** `caelestia scheme set -n <ad>` yalnız
+  `caelestia-cli` paketinin kendi şema dizinini tarıyor (`utils/paths.py`:
+  `cli_data_dir = __file__/../../data`, yani kurulu `site-packages/caelestia/data/schemes`)
+  — kullanıcı seviyesinde şema dizini upstream'de yok. 7 özel şema (`schemes/*.txt`,
+  eski matugen/Caelestia şemalarından **birebir**, base16'ya çevrilmeden) bir
+  `overrideAttrs.postInstall` ile o dizine, `<ad>/main/dark.txt` düzeninde enjekte
+  ediliyor (`home/desktop/caelestia/default.nix`). Launcher'ın `>scheme` seçicisi de
+  aynı yerden besleniyor — kendi listesi yok, `caelestia scheme list` çağırıyor
+  (`modules/launcher/services/Schemes.qml`), yani cli düzelince ikisi birden düzelir.
+
+- **`postPatch` bu pakette ÖLÜDÜR — 7 şema 9 Ağu'dan 15 Ağu 2026'ya kadar pakete hiç
+  girmedi.** Enjeksiyon kurulduğu günden beri `overrideAttrs.postPatch` ile yazılıydı ve
+  **tek bir kez bile çalışmadı**; hata vermedi, build yeşil geçti. Sebep: upstream kendi
+  `default.nix`'inde `patchPhase`'i düz string olarak tanımlıyor ve içinde `runHook`
+  çağırmıyor; stdenv fazı `eval "${!curPhase:-$curPhase}"` ile çağırdığı için
+  (`stdenv-linux/setup`, "Evaluate the variable named $curPhase if it exists, otherwise
+  the function named $curPhase") attribute varsa varsayılan faz fonksiyonu hiç koşmaz —
+  ve `prePatch`/`postPatch` o fonksiyonun içindeki hook'lar olduğundan ikisi de ölür.
+  Store kanıtı: derlenmiş cli'ın `data/schemes/` dizininde yalnız 14 stok şema vardı
+  (`caelestia catppuccin darkgreen dracula everblush everforest gruvbox nord oldworld
+  onedark rosepine shadotheme solarized tokyonight`), 7 özelin hiçbiri yoktu — ve bu
+  **en az iki `flake.lock` kuşağı** boyunca sürdü (store'daki iki ayrı cli çıktısı,
+  `hqdqxj24…` ve `m135aavl…`, aynı eksiği gösteriyordu).
+  Aynı build'deki asimetri teşhisi kesinleştirdi: upstream'in kendi `postInstall`'ı
+  (`installShellCompletion`) ÇALIŞMIŞTI — `$out/share/fish/vendor_completions.d/caelestia.fish`
+  yerindeydi. Yani ölü olan "hook mekanizması" değil, yalnız o **faz**tı. Install fazını
+  pypa-install-hook sağlıyor ve `runHook postInstall` çağırıyor; düzeltme bu yüzden
+  `postInstall`'a taşındı.
+
+- **Enjeksiyonun bir doğrulama adımı var, ve kasten farklı bir fazda duruyor.**
+  Kopyalama `postInstall`, doğrulama `postFixup`: 7 şemanın her biri için kurulu
+  `$out`'ta `<ad>/main/dark.txt` aranır, biri eksikse build **sesli** düşer (hangi şema
+  ve hangi dizine bakıldığı yazılır). Amaç aynı sınıftan üçüncü bir sessiz kırılmayı
+  engellemek — tek bir upstream değişikliğinin (bir fazın string olarak tanımlanması)
+  hem kopyayı hem doğrulamayı birden düşürmesi gerekir ki hata yine sessiz kalsın.
+  `flavour` adı `main`: kozmetik bir seçim (stok şemalar `mocha`/`medium` gibi anlamlı
+  adlar kullanıyor), kullanıcıyı ilgilendirmez — `scheme.py`'nin `_check_flavour`/
+  `_check_mode` metotları listenin ilkine düştüğü için `caelestia scheme set -n <ad>`
+  yeterlidir. Bu şemaların `light` modu yoktur; `-m light` sessizce `dark`'a düşer.
+- **Klavye RGB senkronu korundu, dönüşümsüz.** Eski matugen sözleşmesi
+  (`kbd-rgb set "<çıplak hex>"`) ile Caelestia kullanıcı template'lerinin çıktı formatı
+  (`{{ primary.hex }}` → çıplak hex, `#` yok) birebir uyuşuyor — `templates/kbd-color`
+  tek satır, dönüştürme kodu gerekmedi.
+- **Terminal renk zinciri artık OSC değil, Caelestia'nın kendi `enableTerm`
+  mekanizması** — aynı fikir (canlı terminal renklendirme), farklı uygulayıcı.
+
+### dGPU güvenliği — iki katman gerekiyor
+
+`AQ_DRM_DEVICES=/dev/dri/hypr-igpu` (`system/desktop/session.nix`) yalnız **compositor**
+Aquamarine'i AMD iGPU'ya kilitler — Quickshell'in kendi Qt/EGL süreci bundan
+etkilenmez ve NVIDIA node'unu açıp dGPU'yu D3cold'dan uyandırabilir. İkinci katman
+`home/desktop/caelestia/default.nix`'te:
+
+```nix
+programs.caelestia.systemd.environment = [
+  "__GLX_VENDOR_LIBRARY_NAME=mesa"
+  "__EGL_VENDOR_LIBRARY_FILENAMES=/run/opengl-driver/share/glvnd/egl_vendor.d/50_mesa.json"
+];
+```
+
+Ayrıca dashboard'un GPU kartı **kapalı** tutuluyor iki bağımsız anahtarla:
+`services.gpuType = "None"` (probe hiç çalışmaz) + `dashboard.performance.showGpu =
+false` (ikinci savunma hattı). Gerekçe: kartın `Gpu` servisi açıkken `nvidia-smi`'yi
+her tick'te (varsayılan 1000 ms) bir kez fork ediyor — kalıcı süreç değil ama saniyede
+bir fork + dGPU uyandırması, 4.28 W bütçesi için kabul edilemez.
+
+### Idle/kilit sahipliği — tek yazar, logind'e devredilen uyku kararı
+
+Caelestia kendi idle yönetimini (`ext-idle-notify-v1`) ve kilidini (`WlSessionLock` +
+`PamContext`) sağlıyor — hypridle ve hyprlock **tamamen söküldü**, ikisinin de HM/sistem
+tarafındaki tanımları (`programs.hyprlock`, `services.hypridle`,
+`security.pam.services.hyprlock`) gitti. `general.idle.timeouts` yalnız `lock` (300 sn)
+ve `dpms off/on` (480 sn) tanımlıyor — **suspend/hibernate action'ı YOK**, uyku kararı
+tamamen `system/kernel/power.nix`'teki logind zincirine (`suspend-then-hibernate`,
+25 dk `HibernateDelaySec`) bırakıldı. Bu kasıtlı: Caelestia'nın oturum menüsü zaten
+`systemctl`/`loginctl` çağrılarını logind D-Bus'a alias'lıyor ve `hibernate` komutu
+`SessionManager.suspendThenHibernate`'e eşleniyor (`CanHibernate` ön kontrolüyle,
+kullanılamazsa düz suspend'e düşüyor) — s2h zincirini bozan bir "düz suspend" çağrısı
+menüde hiç yok, ek bir koruma gerekmedi.
+
+### PPD sahipliği — bar'ın `power` girdisi kapalı
+
+`system/kernel/power-display.nix` zaten üç root-taraflı PPD yazarına sahip
+(`power-display.service`, `game-perf.service`, ACAD udev tetiklemesi) ve bunlardan
+biri set→doğrula→zorla döngüsü çalıştırıyor (PPD 0.30'un no-op bug'ı için). Bar'ın
+`power` girdisi (D-Bus üzerinden PPD'ye yazabilen bir seçici) dördüncü, senkronize
+olmayan bir yazar olurdu — `bar.entries`'te `enabled = false` ile kapatıldı, tek otorite
+`power-display.service` kaldı.
+
+### Bar'ın sınırı — özel modül yok
+
+`bar.entries` tam olarak 8 sabit kimlik kabul ediyor
+(`logo/workspaces/spacer/activeWindow/tray/clock/statusIcons/power`) —
+`custom`/`exec` tipi yok, plugin sistemi (`caelestia-dots/plugins`) boş repo. Eski
+waybar'ın `custom/fan` modülünün (fan_mode göstergesi) doğrudan karşılığı **yok**.
+Kabul edilen ödün: `fan-mode-cycle.service` zaten attığı `notify-send` toast'ı
+(`system/arch/aerox16/wmi.nix`) tek gösterge — kalıcı bir göz-ucu okuması kayboldu,
+SUPER+M sonrası bildirim kalıyor.
 
 ## Lua config nasıl HM'ye entegre edildi
 
 `wayland.windowManager.hyprland` şunlarla:
 
 - `configType = "lua"` → HM `~/.config/hypr/hyprland.lua` üretir.
-- `extraLuaFiles = { main, theme, binds, rules, autostart }` → her biri
-  `hypr/<ad>.lua` olarak yazılır ve `hyprland.lua` bunları otomatik `require`
-  eder. `settings` attrset'i bilinçli kullanılmadı: attrset→Lua çevirisi taze
-  (HM issue #9468) ve gerçek Lua dosyası hem kaynak hem dokümantasyon.
+- `extraLuaFiles = { main, theme, binds, rules }` → her biri `hypr/<ad>.lua` olarak
+  yazılır ve `hyprland.lua` bunları otomatik `require` eder (alfabetik sıra: binds,
+  main, rules, theme — theme son koştuğu için renkte son söz onun). `autostart.lua`
+  09 Ağu'da kaldırıldı — yalnız artık gereksiz bir `theme-apply --restore` çağrısı
+  taşıyordu; Caelestia son şemayı `~/.local/state/caelestia/` altında kalıcı tutuyor,
+  reboot sonrası ayrı bir restore adımına gerek yok.
 - `package = null; portalPackage = null` → paket **sistemden**
   (`programs.hyprland.enable`, system.nix) gelir; çifte kurulum/portal
   çakışması olmaz.
 
-Kritik incelik — `theme.lua` renkleri `require` ile değil **`dofile`** ile okur:
-`require` sonucu önbelleğe alır (`package.loaded`); `hyprctl reload` sonrası
-eski renkler dönebilirdi. `dofile` her reload'da diskten taze okur.
+**Kritik incelik — `theme.lua` renkleri `require` ile değil `dofile` ile okur** (aynı
+neden, artık farklı kaynak dosya): Caelestia'nın `enableHypr` çıktısı, Hyprland'in
+Lua config kullandığını (`hyprctl status` üzerinden `configProvider == "lua"`) tespit
+edip `~/.config/hypr/scheme/current.lua`'ya **düz, alpha'sız bir tablo** yazıyor
+(`return { primary = "3fa9a0", ... }`) — eski matugen'in `active_border`/`shadow`'u
+önceden hesaplayıp yazdığı `colors.lua`'dan farklı, alpha'yı (`rgba(...ee)`, gölge için
+`0xee...`) artık `theme.lua`'nın kendisi Lua'da hesaplıyor. `require` önbelleğe alırdı
+(`package.loaded`), `hyprctl reload` sonrası eski renkler dönerdi; `dofile` her
+çalışmada diskten taze okur.
 
 ## Servis kapsamlama + Stylix çakışması
 
-- Waybar/SwayNC/awww **systemd user servisleri** olarak
-  `hyprland-session.target`'a bağlı — `graphical-session.target`'a değil.
-  Neden: graphical-session generic bir target, yanlış seçilirse bu servisler
-  Hyprland dışındaki bir bağlamda da (ör. bir TTY oturumu) tetiklenebilirdi.
-- **Stylix çakışması:** Stylix bu repoda renklerin tek kaynağı; ama rice
-  bileşenlerinde renk sahibi matugen olmalı. Bu yüzden yalnız
-  `stylix.targets.{hyprland,waybar,rofi,swaync,cava,hyprlock}.enable = false` —
-  GTK, ghostty, starship vb. Stylix'te kalır. İki sistem yan yana: Stylix
-  "statik taban", matugen "dinamik rice katmanı".
+- `caelestia.service` (HM `systemd.user.services.caelestia`, Caelestia'nın kendi HM
+  modülü tarafından üretilir) `hyprland-session.target`'a bağlı —
+  `graphical-session.target`'a değil. Aynı gerekçe hep geçerli: generic target
+  Hyprland dışında bir bağlamda da (ör. bir TTY oturumu) tetiklenebilirdi.
+  `programs.caelestia.systemd.target = "hyprland-session.target"` bunu açıkça set eder
+  (modülün kendi varsayılanı `config.wayland.systemd.target` — HM'de genelde
+  `graphical-session.target` — bu yüzden elle üzerine yazmak GEREKİYOR).
+- **Stylix çakışması:** Stylix bu repoda renklerin tek kaynağı; ama Caelestia CLI'ın
+  `enable*` ile yazdığı yüzeylerde renk sahibi Caelestia olmalı. Bu yüzden
+  `stylix.targets.{hyprland,gtk,qt,btop,fuzzel,ghostty}.enable = false` — vscodium,
+  vesktop, starship gibi Caelestia'nın dokunmadığı hedefler Stylix'te kalır. İki sistem
+  yan yana: Stylix "statik taban" (font/imleç/build-time), Caelestia "dinamik rice
+  katmanı".
 
 ## Animasyon + görünüm (Anto98765/My-Hyprland-Rice portu)
 
 `main.lua`'nın LOOK AND FEEL + ANIMATIONS bölümleri aynı repodan porte edildi
 (`.config/hypr/modules/{animations,look_and_feel}.conf`): pencereler slide ile
 açılır / popin 80% ile kapanır, fareyle sürükleme `windowsMove` ile animasyonlu,
-workspace geçişi slide, layer'lar (rofi/waybar) animasyonlu; gaps 7/10,
-border 1px, rounding 12 (power 4), gölge range 15, blur size 2 × 2 pass +
+workspace geçişi slide, layer'lar (Caelestia bar/launcher dahil) animasyonlu;
+gaps 7/10, border 1px, rounding 12 (power 4), gölge range 15, blur size 2 × 2 pass +
 contrast 1.6 + popups. Bilinçli sapmalar (main.lua yorumlarında):
 
 - **`borderangle loop` ATLANDI** — gradyan kenarlığı sürekli döndürmek idle'da
@@ -114,201 +216,6 @@ contrast 1.6 + popups. Bilinçli sapmalar (main.lua yorumlarında):
 - İmleç: apple-cursor **macOS-White** (stylix-base.nix cursor.name).
 - Saydamlık kaynakta 1/1 (opak); bizde 0.92/0.86 korunur (Stylix senkron kararı).
 - `resize_on_border=true` ve `allow_tearing=false` bizde kaldı (alışkanlık/VRR).
-
-## Waybar tasarımı (Anto98765/My-Hyprland-Rice portu)
-
-Kaynak: <https://github.com/Anto98765/My-Hyprland-Rice> (`.config/waybar/`) —
-16 Tem 2026'da porte edildi; önceki bölünmüş-saat/sekme tasarımının yerini aldı.
-Transparan tam genişlik bar, koyu pill gruplar; renkler matugen'in TÜM Material
-You token'ları olarak `colors.css`'e basılır (şablon: `templates/waybar-colors.css`,
-kaynak repoyla aynı `<* for name, value in colors *>` döngüsü).
-
-Düzen: solda `group/start` (Nix menü → rofi drun, RAM → tık `ghostty -e btop`) +
-tepsi; ortada 5 kalıcı NUMARASIZ workspace kapsülü (kaynakta numaralıydı —
-kullanıcı isteğiyle boş pill); sağda `group/control` (ağ · ses · pil,
-tık → swaync paneli) + fan profili + saat (12h, tık → tarih). Ağ modülü
-IP/gateway GÖSTERMEZ (kullanıcı isteği; kaynakta ethernet formatı
-`{ipaddr}/{cidr}` idi).
-
-Kaynağa göre bilinçli sapmalar (`wm/main.lua` yorumlarında da işaretli):
-
-- `power-profiles-daemon` modülü → **`custom/fan`**: waybar'da güç profili yerine
-  fan modu gösterilir (PPD sistemde açık ama bu modül fan_mode'u izler).
-  `fan-status` scripti `aorus_laptop/fan_mode` sysfs'ini
-  okur; modül `interval="once"` + `signal=8` — idle'da poll YOK,
-  `fan-mode-cycle.service` (SUPER+M ile aynı) mod değişiminde `SIGRTMIN+8`
-  yollar (gigabyte-wmi.nix). Tıklama da aynı servisi tetikler (polkit şifresiz).
-- `interface="wlo1"` hardcode'u atıldı (bizde wlan0); `networkmanager_dmenu`
-  ve `kitty` kurulu değil → rofi/ghostty eşlenikleri.
-- Upstream bug düzeltildi: battery state `mid` tanımlı ama CSS `.med` arıyordu.
-- `clock` interval 1 sn → 60 sn (format zaten dakika çözünürlüklü).
-- `rimouski` fontu nixpkgs'te yok → JetBrainsMono Nerd Font Propo.
-- cava kaynak tasarımda da yok — bardan çıktı, idle bütçesi geri kazanıldı
-  (paket duruyor, tema motorunun cava şablonu terminal kullanımı için sürüyor).
-
-## Waybar çoklu tema sistemi (28 Tem 2026)
-
-Yukarıdaki tasarım artık **16 seçenekten biri** ("current" adıyla), yanına
-`atif-1402/minimal-waybar-themes` reposundaki 15 varyant (V1 … V7 ve alt
-sürümleri) porte edildi. Amaç: hepsini yan yana deneyip birini seçmek, hepsini
-**tek bir monokrom paletten** boyamak. Kod: `bar/themes.nix`,
-`waybar-mono.css`, `waybar-mono-overrides.css`, `bar/omarchy-compat.nix`,
-vendor'lanmış temalar `waybar-themes/<V>/`.
-
-**Çakışma çözümü — store'dan çalıştırma.** HM'in ürettiği
-`~/.config/waybar/{config,style.css}` symlink'lerine hiç dokunulmadı. Her tema
-store'da kendi dizininde durur; `waybar-launch` (`bar/waybar.nix`) state dosyasına göre
-`waybar -c <dizin>/config.jsonc -s <dizin>/style.css` ile başlatır — `"current"`
-(veya bilinmeyen bir değer) argümansız `waybar`'a düşer, yani HM modülünün
-ürettiği bar. `systemd.user.services.waybar.Service.ExecStart` bu script'e
-`lib.mkForce` ile yönlendirilir; `programs.waybar`'ın `systemd.targets` ayarı
-(oturum kapsamlama) buna dokunulmadan aynı kalır.
-
-**Palet tek kaynak.** `waybar-mono.css` (`@background #0d0e10` … `@bright
-#eceff2` — saf siyah/beyaz değil, halation/banding'den kaçınmak için) her
-temanın import hedefi olur. `waybar-mono-overrides.css` (aktif workspace =
-kontrast+kalın+alt kenarlık, kritik durum = ters kontrast) her temanın
-`style.css`'inin **sonuna** eklenir — CSS'te sonda olmak import'un başta olması
-kadar önemli, yoksa temanın kendi kuralları kazanır. Palet dosyasına ASLA
-tema-özel renk eklenmez; bir override bir temada tutmuyorsa (farklı sınıf adı)
-düzeltme override dosyasına eklenir, palet dokunulmaz.
-
-**mkTheme (bar/themes.nix) build-time'da üç şey yapar:**
-1. `@import "../omarchy/current/theme/waybar.css";` → mutlak palet yolu
-   (13/15 tema bunu kullanıyor; 2'si — V1, V1.5 — hiç `@import` etmiyor,
-   literal hex/keyword renk kullanıyordu, o ikisinde renkler elle `@değişken`
-   referanslarına çevrildi, bkz. aşağıda).
-2. `~/.config/waybar/` → temanın kendi `$out/` yolu (config'lerdeki VE
-   script'lerdeki hardcode).
-3. `patchShebangs` + `chmod +x` — hepsi `#!/bin/bash` veya
-   `#!/usr/bin/env bash` ile geliyor, NixOS'ta `/bin/bash` yok.
-
-**omarchy uyumluluk katmanı** (`bar/omarchy-compat.nix`): ~180 `omarchy-*`
-çağrısını tema başına elle düzeltmek yerine, aynı isimlerde ince shim'ler
-üretilip **yalnız `waybar-launch`'ın PATH'ine** eklendi (`home.packages`'a
-sızmaz). Karşılıklar: `omarchy-menu` → rofi drun / rofi tabanlı güç menüsü
-("Kilitle" → `loginctl lock-session`, hyprlock'u tetikler),
-`omarchy-launch-wifi/-bluetooth` → `ghostty -e nmtui`/`bluetuith`,
-`omarchy-cmd-screenrecord` → `gpu-screen-recorder` toggle, `omarchy-toggle-idle`
-→ `hypridle.service`'i durdurup başlatır, `omarchy-update-available` → her
-zaman boş çıkış (waybar modülü otomatik gizler). `$OMARCHY_PATH/default/
-waybar/indicators/*.sh` üç gösterge de aynı katmanda — `idle-indicator.sh`
-`hypridle.service`nin durumunu yansıtır.
-
-**Elle düzenlemeler** (jq ile 15 farklı şekilli JSON'a modül enjekte etmek
-yerine, vendor'lanmış dosyalarda doğrudan):
-- Battery hiçbir temada `bat` alanı belirtmiyordu (waybar ilk bulduğu BATn'i
-  kullanır — bu makinede yine BAT1 olurdu ama explicit yapıldı) ve birçoğunda
-  hiç referans edilmiyordu (tanımlı ama modül listesinde yok — upstream'in
-  "batarya test edilmemiş" durumunun somut hali). Hepsine `"bat": "BAT1"`,
-  `interval: 30`, gerekiyorsa `states.warning/critical` eklendi.
-- Backlight hiçbir temada yoktu → hepsine `device: "amdgpu_bl1"` ile eklendi.
-- Interval normalizasyonu: upstream'in `cpu`/`memory` modülleri çoğunlukla
-  `interval: 2` kullanıyordu → 30'a çekildi (4.28W idle bütçesi).
-- Ölü/yanlış ikili çağrılar düzeltildi: `xdg-terminal-exec` → `ghostty`,
-  `pamixer -t` → `pactl set-sink-mute @DEFAULT_SINK@ toggle`, `alacritty` →
-  `ghostty` (V3).
-- **V1**: `sway/mode` modülü kaldırıldı (Sway IPC'siz hyprland'da anlamsız);
-  yazarın "bu dosyayı `~/.config/hypr/scripts/`'e taşı" notuyla bıraktığı
-  tuhaf-isimli dizinden `volume.sh` doğru adla vendor'landı (kullanılmıyor,
-  referanssız — dokunulmadı).
-- **V1, V1.5**: `@import` hiç yoktu, literal `white`/`#121212`/`aliceblue`
-  gibi renkler `@foreground`/`@surface`/`@bright` referanslarına çevrildi —
-  palet dosyası değişmeden bu iki temanın da monokroma girmesi bu sayede oldu.
-- **V3.Ω/V3.Ωx dizin adları `V3.Omega`/`V3.Omegax`** — Nix store path'i ASCII
-  dışı karakter kabul etmiyor.
-- **V3.Omegax**: üst bar (`top`) + alt bar (`bottom/config`) waybar'ın
-  çoklu-bar desteğiyle **tek `config.jsonc`'te JSON dizisi** olarak birleşti
-  (`[ {üst-bar}, {alt-bar} ]`, tek `waybar` süreci, tek paylaşılan `style.css`).
-  Üst bardaki `custom/secbar` (ikinci barı ayrı bir `waybar -c` süreciyle
-  açıp/kapatan toggle) bu yüzden anlamsızlaştı ve kaldırıldı — iki bar artık
-  hep birlikte açılıyor. **cava.sh sürekli çalışıyor** (pactl+cava boru hattı) —
-  bu, bu tema seçiliyken idle bütçesine ek yük demek; karar öncesi ölçülmeli.
-- **V4.y**: `configs/bar.jsonc`+`configs/dock.jsonc` planda "diziye alınır"
-  deniyordu, ama dosyaları okuyunca ikisinin neredeyse birebir aynı olduğu
-  (sadece yükseklik/kenar farkı) ve ikisinin de `position: top` olduğu ortaya
-  çıktı — diziye alınsalar aynı kenarda iki neredeyse-özdeş bar üst üste
-  binerdi. Bunun yerine daha dolgun `dock.jsonc`/`dock.css` çifti tek tema
-  olarak seçildi, `mode.sh` (ikisi arasında dosya kopyalayarak geçiş yapan
-  script — store'un salt-okunur olmasıyla zaten uyumsuzdu) ve `custom/mode`
-  modülü kaldırıldı.
-
-**Geçiş — rebuild'siz.** `waybar-theme` (`home.packages`, `bar/waybar.nix`):
-`--list` (16 isim), `<ad>` (state dosyasına yaz + `systemctl --user restart
-waybar.service`), `--pick` (rofi seçici), `--reset` (Nix varsayılanına dön).
-Kısayol **SUPER+W** (`lua/binds.lua`). Temiz kurulumdaki varsayılan
-`rice.hyprland.waybarTheme` (`system.nix`, varsayılan `"current"`) — normal
-`enable` seçeneğiyle aynı `osConfig` izleme deseni.
-
-**Bilinçli bırakılanlar:** her temadaki `custom/omarchy`, `mpris`, `custom/lock`
-gibi modüllerin bir kısmı upstream'de zaten hiçbir `modules-left/center/right`
-listesinde referans edilmiyor (V7'nin `"group/right1"` yazım hatası dahil, ki
-bu yüzden `pulseaudio` de hiç görünmüyordu — düzeltildi). Referanssız olanlar
-(ör. V1'in `mpris`+`volume.sh`'i) dokunulmadan bırakıldı; çalışmıyor olmaları
-zaten hiçbir şeyi bozmuyor.
-
-## Rofi launcher teması — adi1090x type-5/style-4 (29 Tem 2026)
-
-**İstek:** `adi1090x/rofi`'nin type-5 / style-4 launcher'ı kurulsun, renkleri
-**aktif waybar temasıyla** uyumlu olsun.
-
-**Neden mono, neden matugen değil.** İstek anında aktif waybar teması `V5`'ti ve
-V-temalarının **hepsi** `waybar-mono.css`'ten besleniyor — statik, tek renk
-ailesi. Rofi ise matugen'den besleniyordu, yani duvar kağıdıyla renk
-değiştiriyordu. İkisi bu yüzden zaten uyumsuzdu. Kullanıcı çatalı **saf
-monokrom** yönünde çözdü: rofi artık `waybar-mono.css`'i okuyor, bedeli rofi'nin
-duvar kağıdını takip etmemesi.
-
-**Tek renk kaynağı.** `launcher/themes.nix`, `waybar-mono.css`'teki
-`@define-color ad #hex;` satırlarını Nix tarafında ayrıştırıp attrset'e çevirir.
-Paleti Nix'e kopyalamak yerine CSS'i okumasının nedeni: waybar o dosyayı
-`@import` ile okumak **zorunda**, iki kopya kaçınılmaz olarak ayrışırdı. Sonuç:
-`waybar-mono.css`'teki bir hex'i değiştirmek 15 waybar temasını **ve** rofi'yi
-birlikte döndürür.
-
-**Katman düzeni — waybar'la birebir aynı desen.** Üst kaynak dosya
-(`rofi-themes/type-5/style-4.rasi`) bit-bit vendor'lanır; renge ve ölçüye dair
-her sapma `rofi-mono-overrides.rasi`'de durur ve build-time'da dosyanın **sonuna**
-eklenir. rasi'de de CSS'te olduğu gibi son kural kazanır — sıra ters çevrilirse
-üst kaynağın turuncu/yeşil/kırmızısı geri gelir. Doğrulandı: birleştirme
-**özellik bazında** oluyor, yani `window`'un üst kaynaktan gelen
-`border-radius: 20px` / `transparency: "real"` değerleri, biz yalnız `width` ve
-`background-color` ezsek de korunuyor.
-
-**rofi 2.0'ın gradient tuzağı (ölçüldü).** `linear-gradient(...)` **içinde**
-`@değişken` kullanılamıyor: rofi ayrıştıramıyor ve o tek satır yüzünden tema
-dosyasının **tamamını** sessizce reddedip dahili Solarized **light** temasına
-düşüyor (`rofi -theme … -dump-theme` → "Failed to parse theme", çıktıda
-`#fdf6e3`). Aynı `@değişken` gradient dışında sorunsuz çalışıyor. style-4'ün
-seçim şeridi gradient olduğu için tüm renkler build-time'da literal hex'e
-çevriliyor — yer tutucular (`rofi-mono-overrides.rasi`) bu yüzden var.
-
-**Solarized mirası — bugün ısırmıyor, yine de yazıldı.** Üst kaynak dokuz
-`element` durumundan yalnız üçünü boyuyor. rofi 2.0'da bu sorun değil: ölçüldü,
-`@theme` dahili temayı **birleştirmiyor**, tamamen değiştiriyor — boyanmamış
-durum genel `element` kuralına düşüyor, beyaz satır üretmiyor. Yine de dokuzu da
-açıkça yazıldı; rofi birleştirme davranışına dönerse tema sessizce okunmaz
-hale gelirdi.
-
-**Renk eşlemesi.** Üst kaynak zaten neredeyse monokromdu; yalnız üç vurgu rengi
-paletin gri basamaklarına indirildi: `#FF9030` (seçili satır, aktif sekme) →
-`bright`, `#19B466` (çalışan uygulama) → `color6`, `#EA5553` (seçili+çalışan) →
-`bright`. Zeminler: `#22272C` → `background`, `#2E343B` → `surface`, gradient
-sol durağı `#4C4F52` → `overlay`.
-
-**HiDPI sapması.** Panel 2560x1600 @ scale 1 (~189 dpi), üst kaynak ~96 dpi
-varsayıyor. Oranlar korunarak büyütüldü: pencere 800→1100px, yazı Iosevka 10 →
-JetBrainsMono Nerd Font 12 (rice'ın geri kalanıyla tek yüz), ikon 24→28px,
-inputbar/mode-switcher yan boşluğu pencerenin %25'i kalsın diye 200→275px.
-
-**Kapsam.** `programs.rofi.theme` bu temayı gösterdiği için SUPER+D (drun),
-`waybar-theme --pick` ve tema belirtmeyen her `rofi -dmenu` çağrısı bu görünümü
-alır. SUPER+T'nin duvar kağıdı grid'i (`wallpaper-grid.rasi`) kendi ikon-grid
-düzenini korur ama aynı paleti kullanır — `rofi/mono-colors.rasi`'yi `@import`
-eder. O dosya matugen'in `colors.rasi`'siyle **aynı değişken adlarını** taşır:
-grid'i (ya da yeni bir menüyü) dinamik renklere döndürmek tek satırlık import
-değişikliği. Eski `zixar-rice.rasi` teması kaldırıldı; matugen'in rofi şablonu
-kaçış kapısı olarak duruyor (çalışmaya devam ediyor, sadece artık okunmuyor).
 
 ## Saydamlık (uygulama CSS'i + Hyprland senkron)
 
@@ -382,8 +289,9 @@ cevabı → uygulama kendi süslemesini çizmez. Bonus: HiDPI'de net render, kes
 yani o paket de ancak şimdi Wayland'e geçti.
 
 **Kategori 2 — Qt: pratikte gereksiz.** `QT_WAYLAND_DISABLE_WINDOWDECORATION=1`
-diye bir kaçış var, ama Hyprland zaten SERVER_SIDE dediği için Qt uyuyor.
-Ayrıca bu sistemde kayda değer Qt GUI'si yok (pavucontrol GTK). **Ayarlanmadı.**
+diye bir kaçış var, ama Hyprland zaten SERVER_SIDE dediği için Qt uyuyor. **Not:
+Caelestia (Qt/QML) buna dahil** — kendi pencere süslemesini çizmiyor, aynı
+protokol yeterli. **Ayarlanmadı**, gerek yok.
 
 **Kategori 3 — GTK/libadwaita: MÜMKÜN DEĞİL, üstelik istenmez.** Nautilus vb.
 uygulamaların üst çubuğu bir `GtkHeaderBar`: içinde yol çubuğu, arama ve menü
@@ -426,9 +334,10 @@ Kritik olan üçlü:
 
 **Compositor tarafı — `lua/rules.lua`, `vscodium-chrome` kuralı.**
 - `border_size = 2` — global `border_size` 0 olduğu için (main.lua, 29 Tem
-  kararı) elle açılır; global'e dokunulmaz. Yan etkisi: `theme.lua`'nın matugen
-  gradient'i (`general.col.active_border`) şimdiye kadar hiçbir yerde
-  çizilmiyordu, artık **görünür** → kenarlık duvar kağıdıyla birlikte değişir.
+  kararı) elle açılır; global'e dokunulmaz. Yan etkisi: `theme.lua`'nın renkli
+  kenarlığı (`general.col.active_border`, artık Caelestia'nın `scheme/current.lua`
+  çıktısından besleniyor) şimdiye kadar hiçbir yerde çizilmiyordu, artık
+  **görünür** → kenarlık duvar kağıdıyla birlikte değişir.
 - `opacity = 0.94` — Hyprland'da tek sayı active/inactive/fullscreen'in üçünü
   birlikte set eder, yani odak kaybında global `inactive_opacity`'ye (0.86)
   **sönmez**; kod okurken kritik. Global active (0.92) yerine bir tık opak,
@@ -447,87 +356,217 @@ kurulum dizinindeki `workbench.desktop.main.js`'i yamalıyor — o dosya
 
 ## Güç bütçesi (4.28W GERİLEMEZ kuralı)
 
-- `system.nix` → `AQ_DRM_DEVICES=/dev/dri/hypr-igpu` (sabit bir udev symlink'i,
-  `KERNEL=="card[0-9]*", DRIVERS=="amdgpu"`): aquamarine NVIDIA node'unu hiç
-  açmaz — açık fd RTD3 D3cold'u bloke ederdi. `cardN` numarası boot sırasına
-  göre değiştiğinden (ölçüldü: card0=nvidia, card1=amdgpu) sabit bir isim
-  şart; değer iki nokta (`:`) içeremez (aquamarine ':' ile ayırır), bu yüzden
-  by-path değil udev symlink'i kullanılıyor. PRIME offload (`gamerun`)
-  etkilenmez.
-- Tema motoru **olay güdümlü**: yalnız kısayolla tetiklenir, poll yok.
-  matugen/swww geçişi anlık maliyet; idle'da hiçbir şey koşmaz.
-- Waybar aralıkları: pil 30 sn, RAM 30 sn, saat 60 sn; fan modülü sinyal
-  tabanlı (poll yok), ağ modülü waybar varsayılanında (60 sn).
-- Cava **barda yok ve autostart edilmez** — sürekli ses örnekler; istenince
-  terminalden.
+- `system.nix` → `AQ_DRM_DEVICES=/dev/dri/hypr-igpu` (compositor katmanı) +
+  Caelestia'nın kendi `__GLX_VENDOR_LIBRARY_NAME`/`__EGL_VENDOR_LIBRARY_FILENAMES`
+  env'leri (Qt/QML istemci katmanı) — iki katman birlikte NVIDIA node'unu kapalı
+  tutar, yalnız biri yeterli değil (bkz. yukarıdaki "dGPU güvenliği" bölümü).
+- `services.gpuType = "None"` + `dashboard.performance.showGpu = false` —
+  `nvidia-smi`'nin saniyede bir fork edip dGPU'yu uyandırmasını kökten kesiyor.
+- `background.visualiser.enabled = false` (varsayılan zaten böyle, açıkça pekiştirildi)
+  — sürekli PipeWire ses yakalaması dashboard kapalıyken hiç çalışmaz.
+- `dashboard.showWeather = false` + `services.weatherLocation = ""` — periyodik
+  ağ isteği (wttr.in/ipinfo.io) yok.
+- Kaynak/medya monitörleri (`TickingService`) yalnız ilgili panel görünürken tick
+  atıyor — dashboard kapalıyken idle CPU maliyeti ~0 bekleniyor (upstream kaynak
+  kodu bu davranışı doğruluyor, ölçülmedi henüz).
+- Tema motoru **olay güdümlü**: yalnız kısayolla/launcher'dan tetiklenir, poll yok.
 - `misc.vrr = 2` (yalnız tam ekran) — panel 48-165Hz aralığında değişken tazeleme.
-- **Yapılacak ölçüm:** Hyprland oturumunda pilde idle W (`current_now ×
-  voltage_now / 1e12`, BAT1) + `/sys/bus/pci/devices/0000:64:00.0/power_state`
-  ile D3cold teyidi. 4.28W tabanı GNOME hâlâ birincil oturumken ölçülmüştü
-  (2026-07-02); GNOME kaldırıldıktan sonra (2026-07-30) yeniden doğrulanmalı.
+- **Yapılacak ölçüm (switch sonrası, kullanıcıda):** pilde idle W
+  (`current_now × voltage_now / 1e12`, BAT1) + `cat /sys/bus/pci/devices/0000:64:00.0/
+  power_state` ile D3cold teyidi + `pgrep nvidia-smi` (boş dönmeli) +
+  `systemd-cgtop` ile `caelestia.service` CPU/RSS. 4.28W tabanı 2026-07-02'de GNOME
+  birincil oturumken ölçülmüştü; GNOME kaldırıldıktan (30 Tem) ve şimdi Caelestia'ya
+  geçildikten sonra yeniden doğrulanmalı.
 
 ## Kısayollar
 
 Eskiden GNOME'un dconf kısayollarıyla bire bir eşleşecek şekilde seçilenler
-(kas hafızası korunuyor) + rice'a özgü olanlar:
+(kas hafızası korunuyor) + Caelestia'ya özgü olanlar (09 Ağu'da yeniden atandı):
 
 | Kısayol | İş |
 |---|---|
 | SUPER+Enter | ghostty |
 | SUPER+Q | pencere kapat |
 | SUPER+1..9 (+SHIFT) | çalışma alanı (taşı) |
-| SUPER+M | fan modu döngüsü |
-| SUPER+V | bildirim paneli (swaync) |
-| SUPER+L | kilit ekranı (hyprlock, `loginctl lock-session` üzerinden) |
+| SUPER+M | fan modu döngüsü (bildirim toast'ı — kalıcı gösterge yok) |
+| **SUPER+SPACE** | **uygulama başlatıcı (Caelestia launcher)** — eskiden SUPER+D'deydi |
+| **SUPER+D** | **dashboard (performans/medya paneli)** — eskiden bu tuş launcher'dı |
+| SUPER+SHIFT+N | bildirim/hızlı-ayarlar paneli (sidebar) |
+| SUPER+V | pano geçmişi (`caelestia clipboard`) — eskiden bildirim paneliydi |
+| SUPER+L | kilit ekranı (`caelestia shell lock lock`, Caelestia'nın kendi kilidi) |
 | Copilot (Meta+Shift+F23) | Claude Desktop |
-| **SUPER+T** | **duvar kağıdı seç → tema** |
-| **SUPER+SHIFT+T** | **rastgele duvar kağıdı + tema** |
-| SUPER+W | waybar tema seçici |
-| SUPER+D | rofi drun |
+| **SUPER+T** | **rastgele duvar kağıdı + tema** (`caelestia wallpaper -r`) |
 | SUPER+F / SHIFT+F | yüzer / maximize (16 Tem'de yer değişti) |
-| Print / SHIFT+Print | ekran görüntüsü (bölge/tam ekran) → satty |
-| SUPER+SHIFT+S | ekran görüntüsü (bölge) → panoya |
+| Print | bölge seç (dondurulmuş ekran) + swappy ile düzenle |
+| SHIFT+Print | tam ekran görüntü |
+| SUPER+SHIFT+S | bölge → doğrudan panoya (`picker openClip` IPC'si) |
 | SUPER+SHIFT+E | oturumu kapat (ly'ye döner) |
+
+Kaldırılanlar: SUPER+SHIFT+T (rastgele tema — SUPER+T'yle tekilleşti), SUPER+W
+(waybar tema seçici — waybar'ın kendisi gitti).
 
 ## Açma / doğrulama
 
-1. `configuration.nix` → `rice.hyprland.enable = true;` (tek oturum kalınca
+1. `configuration.nix` → `desktop.hyprland.enable = true;` (tek oturum kalınca
    her zaman açık; kapatmak sistemi çalışan oturumsuz bırakır).
 2. `nixos-rebuild build --flake /home/zixar/nixos-zixar#nixos` → hatasızsa
-   `sudo nixos-rebuild switch --flake /home/zixar/nixos-zixar#nixos`.
-3. Çıkış yap → ly'de **Hyprland (uwsm-managed)** seç (`defaultSession` zaten
-   bunu işaret ediyor).
-4. İlk giriş: Stylix duvar kağıdı + ondan üretilmiş renklerle açılır
-   (aktivasyon tohumu). SUPER+T ile değiştir; `hyprctl reload` sonrası
-   kenarlık renklerinin değiştiğini gör.
-5. Güç ölçümü (yukarıdaki bölüm) — sonucu bu dosyaya işle.
+   **`switch` DEĞİL, `nh os boot`** (= `nixos-rebuild boot`). **Cache yok** —
+   quickshell + Qt6 kaynaktan derlenir, ilk build uzun sürer.
+   **Neden `switch` değil:** canlı oturumda hyprlock'un PAM'ı + eski rice'ın
+   servisleri (swaync vb.) sökülürken Hyprland bellekte hâlâ eski Lua config'i
+   tutuyor olur — hem riskli hem "gerçek" boot yolunu temsil etmez. `boot`
+   mevcut oturuma dokunmadan yalnız bootloader varsayılanını değiştirir; yeni
+   jenerasyon tümüyle bozuksa (Hyprland/Caelestia hiç açılmasa bile) bootloader
+   menüsünden önceki jenerasyona dönülebilir — ikinci TTY'den daha güçlü bir
+   kurtarma ağı, çünkü yeni oturumun kısmen çalışıyor olmasına bağımlı değil.
+3. `reboot` → ly → **Hyprland (uwsm-managed)** seç (`defaultSession` zaten
+   bunu işaret ediyor). ly/UWSM/Hyprland/Caelestia hepsi temiz başlar.
+4. **Kilit testi ÖNCE** — ikinci bir TTY açık tut (`Ctrl+Alt+F2`),
+   `caelestia shell lock lock` ile kilitle/aç. Bu, `boot`+reboot ile de
+   ATLANMAZ: `security.pam.services.hyprlock` sökülmüşken PAM bozuksa kilit
+   ekranında sıkışılır — TTY'den `systemctl --user stop caelestia` kurtarır
+   (ext-session-lock protokolü, kilitleyen istemci ölünce compositor'ı
+   otomatik kilit açmaya zorlar); o da olmazsa donanım reset + bootloader'dan
+   önceki jenerasyon.
+5. İlk giriş: `caelestia scheme set -n dynamic` (ExecStartPre guard'ı bunu bir kez
+   otomatik yapar) — SUPER+T ile değiştir, kenarlık renginin değiştiğini gör.
+6. Güç ölçümü + dGPU/PPD doğrulaması (yukarıdaki bölüm) — sonucu bu dosyaya işle.
 
 ## Ekran görüntüsü, kilit ve idle
 
-GNOME'un PrintScreen'i ve SUPER+L'si, Sway rice'ın grim/slurp'ı kaldırılınca
-(2026-07-30) rice kendi karşılıklarını kazandı:
+Hepsi artık Caelestia'nın kendi altyapısı — hiçbiri ayrı HM modülü/servis değil:
 
-- **Ekran görüntüsü** — `hypr-screenshot` (`session.nix`, eskiden sway rice'ta olan
-  `sway-screenshot`'ın portu): grim/slurp wlr-screencopy protokolünü kullanır,
-  compositor bağımsız. `region` (bölge seç + satty ile düzenle, varsayılan),
-  `fullscreen`, `clipboard` (bölge → doğrudan panoya) modları var.
-- **Kilit ekranı** — `programs.hyprlock`, renk sahibi matugen
-  (`templates/hyprlock-colors.conf` → `~/.config/hypr/hyprlock-colors.conf`,
-  hyprlock.conf bunu `source` ile okur). PAM servisi `system.nix`'te
-  (`security.pam.services.hyprlock`) — olmadan parola asla doğrulanmaz.
-- **Idle** — `services.hypridle`, `hyprland-session.target`'a bağlı: 5 dk
-  boşta DPMS off, 10 dk boşta `loginctl lock-session` (→ hyprlock). Suspend
-  YOK — s2h zinciri zaten logind'de kurulu (`power.nix`), ikinci bir yazar
-  çakışırdı. `bar/omarchy-compat.nix`'teki `omarchy-toggle-idle` /
-  `idle-indicator.sh` `hypridle.service`'i durdurup başlatarak devre dışı
-  bırakır.
-- **AC/BAT refresh-rate** — `power-display.nix`'in kullanıcı servisi artık
-  `gnome-randr` yerine `hyprctl keyword monitor` kullanıyor (60Hz pilde,
-  165Hz fişte); mod stringi `lua/main.lua`'daki `hl.monitor` ile elle senkron
-  tutulmalı.
+- **Ekran görüntüsü** — `caelestia screenshot` (CLI, grim+swappy) ve
+  `caelestia shell picker *` (IPC, bölge seçici) — bkz. Kısayollar tablosu.
+- **Kilit ekranı** — Caelestia'nın kendi `WlSessionLock` + `PamContext`'i,
+  standart `passwd` PAM zincirini kullanıyor. `security.pam.services.hyprlock`
+  09 Ağu'da sökülmüştü (sistem/desktop/session.nix) — ek bir PAM servis adı
+  tanımlamaya gerek yok.
+- **Idle** — Caelestia'nın kendi `ext-idle-notify-v1` yöneticisi: 5 dk boşta
+  `lock`, 8 dk boşta `dpms off/on`. **Suspend/hibernate action'ı YOK** — uyku
+  kararı logind'e bırakıldı (`system/kernel/power.nix`, s2h zinciri,
+  `HibernateDelaySec=25min`). Caelestia'nın oturum menüsü `hibernate` komutunu
+  zaten `SessionManager.suspendThenHibernate`'e eşliyor, ek koruma gerekmedi.
+- **AC/BAT refresh-rate** — `power-display.nix`'in kullanıcı servisi
+  `hyprctl keyword monitor` kullanıyor (60Hz pilde, 165Hz fişte); mod stringi
+  `lua/main.lua`'daki `hl.monitor` ile elle senkron tutulmalı.
 
-## Bilinçli eksikler (istemde yoktu)
+## Bilinçli eksikler
 
-- Tema önizleme küçük resimleri (referans repodaki `thumb-gen.sh`) — rofi
-  ikonları orijinal dosyayı okuyor; büyük PNG'lerde seçici ilk açılışta
-  yavaşlarsa eklenebilir.
+- Fan modu göstergesi kalıcı değil (bkz. yukarıdaki "Bar'ın sınırı" bölümü) —
+  yalnız SUPER+M sonrası bildirim toast'ı.
+- Tema önizleme küçük resimleri — Caelestia'nın kendi launcher'ı bunu zaten
+  sağlıyor (`>wallpaper` action'ı), ek iş gerekmedi.
+
+## Serpantinum deneme oturumu
+
+`system/desktop/serpantinum.nix` + `home/desktop/serpantinum/default.nix`,
+github.com/ilyamiro/serpantinum'u (Quickshell/Hyprland rice, yazarın kişisel dotfiles'ı —
+`flake.nix` YOK, yazarın kendi makinesinde `mkOutOfStoreSymlink "/etc/nixos/…"` + `rsync`
+ile store dışında çalışıyor) commit `5d4451f7ab55ddaced9ba350b6dba5dd2932aeb1`'e pinleyip
+ly'de **karantinalı üçüncü bir oturum** olarak kurar. Caelestia
+(`defaultSession = "hyprland-uwsm"`) tek satır etkilenmez.
+
+### Neden karantina
+
+Aynı ağaçta iki Quickshell kabuğu, aynı Wayland yüzeylerini istiyor: layer-shell
+(bar/panel), `ext-session-lock-v1` (kilit ekranı), bildirim D-Bus adı. İkisi de koşulsuz
+çalışsa üçü için de çakışırlardı. Bu yüzden serpantinum'un HM tarafı **hiçbir global HM
+seçeneğine dokunmuyor** — hangi oturum aktifse aktif olsun sızacak her şey ya patch'lenip
+silindi ya da hiç eklenmedi (tam liste ve gerekçe: `home/desktop/CLAUDE.md`'nin
+"Serpantinum — karantinalı ikinci oturum" bölümündeki tablo). Yalnız oturuma özel
+dosyalar (`~/.config/hypr/serpantinum.conf`, `~/.config/hypr/scripts`,
+`~/.config/matugen/*`) ve oturum sarmalayıcısının (`serpantinum-session`) kendi ortamı
+karantinalı.
+
+### Ne adapte edildi
+
+| Değişiklik | Neden |
+|---|---|
+| `hyprpolkitagent` autostart | Üstakımın kendi polkit satırı eksik/kırıktı — polkit ajanı olmadan parola isteyen işlemler (örn. NetworkManager) sessizce başarısız olur. |
+| Fan-mode-cycle keybind | Üstakımda hiç yoktu — Caelestia oturumundaki SUPER+M dengi burada eksikti. |
+| Klavye RGB parlaklık keybind | Aynı sebep — üstakımda yoktu, bu makinenin donanımına özgü eklendi. |
+| EGL/vendor-library pinleri (`__GLX_VENDOR_LIBRARY_NAME`/`__EGL_VENDOR_LIBRARY_FILENAMES`) | Caelestia'nın dGPU-güvenliği katmanıyla aynı kaygı (yukarıdaki "dGPU güvenliği" bölümü) — pin olmadan Qt/QML istemcisi NVIDIA node'unu açıp dGPU'yu D3cold'dan çıkarabilir. |
+| swww→awww yeniden adlandırması | Üstakımın duvar kağıdı daemon çağrı hedefi üstakımda ad değiştirmiş; ilgisiz bir upstream driftti, düzeltilmeden oturum hiç açılmazdı. |
+| Uygulama menüsü dizin listesi (15 Ağu) | `app_fetcher.py` `XDG_DATA_DIRS`'i okumuyor, dizinleri elle sabitlemiş — HM'in `home.packages`'ının indiği `/etc/profiles/per-user/zixar/share/applications` listede yoktu, 16 uygulama menüde hiç görünmüyordu. |
+| Tarayıcı bind'i `zen` → `zen-beta` (15 Ağu) | İkilinin gerçek adı `zen-beta`; `exec, zen` sessizce hiçbir şey yapmıyordu. |
+| `WALLPAPER_DIR` = üstakımın kendi duvar kağıdı deposu (15 Ağu) | Seçicinin varsayılan kaynağı Caelestia'nın dizini olurdu; ayrıca `-maxdepth 1` taradığı için alt klasöre konan koleksiyon hiç görünmüyordu. |
+
+#### Kısayol farkları (Caelestia oturumuna göre)
+
+Üstakımın kendi bind'leriyle çakışmayan boş tuşlara kondu — Caelestia'daki karşılıkları
+farklı:
+
+| İş | Serpantinum | Caelestia | Neden farklı |
+|---|---|---|---|
+| Fan modu döngüsü | **SUPER+ALT+M** | SUPER+M | Üstakımda SUPER+M monitör panelinde dolu |
+| Klavye RGB −/+ | **SUPER+ALT+C / SUPER+ALT+V** | (aynı iş, `binds.lua`) | — |
+| Pencere kapat | **SUPER+A** | SUPER+Q | Üstakımda SUPER+Q müzik popup'ında dolu; A, Q'nun bir sıra altı aynı sütun |
+| Tarayıcı | **SUPER+F** (`zen-beta`) | launcher üzerinden | Üstakımın kendi bind'i, hedefi düzeltildi |
+| Duvar kağıdı seçici | **SUPER+W** | SUPER+T (şema zinciri) | Ayrı motorlar |
+
+#### Duvar kağıdı kaynağı
+
+Seçicinin taradığı dizin tek bir env değişkeniyle belirleniyor: `WALLPAPER_DIR`
+(oturum sarmalayıcısında). Bunu hem `qs_manager.sh` (`SRC_DIR`) hem
+`WallpaperPicker.qml` (`Quickshell.env`) okuyor — **ikinci bir ayar noktası yok**.
+Değer, üstakımın kendi duvar kağıdı deposu `github.com/ilyamiro/shell-wallpapers`
+(319 görsel, ~429 MB, `lib/serpantinum-wallpapers.nix`'te commit'e pinli). İlk açılış
+görseli o depodaki `desert-doom-sand-dunes-…jpg` — `lib/wallpapers/obsidian-dunes.jpg`
+ile bayt bayt aynı dosya (zaten oradan alınıp yeniden adlandırılmıştı), yani görsel
+kimlik değişmedi, yalnız bağımlılık yönü düzeldi: oturum artık Caelestia'nın
+`~/Pictures/Wallpapers` dizinine dayanmıyor.
+
+Kritik ayrıntı: seçici `find … -maxdepth 1` kullanıyor. Koleksiyonu duvar kağıdı
+dizininin **alt klasörüne** koymak bu yüzden hiçbir zaman işe yaramaz — 13-15 Ağu
+arasında "wallpaper'ların çoğu hâlâ yok" şikâyetinin kök nedeni buydu.
+
+### Ne YAPILMADI
+
+- **Watcher katmanı idle-optimizasyonu YOK.** TopBar boşta ~8 `inotifywait` sakini, 5
+  fetch↔wait ping-pong'u (`battery_wait.sh`'te `timeout 10`), MPRIS yokken 2 sn'de bir
+  `dbus-monitor` respawn'ı, saniyede bir saat repaint'i taşıyor — hiçbiri yeniden
+  yazılmadı. Bilinçli kullanıcı kararı: maliyet gerçek ama yalnız bu oturum
+  SEÇİLİYKEN ödeniyor; kök `CLAUDE.md`'deki "4.28W GERİLEMEZ" kuralı yalnız her iki
+  oturumun paylaştığı `system/kernel/{sched,power,cores}.nix`'i bağlıyor, buraya
+  sızmıyor — açık istisna, aynı satır kök `CLAUDE.md`'de de var.
+- **`qt6.qtwebengine` `QML2_IMPORT_PATH`'e bilinçli EKLENMEDİ**
+  (`system/desktop/serpantinum.nix`) — ~1-2 GiB closure büyümesi, yalnız
+  movie/DDG-arama widget'ları kullanıyor. Yamalı ağaçtaki 30 QML dosyasının hiçbiri
+  şu an `QtWebEngine` import etmiyor, yani dışlama şu anda hiçbir şeyi kırmıyor;
+  ekranda "Type unavailable" hatası görülürse oraya eklenir.
+
+### v2.0 değerlendirme kriterleri
+
+Üstakım 8 Ağu 2026'da "v2.0 ile bunu yeni bir kabuğa dönüştürüyorum, ay sonundan önce"
+duyurdu (son gerçek config commit'i 15 May 2026) — bu yüzden emek pinlenip denendi,
+üstakıma yatırılmadı (upstream `follow` edilmedi). v2.0 yayınlandığında güncellemeden
+önce sırayla sorulacaklar:
+
+1. **Yamaların kaçı üstakımın kendi hatasıydı, kaçı bu makineye özgü?**
+   ~20 `postPatch` sed'inin bir kısmı üstakım hatasını düzeltiyor (örn. matugen
+   `--prefer=` eksikliği, kayıp `settings_watcher.sh`, swww→awww) — v2.0 bunları
+   çözmüşse kapanır. Geri kalanı bu makineye özgü (NixOS profil yolları, panel
+   çözünürlüğü, Hyprland 0.56 kural sözdizimi, weather.env yönlendirmesi) ve
+   `flake.nix` gelse de KALIR. Not: üstakımın kendi `mkOutOfStoreSymlink`+`rsync`
+   köprüsü onun kendi makinesine özgü bir mekanizma — bu repo zaten kullanmıyor
+   (`fetchFromGitHub`+`applyPatches`), o yüzden `flake.nix` gelmesi burada
+   kaldırılacak bir köprü bırakmaz, yalnızca commit pinlemeyi flake input'a
+   çevirebilir.
+2. **Watcher katmanı systemd user service mi, yoksa hâlâ Hyprland `exec-once` mu?**
+   `exec-once` demek servis yönetimi/yeniden başlatma/loglama yok demek — systemd'ye
+   geçmişse bu repodaki diğer HM servisleriyle (caelestia.service gibi) aynı desene
+   oturtulabilir.
+3. **Watcher katmanı idle'da ne yapıyor?** inotifywait sakin sayısı, ping-pong sayısı,
+   dbus-monitor respawn periyodu — v2.0 bunları event-driven'a çevirdiyse yukarıdaki
+   "Ne YAPILMADI" maddesi kapanır ve idle optimizasyonu adapte etmeye değer hale gelir.
+4. **matugen zorunlu mu, yoksa Stylix ile entegre edilebilir mi?** Zorunluysa Caelestia
+   ile aynı "Stylix per-app renk AYARLAMASI" çelişkisi burada da doğar (kök
+   `CLAUDE.md`); entegre edilebilirse serpantinum da Stylix'in tek-kaynak kuralına
+   girebilir.
+5. **NixOS paketleme uyarısı kalktı mı?** Üstakımın NixOS için resmi bir paketleme
+   yolu/desteği yoksa (şu an yok — bu yüzden fetchFromGitHub + elle patch) v2.0'da bu
+   değişmiş mi, kontrol et.
+
+Bu beş soru olumlu yanıtlanmadan pin'i "kör" `flake update`/versiyon atlamasıyla
+taşıma — her biri ayrı bir emek/risk kalemi.

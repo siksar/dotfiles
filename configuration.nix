@@ -20,6 +20,7 @@
     ./system/kernel/power.nix
     ./system/kernel/power-display.nix
     ./system/kernel/sched.nix
+    ./system/kernel/cores.nix
 
     # init/ — önyükleyici ve yerel ayar
     ./system/init/limine.nix
@@ -31,6 +32,7 @@
     ./system/net/vpn.nix
     ./system/net/censorship.nix
     ./system/net/localsend.nix
+    ./system/net/geoclue.nix
 
     ./system/sound.nix
     ./system/virt.nix
@@ -44,11 +46,11 @@
     ./system/desktop/session.nix
     ./system/desktop/login.nix
     ./system/desktop/theme.nix
+    ./system/desktop/serpantinum.nix
 
     # ══ usr/ — sistem geneli kurulan programlar ════════════════════════════
     ./usr/steam.nix
     ./usr/netflix.nix
-    ./usr/firefox.nix
     ./usr/local-ai.nix
   ];
 
@@ -58,6 +60,10 @@
   # bırakır (ly'de başka oturum yok). HM tarafı osConfig ile otomatik izler.
   # Ayrıntı: Documentation/desktop.md
   desktop.hyprland.enable = true;
+
+  # Karantinali deneme oturumu (Serpantinum) — ly'de ucuncu girdi olarak gorunur,
+  # Caelestia'ya dokunmaz. Kaldirmak icin false yap.
+  desktop.serpantinum.enable = true;
 
   # hyprland paketi hem "hyprland.desktop" hem "hyprland-uwsm.desktop" oturum
   # dosyasını kurar; yalnız uwsm olanı bu makinede çalışıyor (withUWSM=true,
@@ -110,7 +116,8 @@
     git
     gh
 
-    # Masaüstü araçları (ekran görüntüsü: home/desktop/session.nix'in hypr-screenshot'ı, Print)
+    # Masaüstü araçları (ekran görüntüsü artık `caelestia screenshot` — Print,
+    # home/desktop/wm/binds.lua)
     brightnessctl     # CLI parlaklık (script/servisler)
     wl-clipboard      # wl-copy / wl-paste
     pavucontrol       # PulseAudio / PipeWire GUI

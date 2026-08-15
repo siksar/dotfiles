@@ -32,6 +32,28 @@
     chaotic.url = "github:chaotic-cx/nyx/nyxpkgs-unstable";
     # claude-desktop artık resmî Linux .deb'inden yerel pakette:
     # home/apps/claude-desktop-pkg.nix
+
+    # Caelestia — Quickshell tabanlı masaüstü kabuğu (bar/launcher/bildirim/kilit/idle)
+    # + cli (runtime Material You tema motoru). nixpkgs'te YOK, ikisi de kaynaktan
+    # derlenir — Caelestia'nın flake.nix'inde nixConfig/binary cache YOK (nix-amd-ai/
+    # chaotic'in aksine), o yüzden follows burada zararsız: kaçırılacak bir cache hash'i
+    # yok, yalnız closure'daki nixpkgs'i tekilleştirir.
+    # cli AYRI girdi (upstream'in kendi caelestia-shell.follows="" ile kırdığı döngüyü
+    # burada TERSİNE kuruyoruz): özel şemaları (schemes/*.txt) pakete enjekte etmek için
+    # cli-pkg'i override etmemiz gerekiyor — bkz. home/desktop/caelestia/default.nix.
+    caelestia-cli = {
+      url = "github:caelestia-dots/cli";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    caelestia-shell = {
+      url = "github:caelestia-dots/shell";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.caelestia-cli.follows = "caelestia-cli";
+      # quickshell'i follows ETME: upstream git.outfoxxed.me master'ı şart koşuyor
+      # ("this has to be the git version, not the latest tagged version" — cli README).
+      # nixpkgs'teki pkgs.quickshell 0.3.0'a düşürmek QML "Type X unavailable" çökmesi
+      # verir; ayrı kalması bilinçli, Caelestia'nın kendi tasarımı.
+    };
   };
 
   outputs = inputs @ { nixpkgs, home-manager, stylix, ... }:

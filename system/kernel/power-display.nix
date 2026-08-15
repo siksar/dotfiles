@@ -173,8 +173,8 @@ in
   };
 
   # Kullanıcı servisi — Hyprland oturumu açılınca otomatik koşar. Generic
-  # graphical-session.target DEĞİL: rice'ın diğer servisleriyle (waybar,
-  # swaync) aynı desen — yalnız Hyprland'de aktifleşsin.
+  # graphical-session.target DEĞİL: rice'ın diğer servisiyle (caelestia.service)
+  # aynı desen — yalnız Hyprland'de aktifleşsin.
   systemd.user.services.power-display-user = {
     description = "AC/BAT Hyprland refresh rate + render profile adaptation";
     wantedBy = [ "hyprland-session.target" ];

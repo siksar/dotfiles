@@ -37,7 +37,12 @@ in
     desktop      = 1.0;  # waybar/rofi/swaync matugen'de kendi alpha'sını yönetir
   };
 
-  # Kişisel paletler — eski Caelestia şemalarından base16'ya çevrildi (schemes/)
+  # Kişisel paletler — eski Caelestia şemalarından base16'ya çevrildi (schemes/).
+  # DİKKAT: bu çevrim GERİ ALINAMAZ (110 anahtarın yalnız 16'sı taşınıyor; M3
+  # container'ları, 12 kademeli surface rampası, parlak ANSI renkleri kayıp).
+  # Aynı paletlerin BİREBİR 110-anahtarlı Caelestia .txt biçimi artık
+  # home/desktop/caelestia/schemes/'te de yaşıyor (09 Ağu, Caelestia kurulumu) —
+  # oradan buraya da dönüştürme YAPILMADI, ikisi bağımsız kaynaklar.
   base16Scheme = ./schemes + "/${palette}.yaml";
 
   image = wallpaper.${palette};

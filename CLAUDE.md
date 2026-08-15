@@ -80,7 +80,12 @@ README draws the map, and the rule that matters here is this one:
 **separate eval contexts and cannot import each other** — mixing them is a hard error,
 not a lint. A topic that touches both therefore gets two files
 (`system/kernel/sched.nix` + `home/apps/games.nix`), and `lib/` exists precisely because
-plain data (theme, schemes, wallpapers) has to be readable from both sides.
+some things have to be readable from both sides — plain data (theme, schemes,
+wallpapers) but also shared package-building functions: `lib/gamerun.nix` is a
+`{ pkgs }: pkgs.writeShellScriptBin …` function (same calling convention as
+`lib/theme.nix`) imported by both `usr/steam.nix` (`programs.steam.extraPackages`,
+puts it in Steam's FHS sandbox) and `home/apps/games.nix` (`home.packages`, puts
+it on the normal user PATH).
 
 ### Renaming rule — this one bites
 
@@ -91,14 +96,13 @@ So:
   enter a derivation.
 - **Data files/dirs reached via `${./…}` or `src = ./…` may MOVE but NOT be renamed.**
   Currently: `system/arch/aerox16/acpi/*`, `keyboard-rgb/src/`, `home/desktop/wm/*.lua`,
-  `home/desktop/theme/*`, `bar/waybar-themes/`, `bar/waybar-mono*.css`,
-  `launcher/rofi-themes/`, `launcher/rofi-mono-overrides.rasi`, `lib/schemes/*.yaml`,
-  `lib/wallpapers/*`.
+  `home/desktop/caelestia/schemes/*.txt`, `home/desktop/caelestia/templates/*`,
+  `lib/schemes/*.yaml`, `lib/wallpapers/*`.
 - **`builtins.readFile ./x` does NOT bind the basename** — it inlines the *content* at
-  eval time, no store copy, no derivation name. That's the only reason
-  `bar/waybar-style.css` and `notify/swaync-style.css` are absent from the list above
-  while their neighbours are on it; check *how* a data file is consumed before assuming
-  it's pinned.
+  eval time, no store copy, no derivation name, so a file consumed this way is exempt
+  from the rule above. No file in the tree currently relies on this exemption (the
+  waybar/swaync rice that used to was removed 9 Aug 2026, replaced by Caelestia) —
+  check *how* a data file is consumed before assuming it's pinned if you reintroduce it.
 - **Comments inside `''…''` strings are NOT Nix comments** — they're script text and
   they hash. A typo fix inside `wmi.nix`'s `postPatch` recompiles the out-of-tree
   kernel module and rehashes initrd. (Learned the expensive way, 31 Jul 2026.)
@@ -123,23 +127,28 @@ Moving/renaming/reordering modules? The `drvPath` before/after procedure is the
 Keeping both paths reading identical `home.nix` is deliberate — don't add
 HM config that only one of the two entry points can see.
 
-### Desktop: Hyprland + ly (display manager), themed by Stylix
+### Desktop: Hyprland + ly (display manager), themed by Caelestia + Stylix
 
-The desktop is a single session — Hyprland 0.56 (Lua config) + Matugen dynamic
-theming (Waybar/Rofi/SwayNC/awww/Cava) — toggled by `desktop.hyprland.enable = true;`
+The desktop is a single session — Hyprland 0.56 (Lua config) + **Caelestia**, a
+Quickshell-based shell providing bar/launcher/notifications/lock/idle + its own
+runtime Material You theme engine — toggled by `desktop.hyprland.enable = true;`
 in `configuration.nix`. The flag is a safety valve, not an A/B switch: turning it
 off leaves the system without a working session, since ly has nothing else to
-offer.
+offer. Caelestia replaced a hand-rolled waybar+rofi+swaync+matugen+hyprlock+hypridle
+rice on 9 Aug 2026 (clean cutover, no transition toggle) — that rice is still readable
+on the abandoned `rice/caelestia` branch (old repo layout, pre-reorg) as prior art, not
+mergeable.
 
-The full design doc — the SUPER+T wallpaper→matugen theme chain, why `withUWSM = true`
-is mandatory (the session file exists even without it but fails with "Unit not
-found"), the Lua config integration — is `Documentation/desktop.md`; read it before
-touching the rice. The rice-internal gotchas (`AQ_DRM_DEVICES` placement, `withUWSM`,
-session-target binding, matugen's source-color-index requirement) live in
-`home/desktop/CLAUDE.md`, which loads automatically when you work in
-that directory. Waybar's 16-theme system and the vendored rofi theme — the design, the
-shared monochrome palette, and rofi 2.0's gradient parser trap — are in
-`Documentation/desktop.md` + `home/desktop/CLAUDE.md`.
+The full design doc — the Caelestia IPC surface, the SUPER+T wallpaper→scheme chain, why
+`withUWSM = true` is mandatory (the session file exists even without it but fails with
+"Unit not found"), the Lua config integration — is `Documentation/desktop.md`; read it
+before touching the rice. The rice-internal gotchas (`AQ_DRM_DEVICES` placement,
+`withUWSM`, session-target binding, Caelestia's fixed 8-entry bar / no plugin system /
+package-only custom schemes) live in `home/desktop/CLAUDE.md`, which loads
+automatically when you work in that directory.
+**Caelestia has no binary cache** (unlike this repo's other third-party inputs) — every
+`flake update` rebuilds quickshell (its own git.outfoxxed.me pin, not nixpkgs's) and Qt6
+from source; keep the input pinned and update deliberately.
 The HM side follows the system flag automatically via `osConfig` — never add a second
 toggle. This works on both the embedded and standalone HM paths only because of the
 flake's `extraSpecialArgs.osConfig` pass-through, so changes to `flake.nix` can
@@ -198,7 +207,10 @@ added under `system/` or `home/apps/games.nix` must not run or poll while
 idle** — see the design constraint comment at the top of `system/kernel/sched.nix`
 ("pil/idle tabanı 4.28W GERİLEMEZ"). scx_lavd, zram priority, gamemode hooks etc. are all
 gated to only activate during an actual gaming session (`game-perf.service`), never at
-boot.
+boot. The Serpantinum session (`system/desktop/serpantinum.nix` +
+`home/desktop/serpantinum/`) is an explicit exception to this rule, not a regression of
+it: it is not the default session, it is a quarantined second ly entry, and it costs
+nothing unless a login explicitly picks it — details in `home/desktop/CLAUDE.md`.
 
 `system/arch/aerox16/wmi.nix` builds an out-of-tree kernel module
 (`aorus-laptop`, fetched from GitHub) plus uses `acpi_call` for raw WMI/EC writes
@@ -212,22 +224,58 @@ AC/battery-dependent behavior is applied via a udev rule on `ACAD`
 (`power_supply` online/offline) triggering a oneshot systemd service, not polling —
 follow this pattern for any new AC-state-dependent tuning rather than a timer.
 
+**CPU scheduling — Zen5/Zen5c hybrid, invisible to the scheduler** (`system/kernel/cores.nix`,
+10 Aug 2026): this CPU's fast (Zen5: `0,2,4,6`+SMT, 5.09GHz) and efficiency (Zen5c: `1,3,5,7`+SMT,
+3.5GHz) cores are unseen by the scheduler — `amd_pstate/prefcore` is disabled, `amd_hfi`'s driver
+never binds to its device, `sched_itmt_enabled` never appears, `cpu_capacity` reads 1024 on all 16
+CPUs (full evidence: `Documentation/aerox16/cpu-hybrid.md`). Without a fix, a short single-thread
+burst lands on a Zen5 core with 50/50 odds and rides `power-display.nix`'s AC-time
+`scaling_max_freq`/boost restore straight to 5GHz — not a runaway process, just an unaware
+scheduler plus willing hardware. `cores.nix` pins `systemd.settings.Manager.CPUAffinity` to
+Zen5c-only, so the whole desktop (fork/exec inheritance) runs there by default and 5GHz becomes
+structurally unreachable outside a game. The mask is soft (`sched_setaffinity`, not cgroup
+`AllowedCPUs`) — `taskset` always punches through it: `gamerun` does so unconditionally (see
+Gaming stack below), and the fish alias `aia` (`home/shell/fish.nix`) is the escape hatch for
+one-off heavy jobs (`aia cargo build`). `nix-daemon` is exempted directly in `cores.nix` so builds
+keep all 16 CPUs.
+
 ### Gaming stack
 
-`system/kernel/sched.nix` (system layer: gamemode, scx_lavd scheduler, ntsync,
-zram, `game-perf.service`) + `home/apps/games.nix` (HM layer: the `gamerun` shell
-wrapper and MangoHud config) together implement the launch chain documented in
-`Documentation/gaming.md`. Steam launch options are `gamerun %command%`; `gamerun` is a
-`pkgs.writeShellScriptBin` wrapper handling dGPU PRIME offload, DLSS 4.5 env vars,
-Reflex, ntsync, and CPU pinning (`GR_PIN`), then `exec`s `gamemoderun`, whose
-start/stop hooks drive `game-perf.service` (scx_lavd + the WMI 0xED perf profile on AC).
+`system/kernel/sched.nix` (system layer: gamemode, scx_lavd scheduler, ntsync, zram,
+`game-perf.service`) + `lib/gamerun.nix` (the `gamerun` wrapper itself — a plain
+`{ pkgs }:` function, same convention as `lib/theme.nix`) together implement the launch
+chain documented in `Documentation/gaming.md`. `home/apps/games.nix` puts it on the HM
+PATH (`home.packages`); `usr/steam.nix` puts it inside Steam's own FHS sandbox
+(`programs.steam.extraPackages`) — **both are required, not redundant**, and both resolve
+to the same derivation (`flake.nix`'s `useGlobalPkgs = true`).
+
+**gamerun was completely dead until 10 Aug 2026.** Steam runs launch options inside its
+own FHS/pressure-vessel sandbox via `/bin/sh -c`, whose `PATH` is only `/usr/bin:/bin`;
+the Home Manager profile gamerun used to live in was invisible from inside that sandbox,
+so every launch silently failed with `gamerun: command not found` (confirmed in
+`~/.local/share/Steam/logs/console-linux.txt`) and everything downstream — PRIME offload,
+gamemode, `game-perf.service`, scx_lavd, the 0xED perf profile, fan turbo — never fired
+for a single Steam session. `usr/steam.nix`'s `extraPackages` is the fix; if gamerun ever
+seems to have no effect again, check for `command not found` in that log first, before
+assuming a downstream part of the chain is broken.
+
+Steam launch options are `gamerun %command%` — **`%command%` is mandatory**: Steam only
+treats the string as a wrapper if it's present; without it, the string is silently
+appended as a game argument instead (no error). `gamerun` handles dGPU PRIME offload and,
+by default, opts back into the full 16-CPU pool (`taskset -c 0-15`, punching through the
+Zen5c-only desktop mask from `cores.nix` above — `GR_PIN=big/fast/<list>` narrows it
+further for single-thread-bound sim games). Because it went untested for so long, riskier
+DLSS/vendor-hiding env vars are opt-in rather than default-on (`GR_NVONLY`, `GR_DLSS`,
+`GR_CACHE` — see `lib/gamerun.nix`'s header for what each covers and why). It then
+`exec`s `gamemoderun`, whose start/stop hooks drive `game-perf.service` (scx_lavd + the
+WMI 0xED perf profile on AC).
 
 `gamerun` has **three** callers, not one — its env contract is load-bearing for all of
 them, so read them before changing what it exports:
 
 | Caller | Entry point | Note |
 |---|---|---|
-| Steam | launch options `gamerun %command%` | the documented path |
+| Steam | launch options `gamerun %command%` | via `usr/steam.nix`'s FHS `extraPackages` — the path that was broken |
 | `home/apps/minecraft.nix` | `mc-run` → `gamerun`, via Prism's `WrapperCommand` | adds MC-only OpenGL env first, so it can't leak into Steam |
 | `home/apps/emu.nix` | `emu-run {rpcs3\|shadps4}` → `gamerun` | native Vulkan; the DLSS/Reflex/Proton vars are inert-but-harmless here |
 
@@ -237,7 +285,10 @@ PPD to `balanced`, **not** `performance`, so the shared NVIDIA Dynamic Boost bud
 `system/kernel/sched.nix`'s inline comments (CPU-bound titles opt back in with
 `GR_CPUMAX=1 gamerun …`). Undervolting the CPU is **platform-locked** on this Gigabyte
 board (see `Documentation/aerox16/undervolt.md`), so capping its power appetite is the
-only lever; 100°C is by-design (Zen5 mobile Tjmax), not a fault. When touching this chain, update
+only lever; 100°C is by-design (Zen5 mobile Tjmax), not a fault. `system/arch/aerox16/wmi.nix`'s
+`gigabyte-power-profile.service` must not write `fan_mode` while `game-perf.service` is
+active — it used to unconditionally reset the turbo fan on every AC-plug/resume event,
+silently killing it mid-session (fixed 10 Aug 2026). When touching this chain, update
 `Documentation/gaming.md`'s launch-options table to match.
 
 ### Networking — zapret and Mullvad are mutually exclusive

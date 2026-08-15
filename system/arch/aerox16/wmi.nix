@@ -91,12 +91,29 @@ in
   '';
 
   # AC/BAT'a göre otomatik fan modu + dGPU Dynamic Boost bütçesi (ölçümler:
-  # Documentation/aerox16/wmi-ec.md). Varsayılan: BAT=1 (sessiz), AC=0 (dengeli) —
-  # kullanıcı tercihi (eski AC=2/oyun'dan değişti). Fan modu ayrıca Süper+M ile
-  # canlı döndürülebiliyor (0→1→2→5, bkz. aşağıdaki fan-mode-cycle servisi);
+  # Documentation/aerox16/wmi-ec.md). Varsayılan: BAT=1 (sessiz), AC=4 (dengeli) —
+  # kullanıcı tercihi (AC: 2/oyun → 0 → 4). "Dengeli" 15 Ağu 2026'da 0'dan 4'e
+  # alındı: 4 = WMBD 0x70 (SetFanAdjustStatus, sürücünün "auto-max" dediği mod).
+  # NOT: wmi-ec.md'nin eski "4/5 ölü" notu YANLIŞ çıktı — 4 canlı sistemde
+  # okunup çalışıyor (15 Ağu, sysfs'ten doğrulandı), doküman düzeltildi.
+  # Bu servis fişi takınca/uykudan dönünce fan_mode'u yeniden yazdığı için, elle
+  # 4'e almak KALICI DEĞİLDİ; kalıcılık tam olarak bu satırdan geliyor.
+  # Fan modu ayrıca Süper+M ile canlı döndürülebiliyor (4→1→2→5, bkz. aşağıdaki
+  # fan-mode-cycle servisi);
   # AC/uyku değişimi bu otomatik varsayılanı yeniden uygular (manuel geçici). ACBT
   # (0x4C, ×8W): AC'de 80W → nvidia-powerd GPU tavanını 50→75W+ yapar; pilde 0
   # (verim). gpu_boost (0x51) yazılMIYOR: bu DSDT'de 2=no-op, 3=dGPU eject!
+  #
+  # fan_mode İSTİSNASI (10 Ağu 2026): bu servis fişi takıp çekince VEYA uykudan
+  # dönünce ACAD udev kuralıyla / resumeCommands ile tetikleniyor — game-perf.service
+  # oyun ortasında fan_mode=5 (turbo) yazmışken bu servis araya girip KOŞULSUZ 0'a
+  # geri yazıyordu, yani oyunun ortasında fişle oynama veya suspend-then-hibernate'ten
+  # dönüş turbo'yu sessizce düşürüyordu. game-perf aktifken fan_mode'a DOKUNMA —
+  # ACBT (dGPU boost bütçesi) AC/BAT'a göre yine burada yeniden uygulanmalı, o
+  # yüzden yalnız fan_mode satırı koşullu, ACBT branch'i aynen kalıyor. `is-active`
+  # burada doğru sorgu: game-perf Type=oneshot + RemainAfterExit=true, yani "oyun
+  # oturumu sürüyor mu" sorusunun tam karşılığı — zapret defterindeki "is-active ile
+  # sağlık ölçme" tuzağıyla AYNI ŞEY DEĞİL (orası Restart=always bir daemon'du).
   systemd.services.gigabyte-power-profile = {
     description = "AC/BAT fan modu + dGPU boost bütçesi (aorus-laptop WMI)";
     wantedBy = [ "multi-user.target" ];
@@ -108,11 +125,16 @@ in
         [ -d "$P" ] || exit 0
         AC=$(cat /sys/class/power_supply/ACAD/online 2>/dev/null || echo 1)
         if [ "$AC" = "0" ]; then
-          echo 1 > "$P/fan_mode"   # sessiz
-          ACBT=0                   # pilde boost bütçesi kapalı
+          FAN=1    # sessiz
+          ACBT=0   # pilde boost bütçesi kapalı
         else
-          echo 0 > "$P/fan_mode"   # AC: dengeli (kullanıcı tercihi; eski: 2=oyun)
-          ACBT=10                  # 10×8 = 80W Dynamic Boost bütçesi
+          FAN=4    # AC: dengeli (kullanıcı tercihi; 15 Ağu 2026'da 0'dan 4'e alındı)
+          ACBT=10  # 10×8 = 80W Dynamic Boost bütçesi
+        fi
+        if ${pkgs.systemd}/bin/systemctl is-active --quiet game-perf.service; then
+          : # oyun sürüyor — fan_mode'a dokunma, turbo (5) kalsın
+        else
+          echo "$FAN" > "$P/fan_mode"
         fi
         if [ -w /proc/acpi/call ]; then
           echo "\\_SB.PCI0.AMW0.WMBD 0 0x4C $ACBT" > /proc/acpi/call
@@ -132,14 +154,14 @@ in
       RUN+="${pkgs.systemd}/bin/systemctl start --no-block gigabyte-power-profile.service"
   '';
 
-  # Süper+M fan modu döngüsü (0→1→2→5). fan_mode sysfs'i root gerektirir; bu root
+  # Süper+M fan modu döngüsü (4→1→2→5). fan_mode sysfs'i root gerektirir; bu root
   # oneshot servis yazar, sonra masaüstü bildirimini zixar oturumuna runuser +
   # kullanıcı DBus'ı üzerinden gönderir. SUPER+M kısayolundan polkit ile ŞİFRESİZ
   # tetiklenir (bkz. home/desktop/wm/binds.lua). ACBT'ye DOKUNMAZ — dGPU boost
-  # ayrı (AC/oyun profili yönetir). Modlar: 0=Dengeli·1=Sessiz·2=Gaming·5=Turbo.
+  # ayrı (AC/oyun profili yönetir). Modlar: 4=Dengeli·1=Sessiz·2=Gaming·5=Turbo.
   # (Not: Fn+F7 denendi ama Linux'a güvenilir input/ACPI olayı olarak ulaşmıyor.)
   systemd.services.fan-mode-cycle = {
-    description = "aorus-laptop fan modunu döndür (0→1→2→5) + masaüstü bildirimi";
+    description = "aorus-laptop fan modunu döndür (4→1→2→5) + masaüstü bildirimi";
     after = [ "systemd-modules-load.service" ];
     serviceConfig = {
       Type = "oneshot";
@@ -148,11 +170,11 @@ in
         [ -w "$P" ] || exit 0
         cur=$(${pkgs.coreutils}/bin/cat "$P" 2>/dev/null || echo 0)
         case "$cur" in
-          0) next=1; name="Sessiz"  ;;
+          4) next=1; name="Sessiz"  ;;
           1) next=2; name="Gaming"  ;;
           2) next=5; name="Turbo"   ;;
-          5) next=0; name="Dengeli" ;;
-          *) next=0; name="Dengeli" ;;   # beklenmedik okuma → başa dön
+          5) next=4; name="Dengeli" ;;
+          *) next=4; name="Dengeli" ;;   # beklenmedik okuma (0 DAHİL) → dengeliye dön
         esac
         echo "$next" > "$P"
         uid=$(${pkgs.coreutils}/bin/id -u zixar 2>/dev/null || echo 1000)
@@ -162,9 +184,10 @@ in
             XDG_RUNTIME_DIR="/run/user/$uid" \
           ${pkgs.libnotify}/bin/notify-send -a Fan -u low -t 2000 \
             "Mevcut Mod $next" "$name" >/dev/null 2>&1 || true
-        # Waybar'daki custom/fan modülünü tazele (signal=8, home/desktop/session.nix)
-        # — modül interval="once" ile çalışır, bu sinyal olmadan güncellenmez.
-        ${pkgs.procps}/bin/pkill -SIGRTMIN+8 -u zixar waybar 2>/dev/null || true
+        # Kalıcı gösterge YOK (09 Ağu): waybar'ın custom/fan modülü Caelestia'ya
+        # geçişte kaldırıldı — Caelestia bar'ı sabit 8 kimlikli girdi kabul
+        # ediyor, özel modül eklenemiyor (plugin sistemi de boş repo). Bu
+        # notify-send toast'ı tek gösterge; Caelestia bildirim daemon'u yakalar.
       '';
     };
   };

@@ -37,6 +37,10 @@
       cat = "bat";
       find = "fd";
       grep = "rg";
+      # ağır iş → tüm 16 CPU. system/kernel/cores.nix masaüstünü VARSAYILAN
+      # Zen5c'ye (verimlilik) kilitler; bu, o maskeyi bilinçli delmenin tek
+      # görünür yolu. Kullanım: aia ffmpeg -i … / aia cargo build
+      aia = "taskset -c 0-15";
     };
 
     interactiveShellInit = ''

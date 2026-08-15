@@ -28,8 +28,17 @@ Ayrıntı: "Canlı test sonuçları" bölümü.
 
 ## Şu an Linux'ta çalışanlar
 
-- `fan_mode`: 0=normal, 1=sessiz, 2=oyun, 3=custom(ölü), 4/5(ölü)
-  → `gigabyte-power-profile` AC'de 2 (oyun), pilde 1 (udev ACAD + resume tetikli)
+- `fan_mode`: 0=normal, 1=sessiz, 2=oyun, 3=custom(ölü), 4=auto-max, 5=turbo
+  → `gigabyte-power-profile` AC'de **4**, pilde 1 (udev ACAD + resume tetikli)
+  → SUPER+M döngüsü: 4→1→2→5 (`fan-mode-cycle.service`)
+
+  **Düzeltme (15 Ağu 2026):** bu satır önceden "4/5(ölü)" diyordu — YANLIŞ. 5 zaten
+  Turbo olarak döngüde aktif kullanımdaydı, 4 ise canlı sistemde `fan_mode`'dan
+  okunarak doğrulandı (aşağıdaki WMBD tablosu da tutarlı: 4 → `0x70`
+  SetFanAdjustStatus, 5 → `0x6A` SetFixedFanStatus — ikisi de dolu case). Eski not
+  büyük olasılıkla `fan_mode 1` misdetect zincirinden (bkz. "Sessiz mod ÖLÜ"
+  bölümü) genellenmişti. Ayrıca AC varsayılanı olarak yazan "2 (oyun)" da koddan
+  kopmuştu (arada 0'a çekilmişti).
 - dGPU Dynamic Boost: acpi_call `WMBD 0x4C` → AC'de ACBT=80W (+
   `nvidia-powerd` ile GPU tavanı 50→75W+), pilde 0. (`gpu_boost`/0x51
   KULLANILMIYOR: 2=no-op, 3=dGPU eject, 1=LCBT(0) — işlevsiz)

@@ -128,10 +128,11 @@
   # baypas eder ve s2idle'da sonsuza kalır; systemd'de düz suspend'i s2h'e
   # yükseltmenin desteklenen bir yolu YOK (SuspendState= sadece /sys/power/state'e
   # yazılan stringi değiştirir), yani çağıran tarafı düzeltmek tek çözüm.
-  # Yeni bir uyku tetikleyicisi eklerken `suspend-then-hibernate` yaz — ör.
-  # hypridle.conf'ta zamanlayıcı hiç suspend'e bağlanmaz (home/desktop/session.nix,
-  # Documentation/desktop.md'de gerekçesi), omarchy-menu'nün güç menüsü de
-  # `systemctl suspend-then-hibernate` çağırır (waybar-omarchy-compat.nix).
+  # Yeni bir uyku tetikleyicisi eklerken `suspend-then-hibernate` yaz. Caelestia'nın
+  # oturum menüsü örnek: systemctl/loginctl çağrılarını logind D-Bus'a alias'lar
+  # ve `hibernate` komutu SessionManager.suspendThenHibernate'e eşlenir (CanHibernate
+  # ön kontrolüyle, kullanılamazsa düz suspend'e düşer) — bkz.
+  # home/desktop/caelestia/default.nix, Documentation/desktop.md'de gerekçesi.
   services.logind.settings.Login = {
     HandleLidSwitch              = "suspend-then-hibernate";
     HandleLidSwitchExternalPower = "suspend-then-hibernate";

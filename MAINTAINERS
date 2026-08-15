@@ -45,6 +45,12 @@ W:	postPatch bir shell STRING'i; içindeki '#' satırları Nix yorumu değil.
 	Oradaki bir yazım düzeltmesi bile kernel modülünü yeniden derletir.
 N:	Çalışan kollar: 0xED perf profili (GPU 38W→70-83W ölçüldü),
 	ACBT 0x4C Dynamic Boost bütçesi, fan_mode 0x57 sessiz mod (yamalı probe).
+N:	"Dengeli" fan modu 0 DEĞİL 4 (15 Ağu 2026, kullanıcı tercihi): AC
+	varsayılanı ve SUPER+M döngüsünün başı/dönüş noktası 4 (4→1→2→5).
+	4 = WMBD 0x70 SetFanAdjustStatus ("auto-max"). Elle `echo 4 > fan_mode`
+	KALICI DEĞİLDİR — gigabyte-power-profile.service fiş/uyku olayında
+	yeniden yazar; kalıcılık yalnız o servisin FAN= satırından gelir.
+	wmi-ec.md'nin eski "4/5 ölü" notu yanlıştı, düzeltildi.
 
 ACPI / DSDT OVERRIDE
 S:	Maintained — REBOOT sonrası Faz C doğrulaması hâlâ bekliyor
@@ -85,34 +91,68 @@ N:	Donanım s2idle-only — deep/S3 YOK. Hibernate bu makinede hiç
 	çalıştırılmadı, ilk denemede doğrula.
 
 ═══════════════════════════════════════════════════════════════════════════
+CPU — hibrit Zen5/Zen5c çekirdek politikası
+═══════════════════════════════════════════════════════════════════════════
+S:	Maintained — 10 Ağu 2026, SWITCH + ölçüm doğrulaması kullanıcıda
+F:	system/kernel/cores.nix
+T:	Documentation/aerox16/cpu-hybrid.md
+N:	Zamanlayıcı bu CPU'nun hibrit olduğunu BİLMİYOR: amd_pstate/prefcore
+	disabled, sched_itmt_enabled hiç oluşmamış, amd_hfi sürücü cihaza
+	bağlanmamış (ama firmware prefcore_ranking'i GERÇEK veriyor). Masaüstü
+	VARSAYILAN Zen5c'ye (systemd manager CPUAffinity) elle kilitlendi —
+	5GHz o çekirdeklerde yapısal olarak imkânsız.
+W:	Maske YUMUŞAK (sched_setaffinity, cgroup AllowedCPUs DEĞİL) — taskset
+	ile her zaman delinebilir. gamerun VARSAYILAN olarak deler (taskset -c
+	0-15, lib/gamerun.nix); fish `aia` alias'ı (home/shell/fish.nix)
+	kaçış için.
+W:	nix-daemon MUAF tutuldu (derleme 16 CPU kullanmalı, cores.nix içinde).
+	Yeni bir sistem servisi eklerken bu maskeyi devralacağını unutma — ağır
+	arka plan işi gerektiren bir servis eklersen CPUAffinity muafiyeti gerekebilir.
+
+═══════════════════════════════════════════════════════════════════════════
 OYUN — launch zinciri
 ═══════════════════════════════════════════════════════════════════════════
 S:	Maintained
 F:	system/kernel/sched.nix                 (gamemode, scx_lavd, ntsync, zram)
-F:	home/apps/games.nix                     (gamerun sarmalayıcısı)
+F:	system/kernel/cores.nix                 (Zen5c maskesi — gamerun onu deler)
+F:	lib/gamerun.nix                         (gamerun tanımı — iki tarafça ortak import)
+F:	home/apps/games.nix                     (HM: gamerun'ı PATH'e ekler)
 F:	home/apps/minecraft.nix                 (Prism + mc-run→gamerun + JVM)
 F:	home/apps/emu.nix                       (emu-run→gamerun; RPCS3 + shadPS4)
-F:	usr/steam.nix                           (Steam, Proton-GE/CachyOS)
+F:	usr/steam.nix                           (Steam, Proton-GE/CachyOS, gamerun'ı FHS'e ekler)
 T:	Documentation/gaming.md                 ← launch options tablosu
-N:	Zincir: Steam launch options `gamerun %command%` → gamerun (PRIME
-	offload, DLSS, Reflex, ntsync, GR_PIN) → gamemoderun → gamemode
-	start/stop hook → game-perf.service (scx_lavd + AC'de 0xED profili).
+N:	Zincir: Steam launch options `gamerun %command%` → gamerun (taskset -c
+	0-15 ile cores.nix maskesini del, PRIME offload, opt-in DLSS/NVONLY/
+	cache, Reflex, ntsync, GR_PIN) → gamemoderun → gamemode start/stop
+	hook → game-perf.service (scx_lavd + AC'de 0xED profili + fan turbo).
 N:	CPU politikası GPU-ÖNCELİKLİ: game-perf PPD'yi `performance` değil
 	`balanced` yapar — paylaşımlı Dynamic Boost bütçesi (ACBT 80W) dGPU'ya
 	gitsin diye. CPU-bound oyunlar `GR_CPUMAX=1 gamerun …` ile geri alır.
 W:	gamerun'ın ÜÇ çağıranı var — Steam launch options, mc-run (Prism
 	WrapperCommand), emu-run (rpcs3|shadps4). Export ettiği env'i
 	değiştirirsen üçünü de gözden geçir; yalnız Steam'i test etmek yetmez.
+W:	gamerun Steam'in FHS kum havuzunda PAKET olarak bulunmak ZORUNDA
+	(usr/steam.nix programs.steam.extraPackages) — Home Manager profili
+	kum havuzunun PATH'inde YOK, 10 Ağu 2026'ya kadar bu yüzden "command
+	not found" ile hiç çalışmadı (kanıt: Steam konsol logu). lib/gamerun.nix'i
+	değiştirirsen iki tüketicinin de (home/apps/games.nix + usr/steam.nix)
+	aynı türevi kullandığını unutma (flake.nix useGlobalPkgs=true sayesinde).
+W:	Steam launch options'ta `%command%` YOKSA dize sarmalayıcı sayılmaz,
+	oyunun argümanı olarak sonuna eklenir (sessiz başarısızlık).
 W:	Bu zinciri değiştirirsen Documentation/gaming.md'deki tabloyu da güncelle.
 W:	scx_lavd/gamemode/zram önceliği yalnız game-perf.service içinde açılır,
 	boot'ta DEĞİL — idle bütçesi yüzünden.
+W:	gigabyte-power-profile.service (wmi.nix) game-perf.service aktifken
+	fan_mode'a DOKUNMAZ — dokunursa oyun ortasında fişle oynama/uyku
+	turbo'yu sessizce düşürür (10 Ağu 2026'da düzeltildi).
 
 ═══════════════════════════════════════════════════════════════════════════
 MASAÜSTÜ — Hyprland tek oturum
 ═══════════════════════════════════════════════════════════════════════════
 S:	Maintained — TEK oturum. GNOME + Sway 30 Tem 2026'da silindi.
 F:	system/desktop/session.nix              (sistem: Hyprland, portal, polkit…)
-F:	home/desktop/session.nix                (HM: WM, kilit, hypridle, polkit)
+F:	home/desktop/session.nix                (HM: WM + polkit ajanı — kilit/idle/bar
+	                                          artık Caelestia'da, aşağıya bkz.)
 F:	home/desktop/wm/                        (Lua config: binds, rules, theme…)
 F:	home/desktop/CLAUDE.md                  ← rice-içi tuzaklar, otomatik yüklenir
 T:	Documentation/desktop.md                ← tasarım dokümanı, ÖNCE OKU
@@ -120,31 +160,106 @@ W:	`desktop.hyprland.enable = false` sistemi oturumsuz bırakır (ly'de
 	başka seçenek yok). Bayrak A/B anahtarı değil, güvenlik valfi.
 W:	withUWSM = true ZORUNLU; onsuz oturum dosyası var ama "Unit not found"
 	ile düşer. defaultSession = "hyprland-uwsm" bu yüzden pinli.
-W:	wm/*.lua ve theme/* dosya adları store yoluna girer — yeniden
-	adlandırılamaz.
+W:	wm/*.lua dosya adları store yoluna girer — yeniden adlandırılamaz.
 
-BAR / LAUNCHER / BİLDİRİM
-S:	Maintained
-F:	home/desktop/bar/                       (waybar + 16 tema, SUPER+W ile seçilir)
-F:	home/desktop/launcher/                  (rofi, adi1090x type-5/style-4 portu)
-F:	home/desktop/notify/                    (swaync)
-F:	home/desktop/theme/                     (matugen şablonları)
-T:	Documentation/desktop.md   ("Waybar çoklu tema" + "Rofi launcher teması")
-N:	Waybar temaları tek monokrom paletten boyanır; rofi matugen'i DEĞİL o
-	paleti izler. Tema değişimi rebuild GEREKTİRMEZ (waybar-theme --pick).
+MASAÜSTÜ KABUĞU (Caelestia)
+S:	Maintained — waybar+rofi+swaync+matugen+hyprlock+hypridle rice'ının yerine
+	09 Ağu 2026'da geçti (temiz yıkım, geçiş dönemi seçici YOK).
+F:	home/desktop/caelestia/default.nix      (HM modülü — bar/launcher/bildirim/
+	                                          kilit/idle/tema motoru hepsi burada)
+F:	home/desktop/caelestia/schemes/*.txt    (7 özel Material You şeması, 110
+	                                          anahtar — rice/caelestia dalından
+	                                          BİREBİR kopya, dönüştürülmedi)
+F:	home/desktop/caelestia/templates/       (klavye RGB postHook template'i)
+F:	flake.nix                               (caelestia-cli + caelestia-shell
+	                                          girdileri, cache YOK)
+T:	Documentation/desktop.md                ("Caelestia kabuğu" bölümü)
+W:	Cache YOK — quickshell git.outfoxxed.me master + Qt6 her `flake update`'te
+	KAYNAKTAN derlenir. Girdiyi pinli tut, release notu okumadan güncelleme.
+W:	quickshell'i follows ETME — nixpkgs'teki 0.3.0 QML API uyumsuzluğu verir,
+	upstream'in kendi git pin'i şart.
+W:	`homeManagerModules.default` — bazı üçüncü taraf örnekler `homeModules.default`
+	yazar, YANLIŞ, eval hatası verir.
+W:	Bar `bar.entries` tam 8 sabit ID kabul eder (logo/workspaces/spacer/
+	activeWindow/tray/clock/statusIcons/power), `custom`/`exec` tipi YOK, plugin
+	sistemi boş repo — özel bir bar modülü (ör. fan göstergesi) EKLENEMEZ.
+W:	schemes/ ve templates/ dizinleri store yoluna girer — taşınabilir ama
+	yeniden ADLANDIRILAMAZ.
+W:	Kilit ekranı Caelestia'nın kendi WlSessionLock+PamContext'i — değişiklik
+	sonrası switch'te ikinci TTY açık tutup `caelestia shell lock lock` ile
+	doğrula, güvenmeden önce.
+N:	PPD'nin tek yazarı system/kernel/power-display.nix kalsın diye bar'ın
+	`power` girdisi kapalı (enabled=false) — güç profili menüden değişmez.
+
+SERPANTINUM (deneysel ikinci oturum)
+S:	Deneysel — karantinalı ikinci oturum, v2.0 sonrası yeniden değerlendirilecek
+F:	system/desktop/serpantinum.nix          (NixOS: options.desktop.serpantinum.enable,
+	                                          mkEnableOption, varsayılan false)
+F:	home/desktop/serpantinum/default.nix    (HM: aynı bayrağı osConfig ile izler,
+	                                          karantina sınırı burada uygulanır)
+F:	lib/serpantinum-wallpapers.nix          (İKİ tarafın da okuduğu duvar kağıdı
+	                                          deposu — NixOS/HM import edemediği için
+	                                          lib/'de, lib/theme.nix sözleşmesi)
+T:	Documentation/desktop.md                ("Serpantinum deneme oturumu" bölümü)
+T:	home/desktop/CLAUDE.md                  ("Serpantinum — karantinalı ikinci oturum")
+W:	Uygulama menüsü (SUPER+D) XDG_DATA_DIRS'i OKUMAZ — app_fetcher.py dizin
+	listesini elle sabitliyor ve `/etc/profiles/per-user/<ad>/share/applications`
+	(HM gömülü kurulumda home.packages'ın indiği yer) listede YOKTU: 34 girdi
+	görünürken 16'sı gizliydi (15 Ağu, yamalı/yamasız sayımla ölçüldü → 34 vs 50).
+	postPatch tek düz yol ekliyor. HM'e yeni bir uygulama ekleyip menüde
+	görünmüyorsa ÖNCE bu listeye bak.
+W:	SUPER+F tarayıcı bind'i `zen` DEĞİL `zen-beta` çağırmalı — ikilinin gerçek adı
+	bu (zen-browser-flake yalnız `beta` ve `twilight` sunuyor; "beta" Zen'in yayın
+	kanalı, kararsızlık işareti değil). `exec, zen` SESSİZCE hiçbir şey yapmıyordu.
+N:	SUPER+W seçicisinin kaynağı WALLPAPER_DIR ile üstakımın kendi koleksiyonuna
+	(319 görsel, ~429 MB store) bağlı — ~/Pictures/Wallpapers DEĞİL: orası
+	Caelestia'nın 16 küratörlü dizini, iki oturum aynı listeyi paylaşmamalı.
+	Seçici `-maxdepth 1` tarıyor, yani ALT DİZİN hiç görünmez (koleksiyonu oraya
+	alt klasör olarak koymak bu yüzden hiç çalışmamıştı).
+N:	Fan modu bind'i $mainMod ALT, M (SUPER+ALT+M) — SUPER+M üstakımda monitör
+	panelinde dolu. Klavye RGB: SUPER+ALT+C / SUPER+ALT+V. Pencere kapatma:
+	SUPER+A (SUPER+Q üstakımda müzik popup'ında dolu).
+W:	Idle maliyeti BİLİNÇLİ yeniden yazılmadı — TopBar boşta ~8 inotifywait sakini,
+	5 fetch↔wait ping-pong'u, MPRIS yokken 2 sn'de bir dbus-monitor respawn'ı,
+	saniyede bir saat repaint'i taşıyor. Yalnız bu oturum SEÇİLİYKEN ödenir;
+	sched.nix'teki "4.28W GERİLEMEZ" kuralı yalnız her iki oturumun paylaştığı
+	system/kernel/{sched,power,cores}.nix'i bağlıyor, buraya sızmaz — açık istisna.
+W:	Üstakım (github.com/ilyamiro/serpantinum) flake.nix'siz kişisel dotfiles,
+	commit 5d4451f7ab55ddaced9ba350b6dba5dd2932aeb1'e PİNLİ (kendi makinesinde
+	mkOutOfStoreSymlink + rsync ile store dışında çalışıyor). Üstakım 8 Ağu 2026'da
+	"v2.0 ile yeni bir kabuğa dönüştürüyorum, ay sonundan önce" duyurdu (son gerçek
+	config commit'i 15 May) — bu pin'i kör `flake update` ile taşıma, v2.0
+	yayınlanınca elle değerlendir. Bu deneysel modül repo'nun geri kalanının
+	ilerlemesini bloklamaz (varsayılan enable=false, Caelestia oturumuna tek satır
+	dokunmaz).
+W:	weather.sh'in OpenWeather API anahtarı $HOME/.config/serpantinum/weather.env'e
+	ELLE yazılmalı (postPatch dışında) — ~/.config/hypr/scripts tek parça store
+	symlink'i, salt-okunur; store da dünya-okunabilir + repo git'e commit ediliyor,
+	ikisi de sır için yanlış yer. Anahtar yoksa hava durumu widget'ı sessizce boş
+	kalır.
+N:	ly artık ÜÇ oturum girdisi listeler: Hyprland (çalışmayan düz giriş),
+	Hyprland (uwsm-managed) [varsayılan, defaultSession hâlâ bunu işaret ediyor],
+	Serpantinum (bu). Karantina: HM tarafı hiçbir GLOBAL Caelestia ayarına
+	(services.hypridle.enable, gtk.gtk3/gtk4.extraCss, dconf cursor-theme,
+	home.sessionVariables) dokunmaz — bkz. home/desktop/CLAUDE.md tablosu.
 
 TEMA / RENK (Stylix)
-S:	Maintained — renklerin TEK kaynağı
+S:	Maintained — renklerin TEK kaynağı (Caelestia'nın yazdığı yüzeyler HARİÇ)
 F:	lib/theme.nix                           ← palet burada değişir (tek satır)
 F:	lib/theme-standalone.nix                (yalnız standalone HM yolu)
-F:	lib/schemes/                            (özel base16 paletleri)
+F:	lib/schemes/                            (özel base16 paletleri — 16 renk,
+	                                          Caelestia'nın 110-anahtarlı
+	                                          schemes/*.txt'siyle KARIŞTIRMA)
 F:	lib/wallpapers/
 F:	system/desktop/theme.nix
 W:	Per-app renk AYARLAMA. Stylix GTK/ghostty/vscodium/vesktop/starship'i
-	kendi hedefleriyle boyar.
+	kendi hedefleriyle boyar; Caelestia CLI'ın enable* ile yazdığı hedefler
+	(hyprland/gtk/qt/btop/fuzzel/ghostty) Stylix'te KAPALI (home/desktop/
+	caelestia/default.nix stylix.targets).
 W:	schemes/ ve wallpapers/ dosya adları store yoluna girer.
-N:	lib/ altında olmalarının sebebi: hem sistem hem kullanıcı katmanı okuyor
-	(home/desktop/theme/ duvar kağıdını buradan alıyor).
+N:	base16 çevrimi GERİ ALINAMAZ (110 anahtarın 16'sı taşınıyor, 94'ü kayıp) —
+	Caelestia'ya özel şema eklerken lib/schemes/'ten değil rice/caelestia
+	dalındaki orijinal .txt'lerden kopyala.
 
 GİRİŞ EKRANI
 S:	Maintained
@@ -181,6 +296,14 @@ S:	Maintained
 F:	system/init/limine.nix                  (önyükleyici + Miasma teması)
 F:	system/init/locale.nix
 F:	system/sound.nix                        (PipeWire)
+F:	home/apps/audio.nix                     (HM: EasyEffects — hoparlör EQ)
+W:	Dolby Atmos Linux'a taşınmadı (kapalı kaynak, üretici sürücüsü Windows'a
+	özel) — burada "Atmos'u aç" seçeneği yok, tek yol EasyEffects/LSP EQ.
+N:	preset="hoparlor", sebastian-de/easyeffects-thinkpad-unsuck'tan (MIT)
+	uyarlandı — ALC245 için değil ama zincir mantığı (140Hz high-pass →
+	bass_enhancer → multiband_compressor → stereo_tools → limiter) aynı
+	sorunu (küçük sürücü + limiter yokluğu = bozulma) hedefliyor.
+	Başlangıç noktası; GUI'de dinleyip ince ayar kullanıcıda.
 F:	system/security/users.nix
 F:	system/security/keyring.nix             (gnome-keyring / Secret Service)
 F:	system/security/onepassword.nix
@@ -191,8 +314,18 @@ AĞ ÇEKİRDEĞİ
 S:	Maintained — SWITCH + ölçüm doğrulaması kullanıcıda (20 Tem)
 F:	system/net/core.nix                     (NM, resolved, BBR+fq+TFO, regdomain)
 F:	system/net/localsend.nix
-N:	resolved cache-only, DoT kapalı (şifreli DNS'i Mullvad verir).
+F:	system/net/geoclue.nix                  (GeoClue2 konum — TÜKETİCİSİ YOK)
+N:	resolved cache-only, DoT kapalı. Şifreli DNS'i Mullvad DEĞİL, zapret'in
+	yanındaki dnscrypt-proxy verir (DoH → NextDNS) — bkz. DPI BYPASS bölümü;
+	Mullvad 01 Ağu'dan beri kapalı.
 	Kablo takılınca WiFi otomatik kapanır (NM dispatcher + boot oneshot).
+W:	geoclue.nix'in hiçbir tüketicisi yok (15 Ağu 2026 sürü denetimi). WiFi
+	"up" olayında `geo-weather-sync.service` başlatan bir NM dispatcher'ı
+	vardı; o servis hiç yazılmamıştı ve hata `|| true` ile yutuluyordu —
+	kaldırıldı. Hedefi olan hava durumu widget'ı Caelestia'da BİLEREK kapalı
+	(`dashboard.showWeather = false`, idle bütçesi), yani köprüyü yazmak önce
+	o kararı gözden geçirmeyi gerektirir. Demo agent kapatıldı (her girişte
+	bir process idi); bir tüketici eklenirse GERİ AÇILMALI + appConfig girdisi.
 
 DPI BYPASS (ZAPRET)
 S:	Maintained — 01 Ağu 2026, Mullvad'ın yerine kondu
@@ -277,8 +410,10 @@ SİSTEM GENELİ (usr/)
 S:	Maintained
 F:	usr/steam.nix
 F:	usr/netflix.nix
-F:	usr/firefox.nix
 F:	usr/local-ai.nix
+N:	usr/firefox.nix KALDIRILDI (15 Ağu 2026) — konfigürasyonsuz tek satırlık
+	enable'dı ve home/apps/firefox.nix ile birlikte İKİ firefox kuruyordu.
+	Firefox'un tek sahibi artık HM tarafı; sistem geneline geri koyma.
 N:	local-ai = NPU öncelikli yerel AI (XDNA2/FastFlowLM + Lemonade).
 	NPU oyunla İLGİSİZ — FSR4/DLSS shader/tensor core kullanır.
 
@@ -289,11 +424,29 @@ W:	Runtime'da yazılan HM config'leri (vesktop settings.json) "mutable-copy
 	trick" ister. Deseni home/apps/vesktop.nix'ten BİREBİR kopyala —
 	activation sırasını yanlış kurmak `hms`/rebuild'i bozmanın en yaygın yolu.
 
+TARAYICILAR
+S:	Maintained
+F:	home/apps/zen.nix                       (öntanımlı — http/https buraya gider)
+F:	home/apps/firefox.nix                   (ikinci, tam deklaratif; usr/firefox.nix'in
+	                                          yerini aldı, 15 Ağu 2026)
+W:	zen'de ikilinin adı `zen-beta` (`zen` DİYE BİR ŞEY YOK). zen-browser-flake
+	yalnız `beta` (= default) ve `twilight` (nightly) sunuyor; "beta" Zen'in
+	YAYIN kanalının adı — "düz zen"e geçilecek bir sürüm mevcut değil.
+W:	zen'in Stylix teması hâlâ KAPALI ve bu bilinçli: kullanıcının elde verili
+	profili var (r1lawe90.Default Profile) ve HM profil tanımlamak profiles.ini'yi
+	store symlink'ine çevirir. Reçete zen.nix'in içinde yazılı. firefox'ta bu
+	sorun YOK (~/.mozilla hiç oluşmamıştı) — orada tema ilk günden açık.
+N:	Firefox'un kendi DoH'ı (TRR) BİLİNÇLİ kapalı+kilitli: sistemde DNS zaten
+	dnscrypt→NextDNS üzerinden şifreli (system/net/censorship.nix); TRR açık
+	kalsa o zinciri yalnız bu uygulamada atlardı.
+
 KABUK / TERMİNAL
 S:	Maintained
 F:	home/shell/
 N:	Kullanıcının fish'inde grep→rg, cat→bat aliaslı. `\|` alternation
 	sessizce eşleşmez; fish glob'unda [...] yok.
+N:	`aia` = `taskset -c 0-15` — system/kernel/cores.nix'in Zen5c-only
+	masaüstü maskesini bilinçli delmenin kaçış alias'ı (10 Ağu 2026).
 
 ═══════════════════════════════════════════════════════════════════════════
 DOKÜMANTASYON

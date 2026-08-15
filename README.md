@@ -59,12 +59,14 @@ değil; `kernel/`, `desktop/`). Sözlük Linux çekirdeğinden alınma.
 │   ├── arch/aerox16/          YALNIZ bu donanımda anlamlı (EC/WMI, DSDT).
 │   │                          Makine değişirse ilk silinecek dizin burası.
 │   ├── drivers/               gpu, input/keyboard-rgb
-│   ├── kernel/                power, power-display, sched
+│   ├── kernel/                power, power-display, sched, cores (Zen5/Zen5c)
 │   ├── init/                  limine, locale
 │   ├── net/                   core, censorship (zapret DPI bypass + DoH),
-│   │                          vpn (Mullvad, kapalı), localsend
+│   │                          vpn (Mullvad, kapalı), localsend,
+│   │                          geoclue (konum — tüketicisi yok)
 │   ├── security/              users, keyring, onepassword
 │   ├── desktop/               session, login (ly), theme (stylix)
+│   │                          serpantinum.nix (deneysel karantinalı ikinci oturum)
 │   ├── sound.nix
 │   └── virt.nix
 │
@@ -72,15 +74,17 @@ değil; `kernel/`, `desktop/`). Sözlük Linux çekirdeğinden alınma.
 │                              steam, netflix, firefox, local-ai
 │
 ├── home/                      ── Home Manager modülleri ──
-│   ├── desktop/               Hyprland oturumu: wm/ bar/ launcher/ notify/ theme/
+│   ├── desktop/               Hyprland oturumu: wm/ (Lua) + caelestia/ (kabuk: bar/
+│   │                          launcher/bildirim/kilit/idle/tema motoru, tek modül)
+│   │                          + serpantinum/ (deneysel karantinalı ikinci oturum)
 │   ├── shell/                 fish, starship, ghostty, tmux
 │   └── apps/                  kullanıcı uygulamaları
 │
 ├── lib/                       ── İKİ katmanın da paylaştığı saf veri ──
-│                              theme.nix, schemes/, wallpapers/
+│                              theme.nix, schemes/, wallpapers/, gamerun.nix
 │
 ├── Documentation/             ── yaşayan lab defterleri ──
-│   ├── aerox16/               wmi-ec, power, keyboard-rgb, undervolt, test-plan
+│   ├── aerox16/               wmi-ec, power, cpu-hybrid, keyboard-rgb, undervolt, test-plan
 │   ├── desktop.md  gaming.md  1password.md
 │   ├── upstream/              üstakıma gönderilecek raporlar
 │   └── archive/               DONMUŞ — yolları ve durumları kasıtlı eski
@@ -89,7 +93,7 @@ değil; `kernel/`, `desktop/`). Sözlük Linux çekirdeğinden alınma.
 ```
 
 **Neden `lib/`:** duvar kağıtları ve base16 şemalarını hem sistem katmanı
-(Stylix) hem kullanıcı katmanı (`home/desktop/theme/`) okuyor. `system/`
+(Stylix) hem kullanıcı katmanı (`home/desktop/caelestia/`) okuyor. `system/`
 altında bırakılsalardı `home/` oraya `../../system/…` ile uzanacaktı.
 Çekirdekteki anlamıyla aynı: iki dalın da paylaştığı şey.
 

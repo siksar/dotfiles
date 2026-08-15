@@ -1,47 +1,14 @@
-# Hyprland oturumu — HM katmanının çekirdeği: pencere yöneticisi, kilit ekranı,
-# boşta yönetimi, polkit ajanı. Bar/launcher/bildirim/tema kendi modüllerinde:
+# Hyprland oturumu — HM katmanının çekirdeği: pencere yöneticisi + polkit ajanı.
+# Bar/launcher/bildirim/kilit/idle/tema artık Caelestia kabuğunda (bkz.
+# home/desktop/caelestia/default.nix) — bu dosya yalnız WM'i ve WM'siz kalamayacak
+# tek bir polkit ajanını taşır (Caelestia kendi polkit ajanını SAĞLAMIYOR).
 #
-#   bar/waybar.nix        çubuk + 16 tema (waybar-theme --pick)
-#   launcher/rofi.nix     launcher teması + duvar kağıdı grid'i
-#   notify/swaync.nix     bildirim merkezi
-#   theme/matugen.nix     duvar kağıdı→renk zinciri (motor: theme/engine.nix)
-#
-# Hepsi aynı `desktop.hyprland.enable` bayrağını okur; bayrak BURADA tanımlı.
+# Bayrak BURADA tanımlı, her iki modül de aynı `desktop.hyprland.enable`'ı okur.
 # Ayrıntı: Documentation/desktop.md · tuzaklar: home/desktop/CLAUDE.md
 { config, lib, pkgs, osConfig ? { }, ... }:
 
 let
   cfg = config.desktop.hyprland;
-  cfgHome = config.xdg.configHome;
-
-  # --- Ekran görüntüsü (eskiden sway rice'ta olan sway-screenshot'ın portu) ---
-  # grim/slurp wlr-screencopy protokolünü kullanır — compositor bağımsız,
-  # swaymsg'e ihtiyaç yok, Hyprland'de aynen çalışır.
-  hypr-screenshot = pkgs.writeShellScriptBin "hypr-screenshot" ''
-    set -euo pipefail
-    dir="$HOME/Pictures/Screenshots"
-    mkdir -p "$dir"
-    out="$dir/screenshot-$(date +%Y%m%d-%H%M%S).png"
-
-    case "''${1:-region}" in
-      fullscreen)
-        ${pkgs.grim}/bin/grim "$out"
-        ;;
-      clipboard)
-        geom=$(${pkgs.slurp}/bin/slurp) || exit 0
-        ${pkgs.grim}/bin/grim -g "$geom" - | ${pkgs.wl-clipboard}/bin/wl-copy
-        ${pkgs.libnotify}/bin/notify-send -a "Ekran Görüntüsü" "Panoya kopyalandı"
-        exit 0
-        ;;
-      *)
-        geom=$(${pkgs.slurp}/bin/slurp) || exit 0
-        ${pkgs.grim}/bin/grim -g "$geom" "$out"
-        ;;
-    esac
-
-    ${pkgs.libnotify}/bin/notify-send -a "Ekran Görüntüsü" "Kaydedildi" "$out"
-    ${pkgs.satty}/bin/satty -f "$out" --output-filename "$out"
-  '';
 in
 {
   options.desktop.hyprland.enable = lib.mkOption {
@@ -51,45 +18,21 @@ in
     # olmadığından varsayılan false; gerekirse home.nix'te elle açılır.
     default = osConfig.desktop.hyprland.enable or false;
     defaultText = lib.literalExpression "osConfig.desktop.hyprland.enable or false";
-    description = "Hyprland + Matugen rice'ının HM katmanı (waybar, rofi, swaync, swww, cava, tema motoru)";
-  };
-
-  options.desktop.hyprland.waybarTheme = lib.mkOption {
-    type = lib.types.str;
-    default = osConfig.desktop.hyprland.waybarTheme or "current";
-    defaultText = lib.literalExpression ''osConfig.desktop.hyprland.waybarTheme or "current"'';
-    description = "Waybar temasının varsayılanı — bkz. waybar-themes.nix ve `waybar-theme --list`.";
+    description = "Hyprland + Caelestia rice'ının HM katmanı (WM, kabuk, tema motoru)";
   };
 
   config = lib.mkIf cfg.enable {
-    # Stylix bu beş hedefte matugen ile çakışır (iki renk yazarı olamaz) —
-    # rice bileşenlerinin renk sahibi matugen. Stylix GTK, ghostty, starship
-    # vb. hedeflerinde tek kaynak olmaya devam eder.
-    stylix.targets = {
-      hyprland.enable = false;
-      waybar.enable = false;
-      rofi.enable = false;
-      swaync.enable = false;
-      cava.enable = false;
-      hyprlock.enable = false;
-    };
-
     # Stylix'in gtk hedefi gtk.enable=true yapar ama ikon teması ayarlamaz —
     # Stylix'te ayrı bir icons modülü yok. adwaita-icon-theme daha önce
-    # GNOME'un systemPackages'ından geliyordu; olmadan rofi -show drun
-    # (show-icons=true), nautilus ve tüm GTK diyalogları ikonsuz kalır.
+    # GNOME'un systemPackages'ından geliyordu; olmadan tüm GTK diyalogları
+    # ikonsuz kalır. (Caelestia kendi ikon temasını — Papirus — kullanır ama
+    # GTK dosya seçicisi gibi native diyaloglar hâlâ Adwaita'ya düşebilir.)
     gtk.iconTheme = {
       package = pkgs.adwaita-icon-theme;
       name = "Adwaita";
     };
 
-    home.packages = [
-      pkgs.adwaita-icon-theme
-      pkgs.grim
-      pkgs.slurp
-      pkgs.satty
-      hypr-screenshot
-    ];
+    home.packages = [ pkgs.adwaita-icon-theme ];
 
     #### Hyprland — tamamen hyprland.lua üzerinden (0.55+ Lua çağı) ####
     wayland.windowManager.hyprland = {
@@ -102,8 +45,11 @@ in
       # çevirisindeki emekleme dönemi sorunlarından kaçınır (HM #9468) hem de
       # config gerçek Lua olarak okunur/düzenlenir. hyprland.lua bunları
       # otomatik require eder (alfabetik: autostart, binds, main, rules, theme).
+      # autostart.lua kaldırıldı (30 Tem→09 Ağu): yalnız ölü `theme-apply --restore`
+      # çağrısını taşıyordu. Caelestia son şemayı ~/.local/state/caelestia/
+      # altında kalıcı tutuyor — reboot sonrası theme.lua dosyayı doğrudan taze
+      # okuyor, ayrı bir restore adımı gerekmiyor.
       extraLuaFiles = {
-        autostart = ./wm/autostart.lua;
         binds = ./wm/binds.lua;
         main = ./wm/main.lua;
         rules = ./wm/rules.lua;
@@ -111,81 +57,7 @@ in
       };
     };
 
-    #### hyprlock — kilit ekranı (renk sahibi matugen, yukarıdaki template) ####
-    programs.hyprlock = {
-      enable = true;
-      settings = {
-        # importantPrefixes varsayılanı "$"/"source" içerir → dosyanın en
-        # başına, matugen'in renk $değişkenlerinden ÖNCE gelmez diye taşınır.
-        source = "${cfgHome}/hypr/hyprlock-colors.conf";
-
-        general = {
-          hide_cursor = false;
-          ignore_empty_input = true;
-        };
-
-        background = [{
-          path = "screenshot";
-          blur_passes = 2;
-          blur_size = 7;
-          color = "$surface";
-        }];
-
-        input-field = [{
-          size = "250, 60";
-          position = "0, -100";
-          monitor = "";
-          dots_center = true;
-          fade_on_empty = false;
-          outer_color = "$primary";
-          inner_color = "$bg_alt";
-          font_color = "$fg";
-          fail_color = "$error";
-          check_color = "$tertiary";
-          outline_thickness = 3;
-          placeholder_text = "Parola...";
-        }];
-
-        label = [{
-          text = ''cmd[update:1000] date +"%H : %M"'';
-          color = "$fg";
-          font_size = 64;
-          position = "0, 200";
-          halign = "center";
-          valign = "center";
-        }];
-      };
-    };
-
-    #### hypridle — boşta DPMS + kilit (idle-notify protokolü, poll YOK) ####
-    # loginctl lock-session → hypridle general.lock_cmd'yi (hyprlock) tetikler
-    # (org.freedesktop.login1 Lock sinyali); SUPER+L de aynı yoldan geçer.
-    # Suspend YOK: s2h zinciri zaten logind'de kurulu (power.nix), ikinci bir
-    # yazar çakışır.
-    services.hypridle = {
-      enable = true;
-      systemdTarget = "hyprland-session.target";
-      settings = {
-        general = {
-          lock_cmd = "hyprlock";
-          before_sleep_cmd = "loginctl lock-session";
-          after_sleep_cmd = "hyprctl dispatch dpms on";
-        };
-        listener = [
-          {
-            timeout = 300; # 5 dk
-            on-timeout = "hyprctl dispatch dpms off";
-            on-resume = "hyprctl dispatch dpms on";
-          }
-          {
-            timeout = 600; # 10 dk
-            on-timeout = "loginctl lock-session";
-          }
-        ];
-      };
-    };
-
-    #### Polkit GUI ajanı ####
+    #### Polkit GUI ajanı — Caelestia kendi ajanını SAĞLAMIYOR, bu KALMALI ####
     # Repoda hiç polkit ajanı yok — GNOME'un gnome-shell'e gömülü ajanı bugüne
     # kadar bunu sağlıyordu. Ajan olmadan 1Password'ün "sistem kimlik
     # doğrulaması", Mullvad ve fan-mode dışındaki her polkit isteği sessizce

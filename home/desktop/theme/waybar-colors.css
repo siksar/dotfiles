@@ -1,8 +1,0 @@
-/* matugen şablonu → çıktı: ~/.config/waybar/colors.css (ELLE DÜZENLENMEZ)
- * Anto98765/My-Hyprland-Rice ile aynı yaklaşım: TÜM Material You token'ları
- * döngüyle basılır (@primary, @on_surface, @surface_container…) — waybar-style.css
- * bu adları doğrudan tüketir. Eski 6 değişkenli özel şablon (base/text/gray0)
- * bu tasarımla birlikte kaldırıldı. */
-<* for name, value in colors *>
-@define-color {{name}} {{value.default.hex}};
-<* endfor *>

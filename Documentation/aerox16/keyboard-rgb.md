@@ -107,18 +107,29 @@ efektiyle üstüne yazar.
   boot'ta/oturumda AÇILMAZ. **4.28W idle bütçesi** gereği: idle'da dönen hiçbir
   şey olamaz. `ExecStopPost` firmware efektlerini iade eder, böylece Rust
   tarafında sinyal yakalamaya gerek kalmaz.
-- **Matugen entegrasyonu** — `[templates.keyboard]` duvar kağıdının baskın
-  rengini `~/.config/kbd-rgb/color`'a yazar, `post_hook` `kbd-rgb set` çağırır.
-  Olay-güdümlü: yalnız tema değişince tek yazma, idle maliyeti sıfır.
+- **Tema entegrasyonu** — Caelestia'nın tema motoru şema değişince
+  `xdg.configFile."caelestia/templates/kbd-color"` şablonunu (tek satır,
+  `{{ primary.hex }}`) işler; çıktı yolu SEÇİLEMEZ, her zaman
+  `~/.local/state/caelestia/theme/kbd-color`. Ardından
+  `cli.settings.theme.postHook` o dosyayı okuyup `kbd-rgb set <hex>` çağırır
+  (kod: `home/desktop/caelestia/default.nix`). Olay-güdümlü: yalnız tema
+  değişince tek yazma, idle maliyeti sıfır.
+  9 Ağu 2026'ya kadar bu iş matugen'in `[templates.keyboard]` + `post_hook`
+  zinciriydi (`~/.config/kbd-rgb/color`); Caelestia geçişiyle o yol öldü.
+  Matugen depoda hâlâ var ama yalnız Serpantinum oturumunun renk zincirinde —
+  klavye RGB'siyle ilgisi yok.
 - **Animasyon durumu 0.5 sn'de bir tazeler** — böylece animasyon dönerken
-  matugen rengi değiştirse ya da parlaklık bind'ına basılsa efekt canlı uyum
+  tema rengi değiştirse ya da parlaklık bind'ına basılsa efekt canlı uyum
   sağlar; iki yazarın aynı lambayı çekiştirip titretmesi önlenir.
 
 ## Kısayollar
 
-Bind'lar Hyprland rice'ında tanımlı (`lua/binds.lua`); tek oturum kalınca
-(2026-07-30) burası tek yer. Rebuild olmadan da `kbd-rgb`/`kbd-anim` CLI'dan
-kullanılabilir.
+Bind'lar Caelestia oturumunun Hyprland Lua config'inde tanımlı
+(`home/desktop/wm/binds.lua`; 31 Tem ağaç düzeninden önce `lua/binds.lua`
+idi). 30 Tem'de tek oturum kalınca burası tek yerdi, artık DEĞİL: Serpantinum
+(karantinalı ikinci oturum) kendi `keybindings.conf`'unda parlaklık bind'larını
+ayrıca taşıyor — bkz. `home/desktop/serpantinum/default.nix`'in postPatch'i.
+Rebuild olmadan da `kbd-rgb`/`kbd-anim` CLI'dan kullanılabilir.
 
 | Kısayol | Eylem |
 |---|---|

@@ -10,8 +10,9 @@ local terminal = "ghostty"
 ------------------------
 
 hl.bind(mod .. " + Return", hl.dsp.exec_cmd(terminal))
-hl.bind(mod .. " + D",      hl.dsp.exec_cmd("rofi -show drun"))
 hl.bind(mod .. " + Q",      hl.dsp.window.close())
+-- SUPER+D artık uygulama başlatıcı DEĞİL — bkz. "SİSTEM" bölümü (dashboard'a
+-- taşındı, launcher SUPER+SPACE'e geçti).
 
 -- Copilot tuşu → Claude Desktop (libinput ile doğrulanan kod: Meta+Shift+F23)
 hl.bind(mod .. " + SHIFT + F23", hl.dsp.exec_cmd("claude-desktop"))
@@ -20,31 +21,46 @@ hl.bind(mod .. " + SHIFT + F23", hl.dsp.exec_cmd("claude-desktop"))
 ---- TEMA MOTORU -------
 ------------------------
 
--- Otonom tema değiştirici (bkz. Documentation/desktop.md):
--- SUPER+T       → rofi grid'den duvar kağıdı seç → swww + matugen zinciri
--- SUPER+SHIFT+T → rastgele duvar kağıdı + tema
-hl.bind(mod .. " + T",         hl.dsp.exec_cmd("wallpaper-picker"))
-hl.bind(mod .. " + SHIFT + T", hl.dsp.exec_cmd("theme-apply --random"))
+-- Rastgele duvar kağıdı (Caelestia CLI zinciri: wallpaper → dynamic şema →
+-- tüm enable* hedefleri). Eski görsel grid seçicinin (rofi wallpaper-grid)
+-- karşılığı yok — launcher'ı SUPER+SPACE'le açıp ">wallpaper <ad>" yazmak
+-- (actionPrefix varsayılanı ">") en yakın eşdeğer, elle kullanılır.
+hl.bind(mod .. " + T", hl.dsp.exec_cmd("caelestia wallpaper -r"))
 
--- Waybar tema seçici — 16 tema (mevcut bar + 15 atif-1402/minimal-waybar-themes
--- portu) arasında rebuild'siz geçiş (bkz. waybar-themes.nix, hm.nix waybar-theme)
-hl.bind(mod .. " + W", hl.dsp.exec_cmd("waybar-theme --pick"))
+-- SUPER+W serbest kaldı — waybar'ın 16-tema seçicisi Caelestia'ya geçişte
+-- kaldırıldı (tek bar, tema seçici yok).
 
 ------------------------
 ---- SİSTEM ------------
 ------------------------
 
--- Bildirim paneli (GNOME'daki SUPER+V toggle-message-tray eşleniği)
-hl.bind(mod .. " + V", hl.dsp.exec_cmd("swaync-client -t -sw"))
+-- Pano geçmişi (GNOME'daki SUPER+V eşleniği; eskiden bildirim paneliydi —
+-- bildirim paneli artık SUPER+SHIFT+N, aşağıda "PENCERE DÜZENİ" dışında yok,
+-- bkz. Caelestia sidebar). cliphist + fuzzel dmenu, CLI'ın kendi bağımlılığı.
+hl.bind(mod .. " + V", hl.dsp.exec_cmd("caelestia clipboard"))
 
--- Fan modu döngüsü 0→1→2→5 — polkit kuralı şifresiz izin verir
+-- Uygulama başlatıcı (Caelestia launcher, doğal UX'i SUPER-release ama Lua
+-- API'sinde bindrd/bindn desteği doğrulanmadı — basit SUPER+SPACE tutuldu;
+-- bkz. rice/caelestia:modules/desktop/hyprland/binds.nix'teki launcherInterrupt
+-- ikizi referansı, ileride eklenebilir).
+hl.bind(mod .. " + SPACE", hl.dsp.exec_cmd("caelestia shell drawers toggle launcher"))
+
+-- Dashboard (performans/medya paneli — eskiden SUPER+D rofi launcher'dı,
+-- launcher SUPER+SPACE'e taşındığı için bu tuş serbest kaldı).
+hl.bind(mod .. " + D", hl.dsp.exec_cmd("caelestia shell drawers toggle dashboard"))
+
+-- Bildirim/hızlı-ayarlar paneli (sidebar) — eski swaync panelinin eşleniği.
+hl.bind(mod .. " + SHIFT + N", hl.dsp.exec_cmd("caelestia shell drawers toggle sidebar"))
+
+-- Fan modu döngüsü 4→1→2→5 — polkit kuralı şifresiz izin verir
 -- (bkz. system/arch/aerox16/wmi.nix; Fn+F7 EC'de yutulduğu için OS
 -- tarafında SUPER+M kullanılıyor)
 hl.bind(mod .. " + M", hl.dsp.exec_cmd("systemctl start --no-block fan-mode-cycle.service"))
 
 -- Klavye aydınlatması (HID LampArray — bkz. system/drivers/input/keyboard-rgb/).
--- Renk normalde SUPER+T tema zincirinden matugen ile gelir; bunlar elle
--- kontrol. Animasyon idle'da ASLA dönmez, yalnız bu toggle ile başlar.
+-- Renk normalde Caelestia'nın tema motorundan gelir (postHook →
+-- home/desktop/caelestia/default.nix); bunlar elle kontrol. Animasyon
+-- idle'da ASLA dönmez, yalnız bu toggle ile başlar.
 -- Z/X = animasyon, C/V = parlaklık (klavyede yan yana; C solda azaltır).
 hl.bind(mod .. " + ALT + Z", hl.dsp.exec_cmd("kbd-anim breathe"))
 hl.bind(mod .. " + ALT + X", hl.dsp.exec_cmd("kbd-anim rainbow"))
@@ -54,11 +70,11 @@ hl.bind(mod .. " + ALT + V", hl.dsp.exec_cmd("kbd-rgb bright +10"), { repeating 
 -- Oturumdan çık (ly'ye döner)
 hl.bind(mod .. " + SHIFT + E", hl.dsp.exec_cmd("hyprctl dispatch exit"))
 
--- Kilit ekranı (GNOME kas hafızası SUPER+L). loginctl lock-session,
--- hypridle'ın general.lock_cmd'sini (hyprlock) org.freedesktop.login1 Lock
--- sinyaliyle tetikler — doğrudan `hyprlock` çağırmak yerine bu yol, hypridle
--- ile aynı kilit durumunu paylaşır (ör. after_sleep_cmd senkron kalır).
-hl.bind(mod .. " + L", hl.dsp.exec_cmd("loginctl lock-session"))
+-- Kilit ekranı (GNOME kas hafızası SUPER+L). Caelestia kendi kilidini
+-- (WlSessionLock + PamContext) IPC ile sağlıyor — hypridle/hyprlock artık
+-- yok, loginctl'e gerek kalmadı. GÜVENLİK: switch sonrası bunu ikinci bir
+-- TTY açıkken test et (bkz. plan Faz 0).
+hl.bind(mod .. " + L", hl.dsp.exec_cmd("caelestia shell lock lock"))
 
 ------------------------
 ---- PENCERE DÜZENİ ----
@@ -97,11 +113,14 @@ hl.bind(mod .. " + mouse_up",   hl.dsp.focus({ workspace = "e-1" }))
 ---- EKRAN GÖRÜNTÜSÜ ---
 ------------------------
 
--- Print: bölge seç + satty ile düzenle. SHIFT+Print: tüm ekran (satty ile).
--- SUPER+SHIFT+S: bölge → doğrudan panoya (dosya yazmaz, düzenleme açmaz).
-hl.bind("Print",               hl.dsp.exec_cmd("hypr-screenshot region"))
-hl.bind("SHIFT + Print",       hl.dsp.exec_cmd("hypr-screenshot fullscreen"))
-hl.bind(mod .. " + SHIFT + S", hl.dsp.exec_cmd("hypr-screenshot clipboard"))
+-- Print: bölge seç (dondurulmuş ekran) + swappy ile düzenle (CLI'ın kendi
+-- grim+swappy zinciri, -r bare "slurp" const'u ile picker'ı da tetikleyebilir
+-- ama -f ile ekranı dondurmak seçimi kolaylaştırıyor). SHIFT+Print: tüm ekran.
+-- SUPER+SHIFT+S: bölge → doğrudan panoya (openClip IPC'si, dosya yazmaz,
+-- düzenleyici açmaz) — eski hypr-screenshot clipboard modunun birebir eşleniği.
+hl.bind("Print",               hl.dsp.exec_cmd("caelestia screenshot -r -f"))
+hl.bind("SHIFT + Print",       hl.dsp.exec_cmd("caelestia screenshot"))
+hl.bind(mod .. " + SHIFT + S", hl.dsp.exec_cmd("caelestia shell picker openClip"))
 
 ------------------------
 ---- MULTİMEDYA --------

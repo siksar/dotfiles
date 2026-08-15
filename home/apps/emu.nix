@@ -58,9 +58,9 @@ in
     emu-run
   ];
 
-  # KULLANIM UYARISI: bu rice'da rofi .desktop başlatma PRIME env'lerini set ETMEZ.
-  # rpcs3/shadps4 paketleri kendi .desktop'larını kurar (iGPU'ya düşer). dGPU'ya
-  # yönlendirmenin tek güvenli yolu terminalden `emu-run rpcs3` / `emu-run shadps4`.
-  # İleride .desktop override edip PRIME env'leri baked-in yapılabilir
-  # (home/desktop/launcher altında); şu an gerekmedi — kullanıcı terminali tercih ediyor.
+  # KULLANIM UYARISI: bu rice'da Caelestia launcher'ı .desktop başlatma PRIME
+  # env'lerini set ETMEZ. rpcs3/shadps4 paketleri kendi .desktop'larını kurar
+  # (iGPU'ya düşer). dGPU'ya yönlendirmenin tek güvenli yolu terminalden
+  # `emu-run rpcs3` / `emu-run shadps4`. İleride .desktop override edip PRIME
+  # env'leri baked-in yapılabilir; şu an gerekmedi — kullanıcı terminali tercih ediyor.
 }

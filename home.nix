@@ -2,12 +2,10 @@
 
 {
   imports = [
-    # desktop/ — Hyprland oturumu, bar, launcher, tema motoru
+    # desktop/ — Hyprland oturumu + Caelestia kabuğu (bar/launcher/bildirim/kilit)
     ./home/desktop/session.nix
-    ./home/desktop/theme/matugen.nix
-    ./home/desktop/bar/waybar.nix
-    ./home/desktop/launcher/rofi.nix
-    ./home/desktop/notify/swaync.nix
+    ./home/desktop/caelestia/default.nix
+    ./home/desktop/serpantinum/default.nix
 
     # shell/ — kabuk ve terminal ortamı
     ./home/shell/fish.nix
@@ -18,9 +16,11 @@
     # apps/ — kullanıcı uygulamaları
     ./home/apps/vesktop.nix
     ./home/apps/zen.nix
+    ./home/apps/firefox.nix
     ./home/apps/vscodium.nix
     ./home/apps/claude-desktop.nix
     ./home/apps/media.nix
+    ./home/apps/audio.nix
     ./home/apps/games.nix
     ./home/apps/minecraft.nix
     ./home/apps/emu.nix
