@@ -3,7 +3,9 @@
 
 {
   home.packages = with pkgs; [
-    deezer-enhanced # resmi olmayan Deezer istemcisi (electron)
-    deezer-desktop # düz Deezer istemcisi (resmi olmayan Linux portu), Enhanced'in yanında
+    # Deezer istemcisi (resmi olmayan Linux portu, Electron 41).
+    # deezer-enhanced 16 Ağu 2026'da kaldırıldı: kullanılmıyordu ve Electron değil
+    # NW.js 0.102 tabanlıydı — yani ikinci bir Chromium yığını taşıyordu.
+    deezer-desktop
   ];
 }
