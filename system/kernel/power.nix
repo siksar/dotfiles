@@ -130,9 +130,21 @@
   #   vm.dirty_writeback_centisecs : 6000 -> 1500
   #   USB power/control            : on   -> auto  (yalnız yeniden enumere
   #                                 olmayan dahili klavyeye kalıcı zarar)
+  #
+  # wantedBy=graphical.target, multi-user.target DEĞİL (16 Ağu 2026 — SIRALAMA
+  # DÖNGÜSÜ, power-display.nix'teki 27 Tem tuzağının BİREBİR aynısı):
+  # powertop.service'in unit'i "After=multi-user.target" taşıyor. systemd.target(5):
+  # bir target Wants= listesindeki her unit'e örtük After= alır → multi-user.target
+  # otomatik After=power-tunables-restore oluyordu. Döngü:
+  #   multi-user.target → after → power-tunables-restore → after → powertop
+  #                     → after → multi-user.target
+  # systemd kıramayıp BİZİM servisin başlatma job'ını düşürdü ("Job
+  # power-tunables-restore.service/start deleted to break ordering cycle") —
+  # servis sessizce hiç koşmadı, ayarlar powertop'ta kaldı (ölçüldü: 1500/auto).
+  # graphical.target zaten After=multi-user.target olduğu için döngü kırılıyor.
   systemd.services.power-tunables-restore = {
     description = "powertop --auto-tune'un ezdiği ayarları geri yaz";
-    wantedBy = [ "multi-user.target" ];
+    wantedBy = [ "graphical.target" ];
     after    = [ "powertop.service" ];
     wants    = [ "powertop.service" ];
     serviceConfig = {
