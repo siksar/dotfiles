@@ -18,6 +18,30 @@ the traditional path (bare `nixos-rebuild switch` with no `--flake` resolves thr
 symlink), but the canonical, git-tracked location — and the one `nh` and
 this file's commands point at — is `/home/zixar/nixos-zixar`.
 
+### Branches — one line, not a fan (renamed 16 Aug 2026)
+
+**`zixar` is the working branch and the GitHub default** (it was `rice/caelestia-v2`
+until 16 Aug 2026; the old remote branch was deleted after verifying both refs pointed
+at the same commit). Work happens here; there is nothing to merge *into*.
+
+Every other branch is a **checkpoint on this same line — all four are strict ancestors
+of `zixar`**, so nothing is diverged, nothing is unmerged, and none of them is "the
+other half" of anything. They are bookmarks for reading old states, and the honest way
+to reach one is its distance back from `zixar`:
+
+| Branch | Back from `zixar` | What that state is |
+|---|---|---|
+| `claude-md-audit` | 8 | **last state of the hand-rolled waybar rice** (9 Aug 2026) |
+| `rice/gnome` | 16 | earlier waybar-rice state (5 Aug 2026) |
+| `rice/caelestia` | 41 | Caelestia already in, but **old repo layout** (13 Jul 2026) |
+| `master` | 75 | oldest checkpoint (2 Jul 2026) |
+
+The trap this table exists to kill: the branch *names* do not describe their contents.
+`rice/caelestia` does **not** hold the pre-Caelestia rice — it holds Caelestia in the
+pre-reorg tree. The pre-Caelestia rice is on `claude-md-audit`, whose name suggests
+something else entirely. Verify with `git ls-tree -r --name-only <branch>` before
+trusting a branch name; that is how the wrong pointer sat in this file until 16 Aug 2026.
+
 ## Commands
 
 ```bash
@@ -148,9 +172,12 @@ runtime Material You theme engine — toggled by `desktop.hyprland.enable = true
 in `configuration.nix`. The flag is a safety valve, not an A/B switch: turning it
 off leaves the system without a working session, since ly has nothing else to
 offer. Caelestia replaced a hand-rolled waybar+rofi+swaync+matugen+hyprlock+hypridle
-rice on 9 Aug 2026 (clean cutover, no transition toggle) — that rice is still readable
-on the abandoned `rice/caelestia` branch (old repo layout, pre-reorg) as prior art, not
-mergeable.
+rice on 9 Aug 2026 (clean cutover, no transition toggle). That rice is readable as prior
+art on **`claude-md-audit`** (tip `2fe6ee9`, 9 Aug 2026) — *not* on `rice/caelestia`,
+which this file claimed until 16 Aug 2026 and which actually holds Caelestia in the
+pre-reorg layout. The deletion commit is `bdaf58c` (15 Aug 2026), so `bdaf58c^` is the
+same state if you prefer a SHA to a branch name. Prior art only — the tree layout
+predates the `system/ usr/ home/ lib/` reorg, so nothing there is mergeable.
 
 The full design doc — the Caelestia IPC surface, the SUPER+T wallpaper→scheme chain, why
 `withUWSM = true` is mandatory (the session file exists even without it but fails with
