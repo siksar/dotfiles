@@ -146,6 +146,116 @@ systemd.services.nix-daemon.serviceConfig.CPUAffinity = "0-15"; # derleme muaf
   - Derleme: `nix-daemon.service` muaf (`cores.nix`'in kendisinde).
 - **Kapatma:** `CPUAffinity` satırını yorum satırı yap + rebuild.
 
+## Enerji ölçümü: maskenin gerekçesi ilk kez ölçüldü (16 Ağu 2026)
+
+Bu dosya bugüne kadar maskenin faydasını **iddia** ediyordu ("4.28 W idle tabanı
+5 GHz'lik kısa patlamaları kaldırmıyor") ama watt cinsinden bir ölçüm taşımıyordu;
+`power.md` de `CPUAffinity`'den hiç söz etmiyor. Ölçüldü.
+
+**Yöntem.** Sabit tek-thread iş (60M iterasyonluk tamsayı LCG döngüsü, python3),
+`taskset` ile bir Zen5 (cpu0) ve bir Zen5c (cpu1) çekirdeğine ayrı ayrı koşturuldu.
+Güç: `amdgpu` hwmon'daki `power1_input` = **APU paket PPT'si**, µW, 20 Hz örneklendi
+(RAPL `energy_uj` root-only olduğu için kullanılamadı). Her koşunun **öncesinde ve
+sonrasında** ayrı bir idle tabanı alındı ve ikisinin ortalaması çıkarıldı —
+marjinal güç budur. Kollar alternatiflendi (Zen5, Zen5c, Zen5, …) ki termal ve arka
+plan sürüklenmesi iki kola eşit dağılsın. 5 tur, medyan.
+
+| | Zen5 (cpu0) | Zen5c (cpu1) | Fark |
+|---|---|---|---|
+| Frekans | 4.92 GHz | 3.47 GHz | |
+| Süre (medyan) | **5.51 s** | 8.19 s | Zen5 **1.49× hızlı** |
+| Marjinal güç | ~12.3 W | ~4.9 W | Zen5 **2.5× çeker** |
+| **Enerji (medyan)** | **69.1 J** | **39.5 J** | **Zen5c %43 az** |
+
+**Sonuç: race-to-idle bu silikonda kazanmıyor.** 1.49× hızlı bitirmek için 2.5× güç
+çekiliyor → aynı iş için net **1.75× enerji**. Maskenin gerekçesi doğruymuş.
+
+**Ama ölçüm maskeyi yalnız PİLDE haklı çıkarıyor.** Fişte 30 J'lük fark bir maliyet
+değil; orada ödenen tek şey 1.49× gecikme, karşılığı yok. Bu yüzden maske 16 Ağu
+2026'da sabit olmaktan çıkarılıp fişe bağlandı — uygulama `power-display.nix`'in
+mevcut udev-ACAD oneshot'ında (AC → `0-15`, BAT → Zen5c). PID1'in `CPUAffinity`'si
+çalışırken değiştirilemediği için mevcut süreçler `taskset -a -p` ile süpürülür;
+kernel thread'ler (`cmdline` boş) ve `nix-daemon` atlanır, `game-perf.service`
+aktifken süpürme hiç yapılmaz (affinity'yi o sırada `gamerun` yönetiyor).
+
+> **KAPSAM UYARISI — %43 rakamı PİL KOŞULLARINDA ÖLÇÜLMEDİ (16 Ağu 2026, switch
+> sonrası doğrulamada fark edildi).** Yukarıdaki tablo AC saatlerinde alındı:
+> Zen5 4.92 GHz'e karşı Zen5c 3.47 GHz. **Pilde PPD power-saver HER İKİ çekirdek
+> tipini de 2.0 GHz'e kapıyor** (canlı doğrulandı: pilde `cpu0` ve `cpu1`
+> `scaling_max_freq` = 2000000). Yani pilde o frekans farkı yok ve maskenin oradaki
+> gerçek enerji faydası **ölçülmemiş** — aynı frekansta Zen5c'nin tasarım verimliliği
+> kadar, muhtemelen %43'ten çok küçük.
+>
+> Bu, maskeyi pilde tutma kararını değiştirmiyor: Zen5'in üstünlüğü yüksek saat
+> tavanıydı, PPD onu zaten kaldırdığı için maske pilde **performansa da mal olmuyor**.
+> Ama gerekçe olarak %43'e dayanma. Ölçmek istersen: pilde, `taskset -c 0` ve
+> `taskset -c 1` ile aynı sabit iş, ikisi de 2.0 GHz tavanda.
+
+**Ölçülen semptom (aynı gün):** Electron/Deezer fişte 3.47 GHz'de kalıyordu, bir oyun
+açıkken 2.44 GHz'e düşüyordu — Zen5c kendi tavanına bile çıkamıyor, çünkü CPU paketi
+(32 W PPT) ile dGPU (44 W) ~80 W'lık paylaşımlı ACBT bütçesini bölüşüyor ve Zen5'ler
+oyunla birlikte payı yiyor. Deezer'ın kendisi de ağır: 7 süreç, 1140 MB, %33 CPU —
+tam bir tarayıcının (zen-beta: %4.7 / 551 MB) 7 katı.
+
+### Denenip elenen alternatif: `scx_lavd --cpu-pref-order`
+
+sched_ext tarafında "yasak yerine tercih" denendi ve **çalışmadı**:
+
+```
+scx_lavd --autopower --cpu-pref-order "1,3,5,7,9,11,13,15,0,2,4,6,8,10,12,14"
+```
+
+Maskesiz (`taskset -c 0-15`) görevlerin yerleşimi ölçüldü — 1 hafif görev **%100
+Zen5**'e gitti, yani tercih listesinin tam tersi. Sebep aracın kendi sözleşmesinde:
+tercih sırası yalnız **core compaction açıkken** kullanılıyor, o da yalnız
+`balanced`/`powersave` modunda açık. `--autopower` fişte `performance` seçiyor
+(okuduğu değerler PPD profil adları değil **EPP** değerleri; AC'de
+`balance_performance`), dolayısıyla compaction kapalı ve liste yok sayılıyor.
+`--balanced`/`--powersave` sabitlemek listeyi çalıştırırdı ama `--autopower`'ın tek
+avantajını — AC/BAT'ı kendiliğinden takip etmesini — öldürürdü.
+
+Ayrıca not: enerji modeli bu ayrımı **yapamaz** — `cpu_capacity` her iki çekirdek
+tipinde de 1024 (x86'da sabit), yani `--cpu-pref-order` verilmese sıralama zaten
+türetilemezdi.
+
+## Frekans tavanı taraması: V/f eğrisinin dizi nerede (16 Ağu 2026)
+
+Maske AC'de kalkınca Zen5 5.09 GHz'e çıkabiliyor ve bu, kullanıcının şikâyet ettiği
+"kısa patlamada 80-90°C" sıçramasının kaynağı. Soru: tepeyi kırpmak kazancın ne
+kadarını kaybettirir? Ölçüldü.
+
+**Yöntem.** Sabit tek-thread iş (60M iterasyon, yukarıdaki enerji ölçümüyle aynı),
+`taskset -c 0` (Zen5). Her tavan tüm `cpufreq` policy'lerine yazıldı; kollar arası
+Tctl ≤ 50°C'ye kadar soğutma; koşu boyunca 10 Hz Tctl + PPT örneklemesi, taban güç
+koşu öncesi 2 sn'den. Betik `scaling_max_freq`'i çıkışta geri yüklüyor.
+
+| Tavan | Süre | Tepe Tctl | Marjinal güç | Enerji | Hızın % | Watt'ın % |
+|---|---|---|---|---|---|---|
+| 3.51 GHz *(maskeli davranış)* | 7.81 s | 55.8 °C | 4.3 W | 33.7 J | — | — |
+| 4.00 GHz | 6.94 s | 58.9 °C | 5.2 W | 36.0 J | 37 | **9** |
+| 4.20 GHz | 6.60 s | 60.8 °C | 6.5 W | 42.9 J | 52 | 21 |
+| **4.50 GHz** | **6.06 s** | **64.2 °C** | **7.5 W** | 45.6 J | **75** | **31** |
+| 5.09 GHz *(tavansız)* | 5.49 s | **80.1 °C** | 14.7 W | 80.5 J | 100 | 100 |
+
+Son iki sütun: 3.51 → 5.09 arasındaki toplam kazancın/maliyetin yakalanan oranı.
+
+**Diz 4.5 GHz'den sonra.** MHz başına marjinal güç:
+
+| Aralık | mW / MHz |
+|---|---|
+| 3.51 → 4.00 | 1.9 |
+| 4.20 → 4.50 | 3.3 |
+| **4.50 → 5.09** | **15.6** |
+
+Son 590 MHz, %9 hız için gücü %96 artırıyor (7.5 → 14.7 W), enerjiyi %77, tepe
+sıcaklığı **+15.9 °C**. Beş kat pahalı bir bölge.
+
+**Karar:** AC'de `scaling_max_freq` 4.5 GHz'e kapandı (`power-display.nix`, oyun
+hariç — `game-perf` aktifken tavan yok, oyun bitince aynı servis yeniden koşup
+tavanı geri koyuyor). Böylece maske AC'de kalkabiliyor (masaüstü 3.51 → 4.50 GHz,
+%29 hızlanma) ama 80°C sıçraması 64.2°C'ye iniyor. Zen5c çekirdekleri etkilenmiyor:
+kendi tavanları (3506494) zaten CAP'in altında.
+
 ## İzlenecek riskler (switch sonrası)
 
 - **PipeWire xrun / ses çıtırtısı** — pipewire `user@.service` altında, o da maskeli;
@@ -159,10 +269,11 @@ systemd.services.nix-daemon.serviceConfig.CPUAffinity = "0-15"; # derleme muaf
 ## Yeniden değerlendirme koşulu
 
 Önceki sürümdeki koşul ("kernel bir gün `amd_hfi`'yi bağlarsa maskeyi gözden geçir")
-**zaten gerçekleşmiş durumda** — bağlı, ITMT açık. Yani maske artık "kernel eksiğini
-kapatan geçici protez" değil, kalıcı bir politika tercihi: *hızlı çekirdeği kullanma,
-çünkü 4.28 W idle tabanı 5 GHz'lik kısa patlamaları kaldırmıyor.* Bu tercihi ancak
-güç bütçesi değişirse gözden geçir, kernel sürümü değişirse değil.
+**zaten gerçekleşmiş durumda** — bağlı, ITMT açık. Yani maske "kernel eksiğini kapatan
+geçici protez" değil, bir politika tercihi. Ama artık **koşullu** bir tercih (16 Ağu
+2026): yukarıdaki enerji ölçümünden sonra *hızlı çekirdeği pilde kullanma* (%43 enerji),
+*fişte kullan* (1.49× gecikmenin karşılığı yok). Bu tercihi ancak güç bütçesi değişirse
+gözden geçir, kernel sürümü değişirse değil.
 
 Kernel yükseltmesi sonrası yine de bakılacaklar:
 
