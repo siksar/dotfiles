@@ -123,9 +123,10 @@ let
     # Yani race-to-idle bu silikonda KAZANMIYOR: 1.49x hızlı bitirmek 2.5x güç çekiyor,
     # net enerji 1.75x kötü.
     # KAPSAM: bu tablo AC saatlerinde alındı (4.92 vs 3.47 GHz). PİLDE aşağıdaki
-    # power-saver kolu HER İKİ çekirdek tipini de 2.0 GHz'e kapıyor (doğrulandı), yani
-    # oradaki gerçek fayda ölçülmedi ve %43'ten küçük. Maske pilde yine de tutuluyor:
-    # frekans eşitlendiği için performansa mal olmuyor, Zen5c tasarım olarak daha verimli.
+    # power-saver kolu HER İKİ çekirdek tipini de 2.0 GHz'e kapıyor (doğrulandı); o
+    # iso-frekans koşulu da ölçüldü (16 Ağu 2026): Zen5c'nin enerji avantajı YOK, ölçüm
+    # ×1.10 ile ters yönde çıktı. Maske pilde yine de tutuluyor çünkü frekans eşitlendiği
+    # için performansa mal olmuyor — ama "Zen5c daha verimli" diye değil, bedava diye.
     # FİŞTE ise yalnızca bedel: 1.49x gecikme, karşılığında anlamsız bir enerji tasarrufu.
     # (Ölçülen semptom: Electron/Deezer fişte 3.47 GHz'de, oyun varken 2.44 GHz'de kalıyordu.)
     # O yüzden maske artık sabit değil, fişe bağlı.

@@ -178,18 +178,89 @@ mevcut udev-ACAD oneshot'ında (AC → `0-15`, BAT → Zen5c). PID1'in `CPUAffin
 kernel thread'ler (`cmdline` boş) ve `nix-daemon` atlanır, `game-perf.service`
 aktifken süpürme hiç yapılmaz (affinity'yi o sırada `gamerun` yönetiyor).
 
-> **KAPSAM UYARISI — %43 rakamı PİL KOŞULLARINDA ÖLÇÜLMEDİ (16 Ağu 2026, switch
-> sonrası doğrulamada fark edildi).** Yukarıdaki tablo AC saatlerinde alındı:
-> Zen5 4.92 GHz'e karşı Zen5c 3.47 GHz. **Pilde PPD power-saver HER İKİ çekirdek
-> tipini de 2.0 GHz'e kapıyor** (canlı doğrulandı: pilde `cpu0` ve `cpu1`
-> `scaling_max_freq` = 2000000). Yani pilde o frekans farkı yok ve maskenin oradaki
-> gerçek enerji faydası **ölçülmemiş** — aynı frekansta Zen5c'nin tasarım verimliliği
-> kadar, muhtemelen %43'ten çok küçük.
+> **KAPSAM UYARISI KAPANDI — %43 PİLDE GEÇERLİ DEĞİL (16 Ağu 2026, aynı gün ölçüldü).**
+> Yukarıdaki tablo AC saatlerinde alındı: Zen5 4.92 GHz'e karşı Zen5c 3.47 GHz. **Pilde
+> PPD power-saver HER İKİ çekirdek tipini de 2.0 GHz'e kapıyor** (`cpu0`/`cpu1`
+> `scaling_max_freq` = 2000000), yani orada o frekans farkı yok. Aynı sabit iş
+> iso-frekansta ölçüldü (aşağıdaki bölüm): **Zen5c'nin ölçülebilir bir enerji avantajı
+> YOK** — 14 eşleştirilmiş turun **14'ünde de Zen5c daha fazla** harcadı, medyan
+> **×1.10**. %43'ün tamamı V/f etkisiymiş, çekirdek tipi etkisi değil; bir üstteki
+> "ölçüm maskeyi yalnız PİLDE haklı çıkarıyor" cümlesinin enerji gerekçesi buraya kadar.
 >
-> Bu, maskeyi pilde tutma kararını değiştirmiyor: Zen5'in üstünlüğü yüksek saat
-> tavanıydı, PPD onu zaten kaldırdığı için maske pilde **performansa da mal olmuyor**.
-> Ama gerekçe olarak %43'e dayanma. Ölçmek istersen: pilde, `taskset -c 0` ve
-> `taskset -c 1` ile aynı sabit iş, ikisi de 2.0 GHz tavanda.
+> Karar yine de değişmiyor: PPD tavanı frekansı zaten eşitlediği için maske pilde
+> **performansa mal olmuyor** — ama artık "enerji kazandırdığı için" değil, "hiçbir şeye
+> mal olmadığı ve fişte kalkan aynı mekanizmanın pil kolu olduğu için" duruyor. Pilde
+> enerjiyi kazandıran şey maske değil, PPD'nin 2.0 GHz tavanı.
+
+### Pilde iso-frekans ölçümü: Zen5 vs Zen5c, ikisi de 2.0 GHz (16 Ağu 2026)
+
+**Koşullar.** `ACAD/online` = 0, `cpu0`/`cpu1` `scaling_max_freq` = 2000000 (PPD
+`power-saver`), PID1 maskesi Zen5c'de, `fan_mode` = 1 ve dört fan da 0 RPM (dönen fan
+güç tabanını kaydırırdı), başlangıç Tctl 35 °C, `loadavg` ~0.8. Fiş `power-display.service`
+üzerinden hem maskeyi hem tavanı değiştireceği için `ACAD/online` **koşu boyunca da**
+örneklendi; takılsa betik veriyi geçersiz sayıp duracaktı (takılmadı).
+
+**Yöntem.** AC ölçümüyle aynı sabit iş (60M iterasyonluk tamsayı LCG, python3),
+`taskset -c 0` (Zen5) / `taskset -c 1` (Zen5c). Güç: `amdgpu` hwmon'un `power1_input`'u =
+APU paket PPT'si, µW, 20 Hz — **hwmon numarası boot'lar arası sabit değil, ADLA bulunur**
+(RAPL `energy_uj` root-only). Her koşunun öncesinde ve sonrasında 5 s taban alınıp
+ortalaması çıkarıldı → marjinal güç; enerji = marjinal güç × süre. Kollar alternatiflendi,
+5'er tur, medyan. Örnekleyici süreç `cpu3`'e sabitlendi ki iki kola eşit düşsün.
+
+**İlk iki parti çöpe gitti ve nedeni yöntemin kendisiydi.** 2 s beklemeyle alınan
+koşu-*sonrası* taban Zen5c kolunda sistematik olarak **+0.251 W** yüksek çıkıyordu (Zen5'te
++0.007 W): masaüstü Zen5c'ye maskeli olduğundan cpu1'i 14 s işgal etmek arkada iş biriktirir,
+biriken iş koşu biter bitmez boşalır ve "taban" diye ölçülür. Bu, Zen5c'nin marjinalini
+yapay olarak düşürüp iki partide sahte bir Zen5c üstünlüğü üretti. Bekleme 6 s'ye çıkınca
+asimetri kayboldu (+0.009 W) ve **işaret ters döndü**:
+
+| Parti | Bekleme | Kol sırası | Zen5c/Zen5 enerji (kol medyanlarının oranı) |
+|---|---|---|---|
+| 1 | 2 s | Zen5 önce | ×0.99 — *artefakt* |
+| 2 | 2 s | Zen5 önce | ×0.92 — *artefakt* |
+| 3 | 6 s | Zen5 önce | ×1.12 |
+| 4 | 6 s | **Zen5c önce** (sıra kontrolü) | ×1.07 |
+| 5 | 6 s | cpu0'a yapay yük (yarışma kontrolü) | ×1.09 |
+
+Parti 4 sırayı ters çevirerek "ilk koşan avantajlı" ihtimalini eledi; sonuç aynı yönde kaldı.
+
+**Ana tablo** — doğal koşullar, 6 s bekleme, parti 3+4, 10 eşleştirilmiş tur, medyan:
+
+| | Zen5 (cpu0) | Zen5c (cpu1) | Fark |
+|---|---|---|---|
+| Frekans (koşu medyanı) | 1.998 GHz | 1.996 GHz | iso — fark yok |
+| Süre | 13.50 s | 13.78 s | Zen5c %2 yavaş |
+| Taban (öncesi+sonrası ort.) | 4.078 W | 4.074 W | aynı |
+| Koşu penceresi mutlak güç | 5.008 W | 5.044 W | +0.036 W |
+| Marjinal güç | 0.896 W | 0.974 W | Zen5c %12 fazla |
+| **Enerji** | **12.1 J** | **13.4 J** | eşleştirilmiş medyan **×1.141**, 10/10 tur |
+
+**Yarışma kontrolü (parti 5).** Boştayken çekirdek başına meşguliyet: cpu0 **%0.47**,
+cpu1 **%6.2** (tüm Zen5c'ler %4.9–10.4) — masaüstü orada koştuğu için Zen5c kolu yarışma
+yükü taşıyor, Zen5 kolu taşımıyor. Eşitlemek için cpu0'a ölçülmüş %6.4'lük duty-cycle yükü
+kondu; her iki taban penceresinde de açık olduğundan marjinalde sadeleşir, yalnız yarışmayı
+taşır. Zen5'in süresi 13.50 → **13.95 s**'ye çıktı ve **süre farkı sıfırlandı** (×1.00) —
+yani %2'lik süre farkı silikon değil yarışmaymış. Marjinal güç farkı ise **kaldı**:
+0.939 W'a karşı **1.037 W**, enerji ×1.07 (eşleştirilmiş medyan, 4/4 tur).
+
+**Sonuç.** İso-frekansta Zen5c daha verimli değil; üç temiz partinin 14 turunun 14'ünde de
+daha fazla enerji harcadı (medyan ×1.10, en iyi turu bile ×1.046). Yani "Zen5c'nin tasarım
+verimliliği %43'ten küçük bir fayda bırakır" beklentisi de doğrulanmadı: fayda **sıfırın
+yanlış tarafında**. Mutlak farkın küçüklüğüne dikkat — paket gücü 5.01 W'a karşı 5.04 W;
+%10'luk oran, 4.08 W'lık tabanın çıkarılmasıyla küçük bir farkın büyütülmesinden geliyor.
+
+**Ölçümün sınırları:**
+
+- Marjinal ~0.9 W, ~4.08 W tabandan çıkarılarak elde ediliyor; sensör/arka plan gürültüsü
+  ±0.02–0.05 W, bu da yüzde farkını birkaç puan oynatıyor (partiler arası ×1.07–×1.14).
+  İşaret 14/14 tutarlı, ama **büyüklüğü ±3 puandan hassas okuma**.
+- Tek iş yükü: tamsayı, L1'e sığan, SIMD yok, bellek baskısı yok. Zen5c'nin farklı L3
+  ilişkisi bellek/AVX ağırlıklı bir işte sonucu değiştirebilir — **ölçülmedi**.
+- `power1_input` APU paket PPT'sidir, sistem gücü değil: buradaki 4.08 W taban ile
+  `power.md`'deki 4.28 W sistem idle rakamı **aynı şeyi ölçmüyor**, karşılaştırma.
+- Yalnız 2.0 GHz için geçerli. PPD power-saver tavanı değişirse ölçüm tekrarlanmalı.
+- SMT kardeşleri (cpu8/cpu9) boş; iki kolda da tek thread. Çok-threadli işte Zen5c'nin
+  çekirdek başına düşük gücü toplamda farklı sonuç verebilir — o da ölçülmedi.
 
 **Ölçülen semptom (aynı gün):** Electron/Deezer fişte 3.47 GHz'de kalıyordu, bir oyun
 açıkken 2.44 GHz'e düşüyordu — Zen5c kendi tavanına bile çıkamıyor, çünkü CPU paketi
@@ -271,9 +342,11 @@ kendi tavanları (3506494) zaten CAP'in altında.
 Önceki sürümdeki koşul ("kernel bir gün `amd_hfi`'yi bağlarsa maskeyi gözden geçir")
 **zaten gerçekleşmiş durumda** — bağlı, ITMT açık. Yani maske "kernel eksiğini kapatan
 geçici protez" değil, bir politika tercihi. Ama artık **koşullu** bir tercih (16 Ağu
-2026): yukarıdaki enerji ölçümünden sonra *hızlı çekirdeği pilde kullanma* (%43 enerji),
-*fişte kullan* (1.49× gecikmenin karşılığı yok). Bu tercihi ancak güç bütçesi değişirse
-gözden geçir, kernel sürümü değişirse değil.
+2026): *fişte hızlı çekirdeği kullan* (1.49× gecikmenin karşılığı yok), *pilde kullanma*.
+Pil kolunun gerekçesi ölçümden sonra değişti: **%43 bir AC rakamıdır**, pilde PPD tavanı
+frekansı eşitlediği için maskenin enerji faydası yok — iso-frekans ölçümü Zen5c'yi ×1.10
+ile yanlış tarafta buldu. Maske orada *bedava olduğu için* duruyor, *kazandırdığı için*
+değil. Bu tercihi ancak güç bütçesi değişirse gözden geçir, kernel sürümü değişirse değil.
 
 Kernel yükseltmesi sonrası yine de bakılacaklar:
 

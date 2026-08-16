@@ -53,9 +53,11 @@
 # Race-to-idle bu silikonda kazanmıyor (1.49x hız için 2.5x güç → net 1.75x enerji).
 # Fişte maske yalnız bedel (1.49x gecikme), çünkü 30 J'lük fark fişte maliyet değil.
 # Bu yüzden sabit maske fişe bağlandı.
-# KAPSAM: o %43 AC saatlerinde ölçüldü (4.92 vs 3.47 GHz). PİLDE PPD power-saver iki
-# çekirdek tipini de 2.0 GHz'e kapadığı için oradaki fayda ÖLÇÜLMEDİ ve daha küçük.
-# Maske pilde yine kalıyor — frekans eşitlendiğinden performansa da mal olmuyor.
+# KAPSAM: o %43 bir AC rakamıdır (4.92 vs 3.47 GHz). PİLDE PPD power-saver iki çekirdek
+# tipini de 2.0 GHz'e kapıyor; o iso-frekans koşulunda da ölçüldü (16 Ağu 2026, aynı
+# doküman): Zen5c'nin enerji avantajı YOK, ölçüm ×1.10 ile ters yönde çıktı. Maske pilde
+# yine kalıyor — frekans eşitlendiğinden performansa mal olmuyor — ama gerekçesi "enerji
+# kazandırıyor" değil, "bedava".
 #
 # İleride gözden geçirme koşulu: ESKİ koşul ("kernel bir gün amd_hfi'yi bağlarsa")
 # ZATEN gerçekleşti — bağlı, ITMT açık. Ancak güç bütçesi değişirse gözden geçir,
