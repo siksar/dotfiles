@@ -85,6 +85,10 @@ W:	powertop --auto-tune SENİN AYARLARINI EZER (16 Ağu 2026 ölçümü).
 	sysctl/USB ayarı eklerken powertop'un onu da ezip ezmediğini KONTROL ET,
 	eziyorsa oraya ekle. udev kuralı tek başına yetmez: yalnız yeniden
 	enumere olan cihazı kurtarır, dahili klavye hiç yeniden enumere olmaz.
+W:	Ağaç-dışı modül (aorus-laptop) güncellemesi REBOOT ister. `modprobe -r`
+	+ `modprobe` YETMEZ: modprobe /run/booted-system/kernel-modules altına
+	bakar, switch orayı değiştirmez (16 Ağu'da denendi, eski modül döndü).
+	Doğrulama: /sys/module/aorus_laptop/srcversion + dmesg imza satırı.
 W:	Ayarın uygulandığını sysfs'ten OKUYARAK doğrula, dosyada yazıyor diye
 	uygulandığını varsayma. 16 Ağu'da iki ayarın hiç çalışmadığı bulundu:
 	"amdgpu.gfx_off=1" diye bir parametre YOK (kernel: "unknown parameter

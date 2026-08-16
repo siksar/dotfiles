@@ -890,10 +890,26 @@ product_name:   [GIGABYTE AERO X16 1VH]
 | Derlenen `.ko` doğru kodu içeriyor mu | ✅ `strings` → `"Skipping silent fan mode ID check…"` **var**; yüklü eski modülde **yok** |
 | `srcversion` | `4B2AB85A3316A028911ED17` (önceki `922D3D6F…`) |
 
-**BEKLEYEN:** switch + modül yeniden yükleme (`modprobe -r aorus_laptop &&
-modprobe aorus_laptop`) ya da reboot; sonrasında `fan1_input` makul RPM mi
-(swap sürseydi ~40000 civarı imkânsız değer yazardı) ve dmesg'de yeni
-`Skipping silent fan mode ID check` satırı var mı.
+**BEKLEYEN: REBOOT.** `modprobe -r aorus_laptop && modprobe aorus_laptop` bu
+repoda **YETMEZ** — 16 Ağu'da denendi ve eski modül geri yüklendi. Sebep: NixOS'ta
+`modprobe`'un arama yolu `/run/booted-system/kernel-modules/…` altına bakar; switch
+yeni nesli aktive eder ama `booted-system` reboot'a kadar eski nesli gösterir.
+Kanıt (switch sonrası, reboot öncesi):
+
+```
+/run/current-system → nh06kgrh…            (yeni nesil aktif)
+/sys/module/aorus_laptop/srcversion → 922D3D6F…   (ESKİ modül)
+dmesg: "Newer model detected, using new silent fan mode ID"   ← eski kodun mesajı
+```
+
+Yeni modülün imzası `srcversion = 4B2AB85A3316A028911ED17` ve dmesg'de
+`"Skipping silent fan mode ID check, this only applies to old models"` satırı olacak.
+**Ağaç-dışı modül güncellemesini doğrulamak için tek yol reboot.**
+
+Reboot sonrası bakılacaklar: yukarıdaki iki imza + `fan1_input` makul RPM mi
+(swap sürseydi ~40000 civarı imkânsız değer yazardı). DİKKAT: `fan1_input=0`
+tek başına arıza DEĞİL — EC fan-stop uygularken normal değer. Yük altında
+ölçerek doğrula; 16 Ağu ölçümü: boşta ~1900 RPM, 10 sn tam yükte 3000 RPM.
 
 ### `postPatch` neden tamamen silindi
 İki `substituteInPlace --replace-fail` hedefi de master'da artık yok — bırakılsaydı
