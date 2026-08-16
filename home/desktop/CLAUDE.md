@@ -62,8 +62,12 @@ build order (harmless: same set, different `extra-dependencies`/`.manpath` order
   mutates that directory in its `patchPhase`. Format: `key HEX` per line, one space,
   no `#`, no blank lines, 110 keys, fixed order (verified against
   `src/caelestia/data/schemes/everforest/medium/dark.txt`).
-- **The 7 schemes are a byte-exact copy from the abandoned `rice/caelestia` branch,
-  not a conversion from `lib/schemes/*.yaml`.** The base16 conversion the other
+- **The 7 schemes are a byte-exact copy from the `rice/caelestia` branch, not a
+  conversion from `lib/schemes/*.yaml`.** (`rice/caelestia` is not "abandoned" — it is a
+  strict ancestor of `zixar`, 41 commits back, holding Caelestia in the pre-reorg layout.
+  Do not confuse it with `claude-md-audit`, which holds the pre-Caelestia waybar rice;
+  the branch names mislead in both directions — see the branch table in the root
+  `CLAUDE.md`.) The base16 conversion the other
   direction (Caelestia → base16, done when that branch was archived) is lossy — 16 of
   110 keys survive, the other 94 (M3 container roles, the 12-step surface ramp, 8 of
   16 ANSI colours, KDE/success roles) are hand-authored and not recoverable by

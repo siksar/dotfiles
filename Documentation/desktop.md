@@ -9,9 +9,20 @@ rice'ı tek seferde söküldü, yerine **Caelestia** — Quickshell tabanlı, ba
 bildirim+kilit+idle+runtime tema motorunu tek üründe toplayan bir kabuk — geçti.
 Geçiş dönemi seçici yok (`desktop.shell` gibi bir enum eklenmedi); eski rice'ın tasarım
 kararları (Waybar 16 tema sistemi, rofi 2.0 gradient tuzağı, matugen zinciri) artık bu
-dosyada değil, tamamen ayrı bir tarihsel referans olarak yalnız `rice/caelestia`
-dalında (eski repo düzeni, pre-reorg) okunabilir — oradan bu depoya birebir taşınan tek
-şey 7 özel Material You şeması (`home/desktop/caelestia/schemes/*.txt`).
+dosyada değil.
+
+**İki ayrı dal, iki ayrı iş — karıştırma (düzeltildi 16 Ağu 2026):**
+
+- Eski rice'ın **tasarım kararları** `claude-md-audit` dalında okunur
+  (uç `2fe6ee9`, 9 Ağu 2026 — waybar rice'ının son hali). Bu dosyanın o günkü
+  hâli tek başına 45 kez "waybar" diyor; `bdaf58c^` de aynı state.
+- Bu depoya birebir taşınan **7 Material You şeması** ise `rice/caelestia`
+  dalından geldi (`modules/desktop/caelestia/schemes/*.txt`, eski repo düzeni) →
+  `home/desktop/caelestia/schemes/*.txt`.
+
+Bu satır 16 Ağu 2026'ya kadar ikisini de `rice/caelestia`'ya bağlıyordu; ölçüldü,
+yanlış: o dalda "waybar" yalnız 2 dosyada birer kez geçiyor (artık), `claude-md-audit`'te
+61 dosyada. Şube adı içeriğini anlatmıyor — `git grep -c -i waybar <dal>` ile doğrula.
 
 Bu geçişin tasarım gerekçesi (Caelestia vs Noctalia karşılaştırması, cache/derleme
 maliyeti analizi, dGPU/PPD/idle risk değerlendirmesi) bu oturumun plan dosyasında
