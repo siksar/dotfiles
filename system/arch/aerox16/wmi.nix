@@ -68,11 +68,26 @@ in
   '';
 
   # AC/BAT'a göre otomatik fan modu + dGPU Dynamic Boost bütçesi (ölçümler:
-  # Documentation/aerox16/wmi-ec.md). Varsayılan: BAT=1 (sessiz), AC=4 (dengeli) —
-  # kullanıcı tercihi (AC: 2/oyun → 0 → 4). "Dengeli" 15 Ağu 2026'da 0'dan 4'e
-  # alındı: 4 = WMBD 0x70 (SetFanAdjustStatus, sürücünün "auto-max" dediği mod).
-  # NOT: wmi-ec.md'nin eski "4/5 ölü" notu YANLIŞ çıktı — 4 canlı sistemde
-  # okunup çalışıyor (15 Ağu, sysfs'ten doğrulandı), doküman düzeltildi.
+  # Documentation/aerox16/wmi-ec.md). Varsayılan: BAT=1, AC=1 (16 Ağu 2026'da 4'ten
+  # 1'e alındı — DÖRT MODUN DA ÖLÇÜLMESİNDEN sonra; tablo wmi-ec.md'de).
+  #
+  # Ölçümün kısası (4 thread Zen5, 60 sn, aynı yük):
+  #   mod 4  98.1°C  53.9W  4849MHz  fan 4388/4556   boşta fan DURUR
+  #   mod 1  95.0°C  45.3W  4742MHz  fan 2354/2715   boşta fan DURUR
+  #   mod 2  99.4°C  53.3W  4840MHz  fan 4893/5186   boşta fan DÖNER (2156)
+  #   mod 5  97.0°C  55.1W  4860MHz  fan 6362/6455   boşta fan DÖNER (6594)
+  #
+  # İki şey öğrenildi:
+  # 1) Fan sürekli sıcaklığı DÜŞÜRMÜYOR, performansa çeviriyor. Mod 4→5'te hava
+  #    %45 artıyor, sıcaklık yalnız 1.1°C düşüyor; kazanç güce (53.9→55.1W) ve
+  #    saate (4849→4860MHz) gidiyor. Boost algoritması Tjmax'i HEDEFLİYOR.
+  #    Yani "sürekli yükte 99°C" fanla çözülebilir bir problem değil.
+  # 2) Mod 1 istisna: fan eğrisi değil, 95.0°C hedefli KAPALI ÇEVRİM denetleyici.
+  #    8. sn'den itibaren Tctl tam 95.0'da çakılı; hedefi tutmak için gücü
+  #    (51→45W) ve saati (4840→4742MHz) kırpıyor. Bedeli %2.1 saat, karşılığı
+  #    4.4°C + fanın yarı devri. AC'de bu takas tercih edildi.
+  # NOT: wmi-ec.md'nin eski "4/5 ölü" ve "mod 2-4 etkisiz olabilir" notları YANLIŞ —
+  # dördü de canlı sistemde belirgin biçimde farklı davranıyor (16 Ağu ölçümü).
   # Bu servis fişi takınca/uykudan dönünce fan_mode'u yeniden yazdığı için, elle
   # 4'e almak KALICI DEĞİLDİ; kalıcılık tam olarak bu satırdan geliyor.
   # Fan modu ayrıca Süper+M ile canlı döndürülebiliyor (4→1→2→5, bkz. aşağıdaki
@@ -105,7 +120,7 @@ in
           FAN=1    # sessiz
           ACBT=0   # pilde boost bütçesi kapalı
         else
-          FAN=4    # AC: dengeli (kullanıcı tercihi; 15 Ağu 2026'da 0'dan 4'e alındı)
+          FAN=1    # AC: sessiz — 95°C kilidi + yarı fan devri (16 Ağu ölçümü, yukarı bak)
           ACBT=10  # 10×8 = 80W Dynamic Boost bütçesi
         fi
         if ${pkgs.systemd}/bin/systemctl is-active --quiet game-perf.service; then

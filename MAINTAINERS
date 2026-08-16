@@ -45,12 +45,19 @@ W:	postPatch bir shell STRING'i; içindeki '#' satırları Nix yorumu değil.
 	Oradaki bir yazım düzeltmesi bile kernel modülünü yeniden derletir.
 N:	Çalışan kollar: 0xED perf profili (GPU 38W→70-83W ölçüldü),
 	ACBT 0x4C Dynamic Boost bütçesi, fan_mode 0x57 sessiz mod (yamalı probe).
-N:	"Dengeli" fan modu 0 DEĞİL 4 (15 Ağu 2026, kullanıcı tercihi): AC
-	varsayılanı ve SUPER+M döngüsünün başı/dönüş noktası 4 (4→1→2→5).
-	4 = WMBD 0x70 SetFanAdjustStatus ("auto-max"). Elle `echo 4 > fan_mode`
-	KALICI DEĞİLDİR — gigabyte-power-profile.service fiş/uyku olayında
-	yeniden yazar; kalıcılık yalnız o servisin FAN= satırından gelir.
-	wmi-ec.md'nin eski "4/5 ölü" notu yanlıştı, düzeltildi.
+N:	AC fan varsayılanı 1 (sessiz), 16 Ağu 2026'da 4'ten alındı — DÖRT MODUN DA
+	ÖLÇÜLMESİNDEN sonra (tablo: wmi-ec.md "Fan modu ölçümü"). SUPER+M döngüsü
+	yine 4→1→2→5. Elle `echo N > fan_mode` KALICI DEĞİLDİR —
+	gigabyte-power-profile.service fiş/uyku olayında yeniden yazar; kalıcılık
+	yalnız o servisin FAN= satırından gelir.
+W:	FAN SEÇERKEN "hangisi daha serin" DİYE SORMA — boost Tjmax'i hedefliyor.
+	Mod 4→5'te hava %45 artıyor, sıcaklık 1.1°C düşüyor; kazanç güce ve saate
+	gidiyor. Sürekli yükteki ~99°C fanla çözülmez. Tek istisna mod 1: fan
+	eğrisi değil, 95.0°C hedefli kapalı çevrim denetleyici (gücü 51→45W,
+	saati 4840→4742MHz kırparak tutuyor). Bedeli %2.1 saat.
+N:	Boşta fan: mod 4 ve 1 DURDURUYOR (0 RPM), mod 2 ve 5 durdurmuyor
+	(2156 / 6594 RPM). Ölçüm yalnız CPU yüküyle — oyun (CPU+dGPU) için
+	geçerli değil, o kolu game-perf turbo'ya (5) alıyor.
 
 ACPI / DSDT OVERRIDE
 S:	Maintained — REBOOT sonrası Faz C doğrulaması hâlâ bekliyor
