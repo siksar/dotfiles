@@ -37,13 +37,33 @@
 #
 # Kapatmak için: CPUAffinity satırını yorum satırı yap + rebuild.
 #
+# DİKKAT — BURADAKİ MASKE ARTIK YALNIZ "PİL VARSAYILANI" (16 Ağu 2026).
+# power-display.nix, udev-ACAD olayında bu maskeyi FİŞTE 0-15'e açıyor, pilde buraya
+# geri çekiyor (PID1 + mevcut süreçler taskset ile süpürülür; PID1'in CPUAffinity'si
+# çalışırken değişemediği için süpürme şart). Yani bu satır boot maskesini ve pil
+# davranışını belirler — fişteki davranış power-display.nix'te. İkisini birlikte oku.
+#
+# AMA maske açılırken Zen5 SERBEST BIRAKILMIYOR: aynı dosya AC'de scaling_max_freq'i
+# 4.5 GHz'e kapıyor (oyun hariç). Ölçüm: son 590 MHz %9 hız için gücü %96 artırıp
+# tepe sıcaklığı +15.9°C yapıyor. Yani fişteki tasarım "Zen5 evet, tepe hayır".
+# Maskeyi burada tekrar açarsan (0-15 yazarsan) o tavanı da hesaba kat.
+#
+# Gerekçe artık ÖLÇÜLÜ (Documentation/aerox16/cpu-hybrid.md): aynı tek-thread iş
+#     Zen5  → 5.51 s / 69.1 J        Zen5c → 8.19 s / 39.5 J
+# Race-to-idle bu silikonda kazanmıyor (1.49x hız için 2.5x güç → net 1.75x enerji).
+# Fişte maske yalnız bedel (1.49x gecikme), çünkü 30 J'lük fark fişte maliyet değil.
+# Bu yüzden sabit maske fişe bağlandı.
+# KAPSAM: o %43 AC saatlerinde ölçüldü (4.92 vs 3.47 GHz). PİLDE PPD power-saver iki
+# çekirdek tipini de 2.0 GHz'e kapadığı için oradaki fayda ÖLÇÜLMEDİ ve daha küçük.
+# Maske pilde yine kalıyor — frekans eşitlendiğinden performansa da mal olmuyor.
+#
 # İleride gözden geçirme koşulu: ESKİ koşul ("kernel bir gün amd_hfi'yi bağlarsa")
-# ZATEN gerçekleşti — bağlı, ITMT açık. Bu dosya artık geçici protez değil, kalıcı
-# bir politika tercihi: hızlı çekirdek KULLANILMASIN, çünkü 4.28W idle tabanı
-# 5GHz'lik kısa patlamaları kaldırmıyor. Ancak güç bütçesi değişirse gözden geçir,
+# ZATEN gerçekleşti — bağlı, ITMT açık. Ancak güç bütçesi değişirse gözden geçir,
 # kernel sürümü değişirse değil. (ITMT'yi kapatmak alternatif DEĞİL: 0 yazmak
 # yerleşimi keyfîleştirir, "Zen5c'yi tercih et" diye bir mod yok; üstelik debugfs
-# olduğu için kalıcı da değil.)
+# olduğu için kalıcı da değil. scx_lavd'ın --cpu-pref-order'ı da alternatif DEĞİL:
+# ölçüldü, --autopower fişte performance modunu seçiyor, o modda core compaction
+# kapalı ve tercih listesi tamamen yok sayılıyor — 1 hafif görev %100 Zen5'e gitti.)
 { ... }:
 
 {

@@ -76,18 +76,86 @@ let
       # üzerinden scaling_max_freq'i ~2.0 GHz'e hard-limiter olarak yazar; performance/
       # balanced'a geri dönerken bu limiti GERİ AÇMAZ (ölçüldü). Bu Zen 5 aslında ~5.09 GHz
       # boost yapabilir; AC'de 2 GHz'te kalmak compositor tepkiselliğini belirgin yavaşlatır.
-      # AC'de her koşuşta limiti tüm CPU'lerde cpuinfo_max_freq'e geri aç + boost'u aç.
       # BAT'ta power-saver 2 GHz sınırı idle'ı etkilemediğinden (load altında fark eder)
       # aynen kalır → 4.28W idle bütçesi dokunulmaz.
+      #
+      # AC TAVANI 4.5 GHz — tam açık DEĞİL (16 Ağu 2026, ÖLÇÜMLE). Sabit tek-thread iş,
+      # cpu0 (Zen5), tavan taraması (tepe Tctl + marjinal güç):
+      #   3.51GHz  7.81s  55.8C   4.3W      4.50GHz  6.06s  64.2C   7.5W
+      #   4.00GHz  6.94s  58.9C   5.2W      5.09GHz  5.49s  80.1C  14.7W
+      #   4.20GHz  6.60s  60.8C   6.5W
+      # Son 590 MHz (4.50→5.09) %9 hız için gücü %96 artırıyor ve tepe sıcaklığı
+      # +15.9°C yapıyor; MHz başına marjinal güç 3 mW'tan 15.6 mW'a fırlıyor. V/f
+      # eğrisinin dizi tam orada. 4.50 tavanı kazancın %75'ini maliyetin %31'iyle alıyor.
+      # Yan fayda: kullanıcının şikâyet ettiği "kısa patlamada 80-90°C" sıçraması
+      # 64.2°C'ye iniyor — cores.nix maskesi kalkarken termal bedeli bu satır ödüyor.
+      # İkisi birlikte okunmalı: maske AC'de açılıyor (aşağıdaki affinity bloğu),
+      # ama Zen5 tepeye çıkmıyor.
+      #
+      # OYUNDA TAVAN YOK: game-perf aktifken tam boost. Oyun bitince game-perf'in
+      # ExecStopPost'u power-display.service'i yeniden başlatıyor (sched.nix), yani
+      # tavan kendiliğinden geri geliyor — ayrı bir geri-alma koluna gerek yok.
+      if ${pkgs.systemd}/bin/systemctl is-active --quiet game-perf.service; then
+        CAP=99999999   # oyun: kapama yok, her çekirdek kendi tavanına
+      else
+        CAP=4500000
+      fi
       for C in /sys/devices/system/cpu/cpu[0-9]*/cpufreq; do
         MAXF=$(cat "$C/cpuinfo_max_freq" 2>/dev/null) || continue
+        # Zen5c'nin kendi tavanı (3506494) zaten CAP'in altında → onlara dokunulmaz.
+        WANT=$MAXF
+        [ "$CAP" -lt "$MAXF" ] && WANT=$CAP
         CURF=$(cat "$C/scaling_max_freq" 2>/dev/null) || continue
-        [ "$CURF" != "$MAXF" ] && echo "$MAXF" > "$C/scaling_max_freq" 2>/dev/null || true
+        [ "$CURF" != "$WANT" ] && echo "$WANT" > "$C/scaling_max_freq" 2>/dev/null || true
       done
       # boost geri-aç: amd-pstate=active'te anahtar cpufreq/boost (intel_pstate/no_turbo
       # düğümü AMD'de YOK — eski kod yanlış node'u hedefliyordu). 1=boost-on.
       B=/sys/devices/system/cpu/cpufreq/boost
       [ -w "$B" ] && [ "$(cat "$B" 2>/dev/null)" != "1" ] && echo 1 > "$B" 2>/dev/null || true
+    fi
+
+    # --- CPU affinity maskesi AC/BAT'a bağlı (16 Ağu 2026, ÖLÇÜMLE) ---
+    # cores.nix PID1'e Zen5c-only maske koyar, tüm masaüstü onu miras alır. O maskenin
+    # gerekçesi ("5GHz'lik kısa patlamalar idle bütçesini bozar") bugüne kadar watt
+    # cinsinden ölçülmemişti; ölçüldü (Documentation/aerox16/cpu-hybrid.md, aynı
+    # tek-thread iş, 5 tur alternatifli, PPT marjinali):
+    #     Zen5  → 5.51 s / 69.1 J        Zen5c → 8.19 s / 39.5 J
+    # Yani race-to-idle bu silikonda KAZANMIYOR: 1.49x hızlı bitirmek 2.5x güç çekiyor,
+    # net enerji 1.75x kötü.
+    # KAPSAM: bu tablo AC saatlerinde alındı (4.92 vs 3.47 GHz). PİLDE aşağıdaki
+    # power-saver kolu HER İKİ çekirdek tipini de 2.0 GHz'e kapıyor (doğrulandı), yani
+    # oradaki gerçek fayda ölçülmedi ve %43'ten küçük. Maske pilde yine de tutuluyor:
+    # frekans eşitlendiği için performansa mal olmuyor, Zen5c tasarım olarak daha verimli.
+    # FİŞTE ise yalnızca bedel: 1.49x gecikme, karşılığında anlamsız bir enerji tasarrufu.
+    # (Ölçülen semptom: Electron/Deezer fişte 3.47 GHz'de, oyun varken 2.44 GHz'de kalıyordu.)
+    # O yüzden maske artık sabit değil, fişe bağlı.
+    #
+    # SÜPÜRME NEDEN ŞART: PID1'in CPUAffinity'si çalışırken değiştirilemez ve mevcut
+    # süreçler maskeyi zaten miras almıştır. Olay tetikli (udev ACAD), poll DEĞİL —
+    # power katmanının kuralına uygun. taskset kullanılıyor çünkü cores.nix'in maskesi
+    # sched_setaffinity (yumuşak), cgroup AllowedCPUs değil.
+    TASKSET=${pkgs.util-linux}/bin/taskset
+    if ${pkgs.systemd}/bin/systemctl is-active --quiet game-perf.service; then
+      : # Oyun sırasında DOKUNMA: affinity'yi gamerun yönetiyor (taskset -c 0-15 /
+        # GR_PIN). Oyun-ortası bir ACAD olayı oyunu Zen5c'ye çekerse kare süresi çöker.
+    else
+      if [ "$AC" = "0" ]; then MASK=1,3,5,7,9,11,13,15; else MASK=0-15; fi
+      # Önce PID1: bundan SONRA doğacak her süreç doğru maskeyi miras alsın.
+      "$TASKSET" -a -pc "$MASK" 1 >/dev/null 2>&1 || true
+      for P in /proc/[0-9]*; do
+        PID=''${P#/proc/}
+        # Kernel thread ELE: cmdline'ı BOŞ olan süreç kernel thread'dir (bir kısmı
+        # bilerek pinli, affinity'lerine dokunulmamalı).
+        # TUZAK: `[ -s "$P/cmdline" ]` KULLANMA — procfs dosyaları boyutu her zaman 0
+        # bildirir, userspace süreçler dahil; o test her şeyi kernel thread sanır ve
+        # süpürme sessizce hiçbir işe yaramaz (16 Ağu 2026'da kuru testte yakalandı).
+        # İÇERİĞE bakmak gerekir. `read` builtin: fork yok, ~400 süreç için önemli.
+        IFS= read -r -d "" _CMD < "$P/cmdline" 2>/dev/null || continue
+        # nix-daemon muafiyeti (cores.nix) korunsun: derlemeler 16 CPU'da kalmalı.
+        read -r _COMM < "$P/comm" 2>/dev/null || true
+        [ "$_COMM" = "nix-daemon" ] && continue
+        "$TASKSET" -a -pc "$MASK" "$PID" >/dev/null 2>&1 || true
+      done
     fi
 
     # --- WiFi güç tasarrufu AC/BAT uyarlaması ---
