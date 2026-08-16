@@ -491,7 +491,7 @@ muhtemel SPL/SPPT/FPPT). ECPL(): ERCD 0x45/0x4D → aktif profil seviyesini okur
 | **0x4C-0x59** | **GFS1-GFSE: eğrinin 1-14. HIZ noktaları** |
 | 0x5A | XFNR (okuma index'i) |
 | 0x5B-0x5C | XFN1 (okuma verisi, 16-bit `speed<<8\|temp`) |
-| 0x8C | TCLT (termal setpoint adayı — bkz. "TCLT" bölümü) |
+| 0x8C | TCLT (termal setpoint — DOĞRULANDI, bkz. "TCLT" bölümü) |
 | **0x8D-0x8F** | **SUPL, SPPT, FPPT — `ECMM` overlay'inden (CPU güç limitleri)** |
 | 0x90 | PPPT |
 | 0x99-0xA0 | BATN |
@@ -1173,90 +1173,162 @@ sensöre fener tutarak.
 sensör SFH'de duruyor ve onu kimse sorgulamıyor — o zaman doğru çözüm EC'yi
 kurcalamak değil, `amd_sfh` tarafını kazmak.
 
-## TCLT — termal setpoint adayı: AÇIK İŞ, ÖLÇÜLMEDİ (16 Ağu 2026)
+## TCLT — termal setpoint: **DOĞRULANDI, ÖLÇÜLDÜ** (16 Ağu 2026)
 
-> **BU BÖLÜM MASA BAŞI ANALİZDİR. Hiçbir yazma denenmedi.** Aynı sayfada §1'in
-> "DSDT'ye bakılırsa çalışmalı" hatasını düzeltmiş durumdayız; bu bölüm o hataya
-> düşmemek için baştan **hipotez** olarak etiketlenmiştir. Aşağıdaki "yazılabilir
-> görünüyor" cümlelerinin hiçbiri kanıt değildir.
+> **Bu bölüm artık masa başı analiz değil.** Önceki hâli "AÇIK İŞ, ÖLÇÜLMEDİ"
+> damgasıyla duruyordu; hipotez 16 Ağu 2026'da canlı ölçümle sınandı ve **doğrulandı**.
+> Aşağıdaki her sayı bir koşudan gelir; CSV'ler ve betik referansta.
+> Doğrulanmayan kısımlar ("Sınırlar") ayrıca ve açıkça işaretlidir — takas tablosu
+> **eksiktir**, üç satırı üç ölçüm noktası sanma.
 
-### Nasıl ortaya çıktı
+### Sonuç — tek cümle
 
-Fan eğrisi ölçümünün pozitif kontrolünde PECM penceresi dökülürken `TCLT` (@0x8C)
-**95** okundu. Bu sayı tesadüf olamayacak kadar spesifik: aynı gün yapılan fan modu
-ölçümünde **mod 1'in Tctl'i tam 95.0 °C'ye kilitlediği** bulunmuştu — 8. saniyeden
-itibaren sapmasız 95.0, hedefi tutmak için gücü (51→45 W) ve saati (4840→4742 MHz)
-kırparak ("Bulgu 2 — mod 1 bir fan eğrisi değil, 95°C'lik kapalı çevrim denetleyici").
+`\DPTT(0x03, N)` **çalışıyor**: AMD ALIB fonksiyon 0x0C (DPTC) üzerinden SMU'nun Tctl
+hedefini `N` °C'ye çeker, makine o sıcaklıkta **sapmasız kilitlenir**, `95` geri
+yazılınca serbest bırakır. Yazma EC'nin kendi `TCLT@0x8C` baytına **dokunmaz**.
 
-### DSDT ne diyor (okundu, çalıştırılmadı)
+### Kanıtın imzası: kilit, sıcaklığın kendisi değil, **varyansın sıfırlanması**
 
-`TCLT` DSDT'de **yalnız iki yerde** geçiyor: alan tanımı (:8092) ve tek bir **okuma**
-(:8267). Yazan hiçbir ASL kodu ve **WMBD'de karşılık gelen selector yok** — yani
-`TCLT`'yi EC kendi içinde belirliyor, host'a sunulan bir kolu yok.
+Bağlayan bir setpoint'te Tctl örnekleri **min = max**; bağlamayan kolda 0.3–0.9 °C
+gezinir. İki bağımsız kolda aynı imza çıktı:
 
-Okuyan yer bir EC olay işleyicisi, `_Q20`, ve şunu yapıyor:
+| Kol | Örnek sayısı | Tctl min | Tctl max | Yorum |
+|---|---|---|---|---|
+| `N=70` (tavanlı rejim) | 30 | **70.0** | **70.0** | bağladı — sıfır varyans |
+| `N=85` (tavansız rejim) | 40 | **85.0** | **85.0** | bağladı — sıfır varyans |
+| `N=95` taban | 40 | 85.5 | 86.4 | bağlamadı (makine setpoint'in altında) |
+| `N=90` | 40 | 87.0 | 87.5 | bağlamadı (makine setpoint'in altında) |
 
-```
-Local3 = TCLT ; DPTT (0x03, Local3)      // TCLT = 95
-Local1 = SPPT ; DPTT (0x07, Local1)
-Local2 = FPPT ; DPTT (0x06, Local2)
-Local4 = STML ; DPTT (0x2E, Local4)
-Local5 = PPPT ; DPTT (0x32, Local5)
-Local0 = SUPL ; (DPTT'ye HİÇ VERİLMİYOR)
-```
+Yazılan sayı ile kilitlenilen sayı **birebir aynı** (70→70.0, 85→85.0). Bu, `Case(0x03)`
+dalının çarpansız olmasıyla ve değerin °C biriminde olmasıyla tam tutarlı. Aynı düz-kilit
+davranışı daha önce `fan_mode 1` ölçümünde 95.0 °C'de görülmüştü — **aynı denetleyici**.
 
-`DPTT(fn, val)` (kök scope: `\DPTT`, :7624) bir AMD **ALIB fonksiyon 0x0C (DPTC)**
-sarmalayıcısı: 7 baytlık buffer kurup `SSZE=7, SMUF=fn, SMUD=değer` doldurarak
-`\_SB.ALIB (0x0C, BUFF)` çağırıyor. Switch'te **`Case(0x03)` tek çarpansız daldır**;
-diğer tüm dallar değeri ×1000 ile mW'a çevirir. Yani 0x03 bir güç değil,
-**sıcaklık parametresi (°C)**.
+### Yöntem — neden "sabit yük altında basamak", ayrı koşular değil
 
-**Okuma şu: EC → `_Q20` → ALIB/DPTC → SMU zinciri, bu makinenin termal hedefini
-SMU'ya bildiren resmi yol; `TCLT` de o hedefin sayısı.**
+Ayrı koşularda ortam sıcaklığı ve termal birikim kollar arasında kayar ve setpoint
+etkisini taklit eder. Bunun yerine yük **hiç durmadan** sürerken setpoint koşu içinde
+kademelendi; Tctl'in aynı koşuda basamağa inip geri çıkması tek başına kanıttır.
 
-### Yan kazanım — PECM'nin ikinci adı ve CPU watt baytları
+- Yük: 16 thread AVX-512 FMA (8 bağımsız akümülatör, sıfır syscall, saf kullanıcı alanı).
+- Örnekleme 2 Hz; her basamağın **son 15–20 s**'i kararlı pencere.
+- Tctl `k10temp/temp1_input`, paket gücü `amdgpu/power1_input` (µW), saat
+  `cpu0/scaling_cur_freq`, fan `aorus_laptop/fan1_input`. hwmon'lar **adla** bulunur.
+- Betik: `scripts/tclt-probe.sh` (`capped` / `uncapped` kolları).
+  CSV: `/tmp/tclt-probe/{capped,uncapped}.csv`.
+- AC=1, `fan_mode=1` koşu boyunca sabit; fişe dokunulmadı.
 
-`OperationRegion (ECMM, SystemMemory, 0xFC7E0800, 0x1000)` (:7728) **PECM ile aynı
-adrestir** — aynı pencerenin ikinci bir field overlay'i. Defterdeki PECM haritası bu
-yüzden eksikti; birleşik hâli `0x8C-0x90` için şöyle:
+**`scaling_cur_freq` bu sürücüde gerçek ölçümdür** — yan yana bakıldı,
+`cpuinfo_avg_freq` ile ~20 MHz içinde örtüşüyor (amd-pstate=active'te "istenen değer"
+olma riski vardı, yok).
 
-| Ofs | Alan | 16 Ağu dökümünde (PİLDE) |
+### Kanıt 1 — tavanlı rejim (hafif, kesin): setpoint 70
+
+4.5 GHz tavanı yerindeyken makine ~72 °C'de oturuyor, yani **termal duvara varmıyor**.
+Setpoint 70'e çekildi (70 < 72 olduğu için bağlaması gerekir):
+
+| Basamak | Tctl | PPT | Saat | Fan |
+|---|---|---|---|---|
+| taban (95) | 71.78 °C | 34.52 W | 4480 MHz | 1993 rpm |
+| **→ 70** | **70.00 °C** | **30.05 W** | **4482 MHz** | 2079 rpm |
+| → 95 (geri) | 75.67 °C | 35.05 W | 4481 MHz | 2072 rpm |
+
+Geçiş: t=40'ta yazım, 72.5 °C'den ~6 s'de 70.0'a süzülüyor, **44 saniye boyunca 70.0'da
+sapmasız**; t=90'da 95 yazılınca anında serbest kalıp 73.9'a tırmanıyor. Tam tersinir.
+
+**Burada saat DÜŞMÜYOR, yalnız güç düşüyor** (−13 %, 4480→4482 MHz sabit). Neden:
+bu rejimde istenen frekans zaten `scaling_max_freq` ile 4.5 GHz'e çivili ve parça V/f
+eğrisinin **düz** kısmında; SMU 13 %'lük gücü frekanstan vazgeçmeden (voltaj/kaçak
+üzerinden) kırpabiliyor. `fan_mode 1`'in 95 °C kilidinde hem güç hem saat düşüyordu
+(51→45 W, 4840→4742 MHz) çünkü orası tavansız, 4840 MHz — eğrinin **dik** kısmı; orada
+anlamlı güç ancak frekans verilerek atılır. Tavansız kolda saatin gerçekten düştüğü
+aşağıda görülüyor. Yani iki gözlem çelişmiyor, aynı eğrinin iki noktası.
+
+### Kanıt 2 + takas — tavansız rejim (tavan geçici kaldırıldı)
+
+Gerekçe: tavan yerindeyken CPU termal duvara hiç ulaşmıyor, dolayısıyla TCLT'nin
+bağlayacağı rejim oluşmuyor. Tavanın kalktığı rejim de zaten **oyun rejimidir**
+(`game-perf` tavanı kaldırır).
+
+| Setpoint | Tctl | PPT | Saat | Fan | Bağladı mı? |
+|---|---|---|---|---|---|
+| N=95 (taban) | 85.86 °C | 45.02 W | 4928 MHz | 2365 rpm | ❌ hayır |
+| N=90 | 87.23 °C | 44.16 W | 4918 MHz | 2367 rpm | ❌ hayır |
+| **N=85** | **85.00 °C** | **41.05 W** | **4876 MHz** | 2369 rpm | ✅ **evet** |
+| N=95 (kontrol) | 88.51 °C | 44.11 W | 4911 MHz | 2369 rpm | ❌ hayır |
+
+> **TABLOYU OLDUĞU GİBİ OKU — bu üç ayrı ölçüm noktası DEĞİL.** `N=95` ve `N=90`
+> kollarında makine **kendi setpoint'inin altında** kaldı (85.86 ve 87.23 °C), yani o
+> iki satır setpoint'in etkisini değil, yalnız termal birikim eğrisinin iki noktasını
+> gösterir. **Gerçek veri tek noktadır: `N=85`.**
+
+Dürüst karşılaştırma `N=85` ↔ `N=90` (bağlamayan = fiilen sınırsız):
+
+| Büyüklük | Ham fark (85 ↔ 90) | Sürüklenme düzeltmeli |
 |---|---|---|
-| 0x8C | TCLT (PECM) | 95 |
-| 0x8D | SUPL (ECMM) | **20** |
-| 0x8E | SPPT (ECMM) | **54** |
-| 0x8F | FPPT (ECMM) | **54** |
-| 0x90 | PPPT (PECM) | 87 |
+| Tctl | **−2.23 °C** | −2.89 °C |
+| Saat | −42 MHz (**−0.85 %**) | −38 MHz (−0.78 %) |
+| PPT | −3.11 W | −3.08 W |
 
-**20 / 54 / 54**, bu defterin 0xED profil tablosundaki **DC (pil) sütunuyla birebir
-aynı** ("19→20 / 54 / 54") ve ölçüm gerçekten pilde yapılmıştı. Yani bu üç bayt
-CPU'nun SPL/SPPT/FPPT limitleridir ve canlı değerleri taşırlar.
+*Sürüklenme düzeltmesi:* bağlamayan kollar koşu boyunca monoton ısınıyor
+(85.86 → 87.23 → 88.51 °C). `N=85` penceresinin karşı-olgusu bu eğriden interpolasyonla
+~87.9 °C; ham fark bu yüzden soğumayı **hafife alır**. Düzeltme interpolasyondur,
+ölçüm değildir — ham sütun esas alınmalı, düzeltmeli sütun yönü gösterir.
 
-Bundan çıkan **hipotez** (ölçülmedi): defterin "0xED 2 yazımında SPL DEĞİŞMEDİ —
-ECPT→SMU köprüsü yok?" sorusunun cevabı "köprü yok" değil, **"köprü var ama SPL o
-köprüden geçmiyor"** olabilir: `_Q20` SPPT/FPPT/TCLT/STML/PPPT'yi DPTT ile SMU'ya
-gönderirken `SUPL`'u okuyup **hiçbir yere vermiyor**. Doğrulanması ayrı iş.
+**Cevap:** ölçülen tek noktada **~2.2–2.9 °C serinlik, ~%0.8 saat hızına mal oluyor**
+(ve ~3 W). Takas bu noktada ucuz.
 
-### Eğer denenecekse — yollar ve riskler
+**Fan hiç değişmedi** (2365→2369 rpm, kollar arası fark yok): soğuma tamamen SMU'nun
+gücü kırpmasından geldi, hava debisinden değil. Bu, 16 Ağu fan ölçümünün "fan sıcaklığı
+düşürmez, performansa çevirir" bulgusunun simetriği — buradaki kol tam tersini yapıyor,
+sabit hava altında gücü düşürüyor.
 
-| Yol | Nasıl | Not |
-|---|---|---|
-| `\DPTT (0x03, N)` | acpi_call, iki integer argüman | EC'yi atlayıp doğrudan SMU'ya gider. En temiz yol |
-| `/dev/mem` → 0x8C yaz + `_Q20` tetikle | dolaylı | EC kendi döngüsünde üstüne yazabilir (ERCD deneyinde 0x16'da görüldü) |
-| WMBD selector | **YOK** | DSDT'de TCLT'ye yazan selector bulunmuyor |
+### Mekanizma — yazım EC'ye değil, doğrudan SMU'ya gidiyor
 
-- **Kalıcılık beklentisi: yok.** EC bir sonraki `_Q20` olayında kendi `TCLT`'sini
-  (95) yeniden gönderir → yazılan değer geçicidir. Bu, güvenlik açısından **iyi**
-  huylu yön.
-- **Yön kuralı: yalnız AŞAĞI.** N < 95 → SMU daha erken kısar → daha serin/daha
-  yavaş; geri dönüşü kendiliğinden. **N > 95 denenmemeli** — termal koruma sınırını
-  yukarı oynatmak bu defterin diğer deneyleriyle aynı risk sınıfında değildir.
-- **Neden değerli:** 16 Ağu fan ölçümünün ana bulgusu "fan sıcaklığı düşürmüyor,
-  boost onu performansa çeviriyor; çünkü hedef Tjmax" idi. `TCLT` tam olarak o
-  hedefin sayısıdır. Kullanıcının istediği "daha serin makine" için doğru kol —
-  eğer yazılabilirse — fan değil, budur. Ölü fan eğrisinden çok daha yüksek getirili.
+Her iki koşuda, 2 Hz örneklemeyle, **istisnasız**:
 
-**Sonraki adım:** tek yazım → ölç → logla → revert protokolü (bkz. "Deneysel 0xED /
-0xF1–F3 logu"), AC + sabit yük altında, `N = 85` ile tek deneme; gözlenecek şey
-Tctl'in yeni hedefte kilitlenip kilitlenmediği (k10temp + PPT + MHz üçlüsü).
-**Kullanıcı onayı olmadan yapılmaz.**
+- `EC TCLT@0x8C` = **95** (tek benzersiz değer; `/dev/mem` ile okundu)
+- `gpe0A` deltası = **0** — koşu boyunca **hiç `_Q20` tetiklenmedi**
+
+Yani `\DPTT` yazımı EC'nin kendi baytını değiştirmiyor; `_Q20 → DPTT → ALIB(0x0C)`
+zincirini **atlayıp** doğrudan SMU'ya yazıyor. Bu, "kalıcı değil" beklentisinin
+mekanizmasıdır: EC bir sonraki `_Q20`'de kendi 95'ini yeniden gönderecektir. Ölçüm
+penceresinde `_Q20` hiç ateşlemediği için kilit bozulmadı ve **ölçüm geçerlidir**;
+ama kalıcılık **yokluğu da doğrulanmadı** (tetikleyeni gözlemlenmedi).
+
+### Kapsam — bu kolun ne zaman değeri var
+
+- **Normal masaüstünde ETKİSİZ.** AC'deki 4.5 GHz `scaling_max_freq` tavanı yerindeyken
+  makine termal duvara varmıyor: 16 thread AVX-512'de bile **73.5 °C / 36 W**, frekans
+  tavana çivili. Setpoint'in bağlaması için tavanın altındaki bir sıcaklık yazılması
+  gerekir ki bu performansı boşuna keser.
+- **Değeri yalnız tavanın kalktığı oyun rejiminde.** `game-perf` tavanı kaldırdığı için
+  TCLT'nin bağlayabileceği tek normal senaryo odur.
+
+### Sınırlar — ölçülmeyenler (ekstrapolasyon YOK)
+
+1. **`N=95` ve `N=90` hiç sınanmadı.** İkisi de bağlamadı; gerçek oyun yükünde ne
+   yapacaklarını bu veri **söylemiyor**.
+2. **İş yükü beklenenden hafif.** 16 thread AVX-512 tavansız yalnız **85.86 °C / 45 W**
+   üretti. Bu makinede daha önce ölçülmüştü: **4 thread düz tamsayı LCG, tavansız →
+   4850 MHz, 58 W, 99 °C sürekli.** Yani AVX-512 yükü basit tamsayı yükünden **daha az**
+   termal talep üretiyor (muhtemel sebep — *hipotez, ölçülmedi*: 16 thread 8 fiziksel
+   çekirdeğe SMT ile yayılıyor, dördü 3.5 GHz'lik Zen5c; artı AVX-512'nin frekans/güç
+   davranışı). Sonuç: **gerçek oyun yükünde ölçülmedi.**
+3. **Kalıcılık doğrulanmadı** (yukarı bkz.): `_Q20` koşu boyunca hiç ateşlemedi.
+4. **Yalnız aşağı yön sınandı.** `N > 95` denenmedi ve denenmemeli.
+5. **dGPU dahil değil.** Yalnız CPU/APU paketi ölçüldü.
+
+**Bir sonraki adım (yapılırsa):** 95/90'ı gerçekten sınamak için ≥95 °C'ye çıkaran
+**tamsayı** tabanlı bir yük (ya da gerçek bir oyun) gerekir; AVX-512 burner yetmiyor.
+
+### Metodoloji notu — örnekleme ekseni kayar, sonu buna göre kırp
+
+Betiğin zaman ekseni **nominal**dir (0.5 s × indeks). Her tur `/dev/mem` + 5 sysfs
+okuması yüzünden 0.5 s'den uzun sürer; tavansız koşuda gerçek süre nominali **~%6**
+aştı ve 220 s'lik yük nominal t≈197.3'te bitti. İlk raporda son kolun saati **4502 MHz**
+göründü — bu, 180–200 penceresine düşen **5 adet yük-sonrası boşta örneğinin** (623 MHz)
+ortalamayı çekmesiydi; tavan geri yazımı ya da udev olayı **değildi** (kol boyunca saat
+4909–4919 MHz, `gpe+0`). Yük-canlı pencereyle (177–197) kol **88.51 °C / 44.11 W /
+4911 MHz** okunur ve taban koluyla tutarlıdır — yukarıdaki tabloda **düzeltilmiş** değer
+vardır. Gelecekte: pencereyi gerçek geçen süreye bağla ya da yükün canlı olduğunu
+örnek başına doğrula.
