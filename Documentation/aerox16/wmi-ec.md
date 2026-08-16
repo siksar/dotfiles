@@ -5,11 +5,16 @@ referans verileri toplayıp, EC/BIOS'un sunduğu TÜM ayarları Linux'ta WMI
 üzerinden deklaratif (NixOS modülü) olarak yönetmek. Özellikle: doğrulanmış
 özel fan eğrileri.
 
-**Durum (2026-07-05):** Canlı test TAMAMLANDI — özel fan kontrolü (eğri/fixed/
-doğrudan duty) bu firmware'de (FB0A / EC 3.10) WMI'dan **tamamen kapalı**;
-yalnız preset modlar (0/1/2) çalışıyor. Gerçek özel-fan kanalı muhtemelen ERCD
-komut arayüzü → keşfi Windows/GCC yakalamasına kaldı (yeni SSD'ye kurulacak).
-Ayrıntı: "Canlı test sonuçları" bölümü.
+**Durum (2026-08-16, kesinleşti):** Özel fan kontrolü (eğri/fixed/doğrudan duty) bu
+firmware'de (FB0A / EC 3.10) **kapalı** — 16 Ağu 2026'da eğri tablosu EC belleğinde
+doğrudan gözlenerek KANITLANDI, artık hipotez değil: bkz. "Özel fan eğrisi — DOSYA
+KAPANDI". Preset modların **dördü de** çalışıyor (0/1/2/4/5; ölçüm: "Fan modu ölçümü").
+Gerçek özel-fan kanalı Linux'tan görünmüyor → keşfi Windows/GCC yakalamasına kaldı.
+
+> **Düzeltme (16 Ağu 2026):** bu not önceden "yalnız preset modlar (0/1/2) çalışıyor"
+> diyordu — YANLIŞ; 4 ve 5 de çalışıyor (16 Ağu ölçümü). Ayrıca "gerçek kanal muhtemelen
+> ERCD" cümlesi bir tahmindi ve 2026-07-11'de ERCD de ölçülüp kapalı çıktı; tahmini
+> durum notunda taşımayı bıraktık.
 
 ---
 
@@ -112,13 +117,109 @@ penceresi bunu büyük ölçüde yıkıyor ama tamamen değil). Yük **yalnız C
 boştaydı. **Oyun için bu tablodan sonuç çıkarma**: oyun CPU+dGPU'yu birlikte zorlar
 ve paylaşımlı ACBT bütçesi devreye girer; o kolu `game-perf` zaten turbo'ya (5) alıyor.
 
+## Özel fan eğrisi — DOSYA KAPANDI (16 Ağu 2026)
+
+Bu defter iki yerde birbirinin tersini söylüyordu: DSDT analizi §1 *"sürücünün
+`fan_curve_*` düğümleri bu modelde çalışmalı, test onay bekliyor"* derken, Faz A
+*"eğri ölü"* diyordu. Çelişki ölçümle kapatıldı. **Kazanan Faz A** — ama gerekçesi
+Faz A'nın verdiğinden farklı ve daha kesin.
+
+### Neden yeni bir ölçüm gerekiyordu
+
+Faz A (2026-07-05) hükmünü **WMBC 0x68 geri-okumasının 0 dönmesine** dayandırmıştı.
+Bu kanıt tek başına zayıf: geri-okuma yolu (XFNR/XFN1 ön yüzü) yazma yolundan
+(XFNW) tamamen ayrı bir mekanizma, dolayısıyla "geri okuyamıyorum" ile "yazılmamış"
+aynı şey değil. Eğri tablosunun kendisi ise PECM'de **çıplak duruyor** (GTS0-GTSE
+@0x3C-0x4A sıcaklıklar, FLVL @0x4B hız[0], GFS1-GFSE @0x4C-0x59 hız[1-14]) ve
+ACPI alanı olarak `acpi_call` ile doğrudan okunabiliyor. Faz A oraya hiç bakmamıştı.
+
+### Ölçüm 1 — tablonun kendisi (acpi_call, PECM alanları)
+
+| Adım | Gözlem |
+|---|---|
+| **Taban (hiçbir şey yazmadan)** | GTS0-GTSE **hepsi 0**, FLVL+GFS1-GFSE **hepsi 0** |
+| Ham `WMBD 0x68` ile 15 nokta yazıldı | Her çağrının dönüşü = yazılan payload'ın **birebir kendisi** (i=0 → `0x3C1400`). DSDT `Return(XFNW)` yaptığına göre bu, register'ın yazıldığının doğrudan kanıtı |
+| Yazma sonrası tablo | GTS/GFS **hâlâ tamamen 0** |
+| `WMBC 0x68` ön yüzü (15 index) | hepsi 0 (Faz A ile aynı) |
+| Sürücü sysfs yolu (`fan_curve_index`+`data`, 15 nokta) | tablo yine **tamamen 0** → sürücü suçlu değil |
+| `fan_mode 3` (TENF=1), 60 sn | fan **0 RPM**, FDTY/GDTY **0** boyunca |
+
+**Taban satırı bu tablonun en önemli bulgusu ve beklenmiyordu:** eğri tablosunda
+*fabrika eğrisi bile yok*. Yani sorun "bizim yazdığımız işlenmiyor" değil —
+**bu firmware'de eğri tablosu hiç kullanılmıyor.** Preset modların ölçülmüş
+eğrileri ("Preset mod eğrileri" bölümü) bu tablodan gelmiyor; EC onları kendi
+ROM'undan sürüyor. GTS/FLVL/GFS blokları, tıpkı SSDT9'daki `PC00` gibi, bu nesle
+taşınmış ama bağlanmamış **şablon artığı** olarak duruyor.
+
+### Ölçüm 2 — "boş mu, yoksa okuyamıyor muyum?" (pozitif kontrol)
+
+Her şeyin 0 okunduğu bir ölçüm, adresleme hatasıyla ayırt edilemez. Üç bağımsız
+yoldan kapatıldı:
+
+1. **Blok içinden yaz/oku.** `FLVL` (@0x4B) tam olarak `GTSE` (@0x4A) ile `GFS1`
+   (@0x4C) **arasında**. `WMBD 0x66` ile yazılan 111 → PECM'den 111, 222 → 222,
+   0 → 0. Blok **canlı**; 0 okumaları gerçek.
+2. **`XFNR` (@0x5A) bizim izimizi taşıyor.** Blok bitişiğindeki bu göz, ölçüm
+   sonunda 14 okundu = son `WMBC 0x68` çağrımızın index'i. Bölge yazılabiliyor da.
+3. **`/dev/mem` ile ACPI'den bağımsız ikinci yol.** PECM @0xFC7E0800 dökümünde
+   `0x3C-0x59` baştan sona sıfır; buna karşılık `0x8C`=0x5f(95), `0x90`=0x57(87),
+   `0x1D`=0x0f, `0x2C`=0x01 — yani pencere doğru hizalanmış ve dolu gözleri var.
+   (Not: `/dev/mem` MMIO okuması bu çekirdekte **çalışıyor** — `IO_STRICT_DEVMEM`
+   bu pencereyi kilitlemiyor. Bekleyen ALS deneyi için de yeşil ışık; bkz. ALS bölümü.)
+
+### Hüküm
+
+- **§1'in register iddiası DOĞRU:** `WMBD 0x68` → XFNW yazılabilir bir register ve
+  yazılan değeri tutuyor. Format (`speed<<16|temp<<8|index`) da doğru.
+- **§1'in çıkarımı YANLIŞ:** yazılabilir register, çalışan eğri demek değil. EC
+  XFNW'yi tabloya aktarmıyor ve tabloyu zaten okumuyor.
+- **Faz A'nın hükmü DOĞRU**, gerekçesi ise artık ön yüze değil tablonun doğrudan
+  gözlemine dayanıyor.
+- Pratik sonuç: **özel fan eğrisi bu makinede yok.** `fan_curve_index` /
+  `fan_curve_data` / `fan_custom_speed` düğümleri yazmayı kabul eder, hata vermez
+  ve **hiçbir şey yapmaz.** Otomasyonda kullanmayın.
+
+### İki tuzak (buraya tekrar düşmemek için)
+
+- **`cat fan_curve_data` EC'yi OKUMAZ.** Sürücünün RAM cache'ini basar
+  (`aorus-laptop.c:630-636`); cache yalnız probe'da bir kez EC'den doldurulur ve
+  `fan_curve_data` yazması cache'i *yazdığınız değerle* günceller. Yani
+  "yazdım, geri okudum, tuttu" gözlemi **hiçbir şey kanıtlamaz** — EC'ye hiç
+  bakmadan da aynı çıktıyı verir. Gerçek geri-okuma: WMBC 0x68 (ön yüz) veya
+  PECM alanları (çıplak).
+- **`WMBC` her selector'ü tanımaz.** Ölçümde `WMBC 0x66` üç okumada da 0 döndü,
+  oysa PECM `FLVL` 111/222 gösteriyordu. Sebep sürücü ya da EC arızası değil:
+  DSDT'nin WMBC switch'inde **`Case(0x66)` yok**, tanımsız selector default'a
+  düşüp 0 dönüyor. WMBC'den 0 almak "değer 0" demek değildir; önce case'in
+  DSDT'de var olduğunu doğrulayın.
+
+### Yan bulgu — "CRAF 1'e yapışıyor" notu artık geçersiz
+
+Bu defter (mod geçişi tablosu) *"CRAF her modda 1; host'un 0 yazması kalıcı
+olmuyor"* diyor. 16 Ağu ölçümünde `fan_mode 1 → 3` geçişinde **CRAF 1 → 0 oldu**.
+Sebep: o gözlem sürücünün bozuk `0xFA` selector'ünü kullandığı döneme ait
+(sessiz mod misdetect, Faz F §2); upstream düzeltmesinden sonra sürücü gerçek
+`0x57`'yi yazıyor ve yazma tutuyor.
+
+### Yöntem notu
+
+Ölçüm pilde ve boşta (Tctl ~34 °C) yapıldı; ikisi de sonucu etkilemez. Eğri
+tablosu ve XFNW EC register'larıdır, AC/BAT durumundan bağımsızdır ve **tabanda
+da boştular**. Fan davranışı adımı yanlış negatif değil: yazılan eğri 20 °C'den
+başlıyordu, yani 34 °C eğrinin ölü bölgesinde değil ~%31 hız talebine denk
+geliyordu — eğri işleseydi fan dönmek zorundaydı. `gigabyte-power-profile`
+ölçüm boyunca araya girmedi (mod 3 60 sn boyunca korundu).
+
 ## Eksik / deneysel olanlar
 
-- **Özel fan eğrisi**: 15 nokta (`fan_curve_index` + `fan_curve_data`,
-  `data = speed*256 + temp`). Format doğru (DSDT XFNW + MOF SetFanIndexValue)
-  ama CANLI TESTTE ÖLÜ ÇIKTI: EC firmware XFNW yazımını tabloya işlemiyor
-  (bkz. "Canlı test sonuçları"). Windows/GCC yakalaması bekleniyor.
-- `fan_custom_speed` (FLVL): o da canlı testte etkisiz çıktı.
+- ~~**Özel fan eğrisi**~~ → **KAPANDI (16 Ağu 2026), "eksik" değil: YOK.** Tablo EC
+  belleğinde doğrudan gözlendi ve boş çıktı; ayrıntı: "Özel fan eğrisi — DOSYA KAPANDI".
+  Bu satır artık bir açık iş değil, kapanmış bir sorudur — yeniden açmanın tek yolu
+  Windows/GCC yakalamasıdır.
+- `fan_custom_speed` (FLVL): canlı testte etkisiz. **16 Ağu 2026 eki:** register'ın
+  KENDİSİ sağlam — WMBD 0x66 ile yazılan 111/222/0 değerleri PECM `FLVL`'de (@0x4B)
+  birebir geri okundu. Yani "yazılamıyor" değil, "yazılanı kimse tüketmiyor". (Bu
+  ölçüm aynı zamanda eğri bloğunun okunabilirlik pozitif kontrolüdür — aşağıda.)
 - `usb_charge_s3/s4_toggle`, `light_sensor`, `power_on_time`, `battery_cycle`
   gibi attribute'lar keşfedildi ama haritalanmadı/kullanılmadı.
 
@@ -144,17 +245,31 @@ ve paylaşımlı ACBT bütçesi devreye girer; o kolu `game-perf` zaten turbo'ya
 DSDT döküldü ve WMBD/WMBC metodları çözüldü (dsl dökümü scratchpad'de
 üretildi; WMBD ~satır 9101, WMBC ~9525). Ana bulgular:
 
-### 1. Fan eğrisi 0x68 YAZILABİLİR — ilk analizdeki "salt okuma" sonucu YANLIŞTI
+### 1. Fan eğrisi 0x68: REGİSTER yazılabilir, ama TABLO ölü
 İlk okumada yazma hedefi XFNR sanılmıştı; gerçekte **WMBD 0x68 → `XFNW`
 (24-bit, PECM offset 0x1D)** yazıyor (dsdt.dsl:9177, alan tanımı :8019).
 Okuma yolu ayrı: WMBC 0x68 → `XFNR (8-bit, 0x5A)` index seç + `XFN1
 (16-bit, 0x5B)` oku. 24-bit yazma formatı = `speed<<16 | temp<<8 | index` —
 resmî MOF'taki `SetFanIndexValue(Index, Temperature, Speed)` üçlüsünün
 little-endian paketlenmişi. Sürücünün `payload = data<<8 | index` yolu
-(data = speed*256 + temp, USAGE.md formülü) bu formatı BİREBİR üretiyor →
-**sürücünün mevcut `fan_curve_index`/`fan_curve_data` sysfs düğümleri bu
-modelde çalışmalı** (custom mod: `fan_mode` 3 / TENF=1 gerekli; test onay
-bekliyor).
+(data = speed*256 + temp, USAGE.md formülü) bu formatı BİREBİR üretiyor.
+Bu paragrafın tamamı 16 Ağu 2026'da ölçümle **doğrulandı** — XFNW gerçekten
+yazılıyor ve yazılan değeri tutuyor.
+
+> **Düzeltme (16 Ağu 2026):** bu bölüm önceden şu cümleyle bitiyordu — *"sürücünün
+> mevcut `fan_curve_index`/`fan_curve_data` sysfs düğümleri bu modelde ÇALIŞMALI
+> (custom mod: fan_mode 3 / TENF=1 gerekli; test onay bekliyor)"* — **YANLIŞ.**
+> Düğümler bu modelde çalışmıyor; ölçüldü (bkz. "Özel fan eğrisi — DOSYA KAPANDI").
+>
+> Hatanın cinsi önemli, çünkü bu defterin kuralını ihlal ediyordu: **çıkarım
+> ölçümün yerine geçirilmişti.** "Yazma formatı doğru" gözleminden "düğümler
+> çalışmalı" sonucu çıkarılamaz — arada kanıtlanmamış bir varsayım var: *EC'nin
+> XFNW penceresini eğri tablosuna aktardığı.* Bu firmware'de o aktarım yok, üstelik
+> tablonun kendisi hiç kullanılmıyor. Cümle "test onay bekliyor" diye işaretlenmişti,
+> ama onayı **ertesi gün** (2026-07-05, Faz A) olumsuz geldiği hâlde bu paragraf altı
+> hafta boyunca olduğu gibi kaldı: aynı dosyanın iki bölümü birbirinin tersini söyledi.
+> **Bir iddiayı iki yerde tutmanın maliyeti tam olarak budur** — düzeltme, doğrulayan
+> ölçümün yanına değil, iddianın yanına yazılmalı.
 
 ### 2. Gerçek fan düğmeleri (sürücüde eşlenmemiş!)
 | Selector | EC alanı | İşlev |
@@ -334,6 +449,12 @@ muhtemel SPL/SPPT/FPPT). ECPL(): ERCD 0x45/0x4D → aktif profil seviyesini okur
 
 ### PECM tam alan haritası (@0xFC7E0800)
 
+> **Not (16 Ağu 2026): bu pencerenin İKİ adı var.** `PECM` ile birlikte
+> `OperationRegion (ECMM, SystemMemory, 0xFC7E0800, 0x1000)` (dsdt.dsl:7728) aynı
+> adresi ikinci bir field kümesiyle kaplıyor. Bir ofsette aradığınız alanı `PECM`
+> tanımında bulamazsanız `ECMM` tarafına bakın — `SUPL/SPPT/FPPT` (0x8D-0x8F) tam
+> olarak böyle atlanmıştı.
+
 | Ofs | Alan(lar) |
 |---|---|
 | 0x00 | ACST (AC durumu; 4=şarj dolu?) |
@@ -370,7 +491,8 @@ muhtemel SPL/SPPT/FPPT). ECPL(): ERCD 0x45/0x4D → aktif profil seviyesini okur
 | **0x4C-0x59** | **GFS1-GFSE: eğrinin 1-14. HIZ noktaları** |
 | 0x5A | XFNR (okuma index'i) |
 | 0x5B-0x5C | XFN1 (okuma verisi, 16-bit `speed<<8\|temp`) |
-| 0x8C | TCLT |
+| 0x8C | TCLT (termal setpoint adayı — bkz. "TCLT" bölümü) |
+| **0x8D-0x8F** | **SUPL, SPPT, FPPT — `ECMM` overlay'inden (CPU güç limitleri)** |
 | 0x90 | PPPT |
 | 0x99-0xA0 | BATN |
 | 0xA1 | bit0 FESC, bit1 WINK, bit2 BTKY |
@@ -398,6 +520,11 @@ değiştirmiyor**. EC firmware fanları yalnız kendi iç mantığından sürüy
 | Yol | Deney | Sonuç |
 |---|---|---|
 | 0x68 eğri (XFNW) | 15 nokta yazıldı (sürücü sysfs; hata yok), TENF=1 iken de tekrarlandı | ❌ WMBC 0x68 geri-okuma hep 0 — EC tabloya İŞLEMİYOR; %100 bump'a RPM tepkisi yok |
+
+> **Ek (16 Ağu 2026):** bu satırın HÜKMÜ doğru çıktı ama DAYANAĞI eksikti — WMBC 0x68'in
+> 0 dönmesi tek başına "yazılmamış" demek değil (ön yüz ayrı mekanizma). Tablo o gün
+> doğrudan okunmadı; 16 Ağu'da okundu ve **tabanda da boş** çıktı. Kesin kanıt ve
+> pozitif kontrol: "Özel fan eğrisi — DOSYA KAPANDI".
 | 0x67 TENF | mod 3; debug_method ile doğrulandı | Bit 1 oluyor ama davranış değişmiyor |
 | 0x66 FLVL + 0x6A ADJF (mod 5) | %60 verildi | ❌ RPM tepkisiz |
 | 0x70 FAN1/FAN2+GFAN (mod 4) | arg 60 | Register 60 tutuyor (WMBC 0x70=60) ama FDTY/GDTY %16'da kaldı ❌ |
@@ -413,6 +540,11 @@ Ek bulgular:
   cat debug_method` → "id, değer". Arg2 hep 0 (0x68'de yalnız slot 0 okunur).
 - **CRAF (0x57) 1'e yapışıyor:** sürücünün 0x57=0 yazması EC'de 1 kalıyor —
   EC'nin kendi durum göstergesi olabilir; fan davranışını etkilemiyor gibi.
+  > **Düzeltme (16 Ağu 2026): ARTIK GEÇERSİZ.** CRAF yapışmıyor — `fan_mode 1 → 3`
+  > geçişinde 1 → 0 olduğu ölçüldü. O günkü gözlemin sebebi EC değil, sürücüydü:
+  > sessiz mod misdetect'i yüzünden 0x57 yerine boş `0xFA` case'i çağrılıyordu
+  > (Faz F §2), yani CRAF'a **hiç yazılmıyordu**. Upstream düzeltmesinden sonra
+  > gerçek 0x57 yazılıyor ve yazma tutuyor.
 - FDTY/GDTY EC tarafından ~20 sn periyotla (veya durum değişince) yenilenen
   telemetri; PWM komut register'ı DEĞİL.
 - Stok eğri gözlemi (mod 0): ~45-48°C altı 0 RPM; 51-53°C ≈ 2100;
@@ -469,6 +601,9 @@ WMI mod selector'leri fan değeri yazmıyor; PECM 0x2C'deki İSTEK bitlerini
 - TENF/ADJF bitleri yazılıyor ve kalıcı ama bu firmware build'inde tüketici
   kodu yok → custom/fixed ölü. Değer taşıyan register'lar (XFNW, FLVL,
   FAN1/2, FDTY/GDTY) da aynı sebeple etkisiz.
+  **(16 Ağu 2026: bu satır ölçümle DOĞRULANDI** — XFNW ve FLVL'ye yazılan değerlerin
+  register'da durduğu, buna karşılık eğri tablosunun boş kaldığı gözlendi. "Tüketici
+  kodu yok" teşhisi tam isabet.)
 - (*) CRAF her modda 1: EC'nin sahiplendiği durum biti; host'un 0 yazması
   kalıcı olmuyor. Sessiz↔normal farkı ölçüldüğüne göre 0x57 yazımı
   kenar-tetikli komut gibi işleniyor (bit seviyesi değil).
@@ -1022,7 +1157,106 @@ sensöre fener tutarak.
 | RPM tutuyor, LUX hep 0 | adres doğru, EC yazmıyor | `amd_sfh` neden sensör bulmuyor — muhtemelen sürücü bu modeli tanımıyor, upstream işi |
 | `/dev/mem` reddedildi | `IO_STRICT_DEVMEM` kilitledi | küçük bir `ioremap` çekirdek modülü (`aorus-laptop` deseninin aynısı) |
 
+> **Kısmi sonuç (16 Ağu 2026, fan eğrisi ölçümünün yan ürünü).** Üçüncü satır ELENDİ:
+> **`/dev/mem` bu çekirdekte ÇALIŞIYOR** — PECM penceresi (`0xFC7E0800`) `dd` ile
+> okundu, `IO_STRICT_DEVMEM` kilitlemiyor. Ayrıca eşleme doğrulandı: dökümdeki
+> `0x8C`/`0x90` baytları ACPI'den okunan `TCLT`/`PPPT` ile birebir tutuyor, yani
+> `als-probe.py`'nin self-check'inin arayacağı türden bir hizalama kanıtı zaten var
+> (RPM ile değil — fanlar o an duruyordu, 0=0 zayıf kontroldü).
+> **`LUXM/LUXL/LUXH` (@0x18-0x1A) döküm anında `00 00 00`.** Bu, ikinci satıra
+> ("adres doğru, EC yazmıyor") güçlü bir işaret — ama HENÜZ KESİN DEĞİL: ölçüm
+> fener tutulmadan, tek ışık koşulunda yapıldı. Karar için `als-probe.py`'nin asıl
+> tasarlandığı iki koşullu (normal ışık / fener) koşusu hâlâ gerekli.
+
 **Hipotez:** Windows'taki "AI Eyecare" muhtemelen AMD PMF'in Smart PC politikası
 üzerinden çalışıyor; o politika OEM'den gelen bir ikili ve Linux'ta yok. Doğruysa
 sensör SFH'de duruyor ve onu kimse sorgulamıyor — o zaman doğru çözüm EC'yi
 kurcalamak değil, `amd_sfh` tarafını kazmak.
+
+## TCLT — termal setpoint adayı: AÇIK İŞ, ÖLÇÜLMEDİ (16 Ağu 2026)
+
+> **BU BÖLÜM MASA BAŞI ANALİZDİR. Hiçbir yazma denenmedi.** Aynı sayfada §1'in
+> "DSDT'ye bakılırsa çalışmalı" hatasını düzeltmiş durumdayız; bu bölüm o hataya
+> düşmemek için baştan **hipotez** olarak etiketlenmiştir. Aşağıdaki "yazılabilir
+> görünüyor" cümlelerinin hiçbiri kanıt değildir.
+
+### Nasıl ortaya çıktı
+
+Fan eğrisi ölçümünün pozitif kontrolünde PECM penceresi dökülürken `TCLT` (@0x8C)
+**95** okundu. Bu sayı tesadüf olamayacak kadar spesifik: aynı gün yapılan fan modu
+ölçümünde **mod 1'in Tctl'i tam 95.0 °C'ye kilitlediği** bulunmuştu — 8. saniyeden
+itibaren sapmasız 95.0, hedefi tutmak için gücü (51→45 W) ve saati (4840→4742 MHz)
+kırparak ("Bulgu 2 — mod 1 bir fan eğrisi değil, 95°C'lik kapalı çevrim denetleyici").
+
+### DSDT ne diyor (okundu, çalıştırılmadı)
+
+`TCLT` DSDT'de **yalnız iki yerde** geçiyor: alan tanımı (:8092) ve tek bir **okuma**
+(:8267). Yazan hiçbir ASL kodu ve **WMBD'de karşılık gelen selector yok** — yani
+`TCLT`'yi EC kendi içinde belirliyor, host'a sunulan bir kolu yok.
+
+Okuyan yer bir EC olay işleyicisi, `_Q20`, ve şunu yapıyor:
+
+```
+Local3 = TCLT ; DPTT (0x03, Local3)      // TCLT = 95
+Local1 = SPPT ; DPTT (0x07, Local1)
+Local2 = FPPT ; DPTT (0x06, Local2)
+Local4 = STML ; DPTT (0x2E, Local4)
+Local5 = PPPT ; DPTT (0x32, Local5)
+Local0 = SUPL ; (DPTT'ye HİÇ VERİLMİYOR)
+```
+
+`DPTT(fn, val)` (kök scope: `\DPTT`, :7624) bir AMD **ALIB fonksiyon 0x0C (DPTC)**
+sarmalayıcısı: 7 baytlık buffer kurup `SSZE=7, SMUF=fn, SMUD=değer` doldurarak
+`\_SB.ALIB (0x0C, BUFF)` çağırıyor. Switch'te **`Case(0x03)` tek çarpansız daldır**;
+diğer tüm dallar değeri ×1000 ile mW'a çevirir. Yani 0x03 bir güç değil,
+**sıcaklık parametresi (°C)**.
+
+**Okuma şu: EC → `_Q20` → ALIB/DPTC → SMU zinciri, bu makinenin termal hedefini
+SMU'ya bildiren resmi yol; `TCLT` de o hedefin sayısı.**
+
+### Yan kazanım — PECM'nin ikinci adı ve CPU watt baytları
+
+`OperationRegion (ECMM, SystemMemory, 0xFC7E0800, 0x1000)` (:7728) **PECM ile aynı
+adrestir** — aynı pencerenin ikinci bir field overlay'i. Defterdeki PECM haritası bu
+yüzden eksikti; birleşik hâli `0x8C-0x90` için şöyle:
+
+| Ofs | Alan | 16 Ağu dökümünde (PİLDE) |
+|---|---|---|
+| 0x8C | TCLT (PECM) | 95 |
+| 0x8D | SUPL (ECMM) | **20** |
+| 0x8E | SPPT (ECMM) | **54** |
+| 0x8F | FPPT (ECMM) | **54** |
+| 0x90 | PPPT (PECM) | 87 |
+
+**20 / 54 / 54**, bu defterin 0xED profil tablosundaki **DC (pil) sütunuyla birebir
+aynı** ("19→20 / 54 / 54") ve ölçüm gerçekten pilde yapılmıştı. Yani bu üç bayt
+CPU'nun SPL/SPPT/FPPT limitleridir ve canlı değerleri taşırlar.
+
+Bundan çıkan **hipotez** (ölçülmedi): defterin "0xED 2 yazımında SPL DEĞİŞMEDİ —
+ECPT→SMU köprüsü yok?" sorusunun cevabı "köprü yok" değil, **"köprü var ama SPL o
+köprüden geçmiyor"** olabilir: `_Q20` SPPT/FPPT/TCLT/STML/PPPT'yi DPTT ile SMU'ya
+gönderirken `SUPL`'u okuyup **hiçbir yere vermiyor**. Doğrulanması ayrı iş.
+
+### Eğer denenecekse — yollar ve riskler
+
+| Yol | Nasıl | Not |
+|---|---|---|
+| `\DPTT (0x03, N)` | acpi_call, iki integer argüman | EC'yi atlayıp doğrudan SMU'ya gider. En temiz yol |
+| `/dev/mem` → 0x8C yaz + `_Q20` tetikle | dolaylı | EC kendi döngüsünde üstüne yazabilir (ERCD deneyinde 0x16'da görüldü) |
+| WMBD selector | **YOK** | DSDT'de TCLT'ye yazan selector bulunmuyor |
+
+- **Kalıcılık beklentisi: yok.** EC bir sonraki `_Q20` olayında kendi `TCLT`'sini
+  (95) yeniden gönderir → yazılan değer geçicidir. Bu, güvenlik açısından **iyi**
+  huylu yön.
+- **Yön kuralı: yalnız AŞAĞI.** N < 95 → SMU daha erken kısar → daha serin/daha
+  yavaş; geri dönüşü kendiliğinden. **N > 95 denenmemeli** — termal koruma sınırını
+  yukarı oynatmak bu defterin diğer deneyleriyle aynı risk sınıfında değildir.
+- **Neden değerli:** 16 Ağu fan ölçümünün ana bulgusu "fan sıcaklığı düşürmüyor,
+  boost onu performansa çeviriyor; çünkü hedef Tjmax" idi. `TCLT` tam olarak o
+  hedefin sayısıdır. Kullanıcının istediği "daha serin makine" için doğru kol —
+  eğer yazılabilirse — fan değil, budur. Ölü fan eğrisinden çok daha yüksek getirili.
+
+**Sonraki adım:** tek yazım → ölç → logla → revert protokolü (bkz. "Deneysel 0xED /
+0xF1–F3 logu"), AC + sabit yük altında, `N = 85` ile tek deneme; gözlenecek şey
+Tctl'in yeni hedefte kilitlenip kilitlenmediği (k10temp + PPT + MHz üçlüsü).
+**Kullanıcı onayı olmadan yapılmaz.**

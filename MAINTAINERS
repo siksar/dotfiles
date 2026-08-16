@@ -58,6 +58,14 @@ W:	FAN SEÇERKEN "hangisi daha serin" DİYE SORMA — boost Tjmax'i hedefliyor.
 N:	Boşta fan: mod 4 ve 1 DURDURUYOR (0 RPM), mod 2 ve 5 durdurmuyor
 	(2156 / 6594 RPM). Ölçüm yalnız CPU yüküyle — oyun (CPU+dGPU) için
 	geçerli değil, o kolu game-perf turbo'ya (5) alıyor.
+W:	ÖZEL FAN EĞRİSİ YOK — fan_curve_index / fan_curve_data / fan_custom_speed
+	düğümleri yazmayı KABUL EDER, HATA VERMEZ ve HİÇBİR ŞEY YAPMAZ. EC'nin
+	eğri tablosu (PECM 0x3C-0x59) bu firmware'de boş; fabrika eğrisi bile
+	orada değil. 16 Ağu 2026'da tablo doğrudan okunarak kanıtlandı
+	(wmi-ec.md "Özel fan eğrisi — DOSYA KAPANDI"). Otomasyonda kullanma.
+W:	`cat fan_curve_data` EC'yi OKUMAZ, sürücünün RAM cache'ini basar —
+	yazdığın değeri geri okuman hiçbir şey kanıtlamaz. Gerçek geri-okuma
+	PECM alanları (acpi_call) ya da WMBC 0x68'dir.
 
 ACPI / DSDT OVERRIDE
 S:	Maintained — REBOOT sonrası Faz C doğrulaması hâlâ bekliyor
