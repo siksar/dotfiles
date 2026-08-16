@@ -29,8 +29,10 @@ Ayrıntı: "Canlı test sonuçları" bölümü.
 ## Şu an Linux'ta çalışanlar
 
 - `fan_mode`: 0=normal, 1=sessiz, 2=oyun, 3=custom(ölü), 4=auto-max, 5=turbo
-  → `gigabyte-power-profile` AC'de **4**, pilde 1 (udev ACAD + resume tetikli)
+  → `gigabyte-power-profile` AC'de **1**, pilde 1 (udev ACAD + resume tetikli)
   → SUPER+M döngüsü: 4→1→2→5 (`fan-mode-cycle.service`)
+  → **Modların davranışı 16 Ağu 2026'da ÖLÇÜLDÜ** — aşağıdaki "Fan modu ölçümü"
+    bölümü. AC varsayılanı o ölçümden sonra 4'ten 1'e alındı.
 
   **Düzeltme (15 Ağu 2026):** bu satır önceden "4/5(ölü)" diyordu — YANLIŞ. 5 zaten
   Turbo olarak döngüde aktif kullanımdaydı, 4 ise canlı sistemde `fan_mode`'dan
@@ -47,6 +49,68 @@ Ayrıntı: "Canlı test sonuçları" bölümü.
   salt-okuma; sürücü 0.2.0)** — `sensors`, btop, Caelestia dashboard
 - Fn tuşu düzeltmesi: çıplak Fn = F20 (HID 0x7006f) → hwdb `reserved`
   (xkb F20'yi XF86AudioMicMute'a eşlediğinden mic toggle kaosu yaratıyordu)
+
+## Fan modu ölçümü (16 Ağu 2026) — modlar ne YAPIYOR
+
+Bugüne kadar bu dosya modların *isimlerini* listeliyordu; hiçbirinin eğrisi
+ölçülmemişti. Ölçüldü.
+
+**Yöntem.** 4 thread × Zen5 (cpu 0,2,4,6), 60 sn sabit yük, her mod için ayrı koşu.
+Modlar arası Tctl ≤ 52°C'ye kadar soğutma. Mod değiştirme `fan-mode-cycle.service`
+üzerinden. Örnekleme 2 Hz; "kararlı" değerler yükün 50-60. saniyesinin ortalaması.
+Kaynaklar: k10temp Tctl, `amdgpu` PPT (APU paketi), `aorus_laptop` fan1/fan2.
+
+| Mod | Boşta fan | Kararlı Tctl | PPT | MHz | Yükte fan | Fan kalkışı |
+|---|---|---|---|---|---|---|
+| 4 auto-max | **0 RPM** | 98.1 °C | 53.9 W | 4849 | 4388/4556 | 7.8 sn @ 90.0°C |
+| 1 sessiz | **0 RPM** | **95.0 °C** | **45.3 W** | 4742 | 2354/2715 | 6.8 sn @ 94.9°C |
+| 2 oyun | 2156/2313 | 99.4 °C | 53.3 W | 4840 | 4893/5186 | zaten dönüyor |
+| 5 turbo | 6594/6764 | 97.0 °C | 55.1 W | 4860 | 6362/6455 | zaten dönüyor |
+
+### Bulgu 1 — fan sürekli sıcaklığı düşürmüyor, performansa çeviriyor
+
+Mod 4 → 5'te hava %45 artıyor (4388 → 6362 RPM); sıcaklık karşılığı yalnız
+**1.1 °C**. Kazanılan soğutma güce (53.9 → 55.1 W) ve saate (4849 → 4860 MHz)
+gidiyor, sıcaklığa değil. Boost algoritması **Tjmax'i hedefliyor**: ne kadar
+soğutursan o kadar boost yapıp aynı sıcaklığa oturuyor.
+
+**Sonuç: "sürekli yükte 99°C" fanla çözülebilir bir problem DEĞİL.** Bu,
+`MAINTAINERS`'taki "100°C by-design" notunun ölçülmüş hâli. Fan modu seçerken
+sorulacak soru "hangisi daha serin" değil, "hangi gürültü/performans noktası".
+
+### Bulgu 2 — mod 1 bir fan eğrisi değil, 95°C'lik kapalı çevrim denetleyici
+
+Mod 1'de Tctl 8. saniyeden itibaren **tam 95.0 °C**'de çakılı kalıyor ve hiç
+oynamıyor. Hedefi tutmak için gücü ve saati kırpıyor:
+
+```
+ 8.3s  95.0°C  51.1W  4840MHz
+13.0s  95.0°C  50.0W  4803MHz
+52.0s  95.0°C  45.0W  4742MHz
+```
+
+Bedeli %2.1 saat hızı; karşılığı 4.4 °C ve fanın yarı devri. AC varsayılanı bu
+yüzden 1'e alındı (`system/arch/aerox16/wmi.nix`).
+
+### Bulgu 3 — boşta fan: 4 ve 1 durduruyor, 2 ve 5 durdurmuyor
+
+Mod 4 ve 1 boşta fanı **tamamen durduruyor** (0 RPM). Mod 2 boşta 2156 RPM'de
+dönüyor — sessiz bir masaüstünde duyulur ve karşılığı yok.
+
+### Düzeltilen iki yanlış iddia
+
+- *"yalnız preset modlar (0/1/2) çalışıyor"* (yukarıdaki 2026-07-05 durum notu) —
+  4 ve 5 de çalışıyor ve birbirinden belirgin farklılar. Doğru olan kısım: **özel**
+  fan kontrolü (mod 3 / eğri / fixed duty) ölü.
+- *"fan modları 2-4 etkisiz kalabiliyor"* (aşağıdaki mod↔selector notu) — dördü de
+  etkili; sıcaklık, güç, saat ve RPM'de ölçülebilir biçimde ayrışıyorlar.
+
+### Ölçümün sınırları
+
+Her mod **tek koşu**; başlangıç sıcaklıkları 37–49.5 °C arasında değişti (50-60. sn
+penceresi bunu büyük ölçüde yıkıyor ama tamamen değil). Yük **yalnız CPU** — dGPU
+boştaydı. **Oyun için bu tablodan sonuç çıkarma**: oyun CPU+dGPU'yu birlikte zorlar
+ve paylaşımlı ACBT bütçesi devreye girer; o kolu `game-perf` zaten turbo'ya (5) alıyor.
 
 ## Eksik / deneysel olanlar
 
