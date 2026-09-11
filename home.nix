@@ -2,11 +2,6 @@
 
 {
   imports = [
-    # desktop/ — Hyprland oturumu + Caelestia kabuğu (bar/launcher/bildirim/kilit)
-    ./home/desktop/session.nix
-    ./home/desktop/caelestia/default.nix
-    ./home/desktop/serpantinum/default.nix
-
     # shell/ — kabuk ve terminal ortamı
     ./home/shell/fish.nix
     ./home/shell/starship.nix
@@ -16,15 +11,13 @@
     # apps/ — kullanıcı uygulamaları
     ./home/apps/vesktop.nix
     ./home/apps/zen.nix
-    ./home/apps/firefox.nix
-    ./home/apps/vscodium.nix
-    ./home/apps/claude-desktop.nix
+    ./home/apps/helium.nix
     ./home/apps/media.nix
-    ./home/apps/audio.nix
     ./home/apps/games.nix
     ./home/apps/minecraft.nix
     ./home/apps/emu.nix
     ./home/apps/opencode.nix
+    ./home/apps/downloads.nix
   ];
 
   home.username      = "zixar";

@@ -21,6 +21,7 @@
     ./system/kernel/power-display.nix
     ./system/kernel/sched.nix
     ./system/kernel/cores.nix
+    ./system/kernel/ryzen-smu.nix
 
     # init/ — önyükleyici ve yerel ayar
     ./system/init/limine.nix
@@ -40,36 +41,29 @@
     # security/ — hesaplar, anahtarlık, parola yöneticisi
     ./system/security/users.nix
     ./system/security/keyring.nix
+    ./system/security/askpass.nix
     ./system/security/onepassword.nix
 
-    # desktop/ — oturum katmanı (Hyprland + ly + Stylix)
-    ./system/desktop/session.nix
+    # desktop/ — KDE Plasma + COSMIC oturumları ve Stylix
     ./system/desktop/login.nix
     ./system/desktop/theme.nix
-    ./system/desktop/serpantinum.nix
+    ./system/desktop/plasma.nix
+    ./system/desktop/cosmic.nix
+    # MUX/dGPU-only bayragi — dort DRM koprusunu birden cevirir. VARSAYILAN KAPALI.
+    ./system/desktop/mux.nix
 
     # ══ usr/ — sistem geneli kurulan programlar ════════════════════════════
     ./usr/steam.nix
     ./usr/netflix.nix
-    ./usr/local-ai.nix
+    ./usr/github-copilot.nix
+    ./usr/aero-eg61h.nix
   ];
 
 
-  # Hyprland + Matugen dinamik tema rice'ı — tek oturum (GNOME + Sway kaldırıldı,
-  # 2026-07-30). Bayrak güvenlik valfi olarak kalıyor; kapatmak sistemi Hyprland'siz
-  # bırakır (ly'de başka oturum yok). HM tarafı osConfig ile otomatik izler.
-  # Ayrıntı: Documentation/desktop.md
-  desktop.hyprland.enable = true;
-
-  # Karantinali deneme oturumu (Serpantinum) — ly'de ucuncu girdi olarak gorunur,
-  # Caelestia'ya dokunmaz. Kaldirmak icin false yap.
-  desktop.serpantinum.enable = true;
-
-  # hyprland paketi hem "hyprland.desktop" hem "hyprland-uwsm.desktop" oturum
-  # dosyasını kurar; yalnız uwsm olanı bu makinede çalışıyor (withUWSM=true,
-  # bkz. system/desktop/session.nix). Tek oturum kalınca ly listesinde ikisi yan
-  # yana durur — defaultSession yanlış olanı seçmeyi zorlaştırır.
-  services.displayManager.defaultSession = "hyprland-uwsm";
+  # KDE Plasma 6 ve COSMIC kullanılacak masaüstü oturumlarıdır.
+  desktop.plasma.enable = true;
+  desktop.cosmic.enable = true;
+  services.displayManager.defaultSession = "cosmic";
 
   # Stylix'in GTK hedefi + HM'in gtk.iconTheme/dconf.settings ayarları için gerekli
   programs.dconf.enable = true;
@@ -96,13 +90,14 @@
   #   ${NIXOS_OZONE_WL:+ --ozone-platform-hint=auto --enable-features=WaylandWindowDecorations}
   # Değişken boşken flag hiç eklenmiyordu → VSCodium/Vesktop/1Password/claude-desktop
   # XWayland'de koşuyordu. İki kazanç: (1) HiDPI'de net render + kesirli ölçekleme,
-  # (2) WaylandWindowDecorations sayesinde xdg-decoration konuşuluyor; Hyprland bu
-  # protokole DAİMA MODE_SERVER_SIDE cevabı verdiği için uygulama kendi süslemesini
-  # çizmiyor — pencerenin tek çerçevesi Hyprland'ın border+rounding'i oluyor.
+  # (2) WaylandWindowDecorations sayesinde xdg-decoration konuşuluyor; bileşken
+  # sunucu-taraflı süsleme cevabı verirse uygulama kendi başlık çubuğunu çizmez ve
+  # pencerenin tek çerçevesi oturumun kendi süslemesi olur. (COSMIC kendi başlık
+  # çubuğunu çiziyor — Ayarlar'dan kapatılabilir; gözle doğrula.)
   #
   # KAPSAM UYARISI: sessionVariables sistem geneli. Uygulamanın KENDİ tasarladığı
   # chrome (VSCodium'un sekme çubuğu, Vesktop'un başlığı) bu flag'le GİTMEZ; o
-  # uygulama başına ayardır — VSCodium'unki home/apps/vscodium.nix'te.
+  # uygulama başına ayardır ve o uygulamanın kendi modülünde yaşar.
   # GTK/libadwaita başlıkları (nautilus vb.) hiçbir şekilde kaldırılamaz: GtkHeaderBar
   # bir süsleme değil, içinde yol çubuğu/arama/menü taşıyan uygulama arayüzüdür.
   #
@@ -116,8 +111,7 @@
     git
     gh
 
-    # Masaüstü araçları (ekran görüntüsü artık `caelestia screenshot` — Print,
-    # home/desktop/wm/binds.lua)
+    # Masaüstü araçları
     brightnessctl     # CLI parlaklık (script/servisler)
     wl-clipboard      # wl-copy / wl-paste
     pavucontrol       # PulseAudio / PipeWire GUI
@@ -133,12 +127,6 @@
 
     # Rust / Nix / Kubernetes platform engineering
     rustup
-    doctl
-    kubectl
-    kubernetes-helm
-    kustomize
-    k9s
-
     # Nix lint/format — ölçülen marjinal closure +10.2 MiB (deadnix 1.5 / nixfmt 5.1 /
     # statix 3.6; bağımlılıklarının geri kalanı sistemde zaten vardı).
     # `nix run nixpkgs#...` ile ölçmek yanıltır: o registry'nin nixpkgs'ini çözer,
@@ -151,6 +139,12 @@
     nixfmt            # resmi formatter (eski ad nixfmt-rfc-style artık aynı türeve
                       # çözülüyor ve uyarı veriyor) — ağaç geneli ÇALIŞTIRMA,
                       # elle hizalanmış yorum sütunlarını bozar
+    jq                # scripts/verify-context.sh'in SERT bağımlılığı (deadnix -o json
+                      # ayrıştırması + flake metadata rev'i). 25 Ağu 2026'da sistemde
+                      # HİÇ kurulu olmadığı fark edildi: script `|| echo 0` ile hatayı
+                      # yutup deadnix'i "0 hit" sanıyor ve temel çizgi kontrolü YANLIŞ
+                      # gerekçeyle düşüyordu. Gate'in sessizce yalan söylemesi, gate'in
+                      # olmamasından kötü — script artık ön kontrolle sert düşüyor.
 
     # LLM-assisted development
     claude-code

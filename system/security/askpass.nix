@@ -13,7 +13,8 @@
 #   SUDO_ASKPASS=$(command -v ksshaskpass) sudo -A …
 #
 # Yardımcı seçimi: ksshaskpass Qt6/kf6 tabanlı ve `desktop.plasma.enable` zaten
-# açık olduğu için kf6 closure'da — ek maliyet ihmal edilebilir. GTK tarafındaki
+# açık olduğu için kf6 closure'da. ÖLÇÜLDÜ (5 Eyl 2026, iki build + diff-closures):
+# marjinal maliyet **16.9 KiB** — ikilinin kendisi, hepsi bu. GTK tarafındaki
 # seahorse ya da lxqt-openssh-askpass ayrı birer kütüphane yığını getirirdi.
 # Wayland yerel çalışır (QT_QPA_PLATFORM oturumda "wayland;xcb").
 { pkgs, ... }:

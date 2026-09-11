@@ -25,13 +25,12 @@ in
 
   # Saydamlık — TEK KAYNAK. Stylix bunu destekleyen hedeflere CSS opacity'si
   # olarak enjekte eder (terminal: ghostty; applications: zen-browser vb.).
-  # Hyprland pencere saydamlığı (main.lua active_opacity) bu `applications`
-  # değeriyle ELLE senkron tutulur → buzlu cam görünümü tüm sistemde tutarlı.
-  # Not: steam/deezer gibi Stylix hedefi olmayan uygulamalar CSS opacity'si
-  # ALMAZ; onların saydamlığı compositor'dan (Hyprland active_opacity + blur)
-  # gelir — o yüzden yine de camsı görünürler, sadece renkleri kendilerinden.
+  # Not: Stylix hedefi olmayan uygulamalar (steam vb.) CSS opacity'si ALMAZ;
+  # onların saydamlığı varsa bileşkenden gelir, bu değerden değil. Eskiden burada
+  # Hyprland'ın main.lua active_opacity'siyle ELLE senkron tutulur notu vardı —
+  # o oturum Eylül 2026'da kalktı, senkron tutulacak ikinci yer artık YOK.
   opacity = {
-    applications = 0.92; # main.lua active_opacity ile senkron
+    applications = 0.92;
     terminal     = 0.85; # ghostty biraz daha şeffaf
     popups       = 0.95;
     desktop      = 1.0;  # waybar/rofi/swaync matugen'de kendi alpha'sını yönetir
@@ -40,9 +39,8 @@ in
   # Kişisel paletler — eski Caelestia şemalarından base16'ya çevrildi (schemes/).
   # DİKKAT: bu çevrim GERİ ALINAMAZ (110 anahtarın yalnız 16'sı taşınıyor; M3
   # container'ları, 12 kademeli surface rampası, parlak ANSI renkleri kayıp).
-  # Aynı paletlerin BİREBİR 110-anahtarlı Caelestia .txt biçimi artık
-  # home/desktop/caelestia/schemes/'te de yaşıyor (09 Ağu, Caelestia kurulumu) —
-  # oradan buraya da dönüştürme YAPILMADI, ikisi bağımsız kaynaklar.
+  # Not: 110-anahtarlı Caelestia .txt biçimi Eylül 2026'da ağaçtan çıktı; tek
+  # kaynak artık buradaki base16 yaml'ları.
   base16Scheme = ./schemes + "/${palette}.yaml";
 
   image = wallpaper.${palette};
