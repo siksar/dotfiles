@@ -28,7 +28,7 @@
   };
 
   # Proton-CachyOS binary cache (chaotic-nyx, kendi nixConfig'inden doğrulanan değerler) —
-  # kaynaktan derlemeyi önler. usr/local-ai.nix'teki nix-amd-ai cachix deseniyle aynı
+  # kaynaktan derlemeyi önler — nix-amd-ai cachix deseniyle aynı
   # (nix.settings.substituters/trusted-public-keys listeleri NixOS'ta birleşir).
   nix.settings = {
     substituters = [ "https://nyx-cache.chaotic.cx/" ];

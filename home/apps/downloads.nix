@@ -15,7 +15,7 @@
 #   motrix      +280 MiB  ← Electron; sisteme İKİNCİ bir Chromium yığını
 #   persepolis  +584 MiB  ← Qt + kendi python yığını
 # Varia bu kadar ucuz çünkü GTK4/libadwaita/gstreamer zaten sistemde var
-# (Stylix + Caelestia); yalnız aria2 + birkaç python modülü + yt-dlp ekliyor.
+# (Stylix + masaüstü yığını); yalnız aria2 + birkaç python modülü + yt-dlp ekliyor.
 # Motrix'i eleme gerekçesi edfbb3c ile aynı: deezer-enhanced ikinci bir
 # Chromium yığını taşıdığı için kaldırılmıştı, aynı bedeli geri almayalım.
 # Ölçümü tekrarlamak istersen: paketin kapanış yollarını `nix path-info -r`

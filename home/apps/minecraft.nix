@@ -1,8 +1,11 @@
 # Minecraft — Prism Launcher + mc-run→gamerun zinciri + JVM optimizasyonu
 # Prism her instance'ı WrapperCommand=mc-run ile başlatır → MC'ye özel GL env +
-# gamerun (dGPU PRIME offload) + gamemode (renice) + game-perf.service (scx_lavd,
+# gamerun (dGPU PRIME offload + CPU maskesi delme) + game-perf.service (scx_lavd,
 # AC'de 0xED + turbo fan) otomatik devrede.
-# MC OpenGL olduğundan gamerun'ın DLSS/Reflex/ntsync env'leri etkisiz-zararsız.
+# 2 Eyl 2026: gamerun sıfırdan yazıldı — gamemode (renice) zincirden çıktı, DLSS/Reflex/
+# ntsync env'leri kaldırıldı (MC'de zaten etkisizlerdi). Buna karşılık artık
+# __GLX_VENDOR_LIBRARY_NAME=nvidia VARSAYILAN — MC gibi OpenGL oyunları için ŞART olan
+# ve eskiden opt-in'in (GR_NVONLY) arkasında saklı kalan parça. Gerekçe: lib/gamerun.nix.
 # Ayrıntı ve gerekçeler: Documentation/gaming.md "Minecraft (Prism Launcher)" bölümü.
 { lib, pkgs, ... }:
 

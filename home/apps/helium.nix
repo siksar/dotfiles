@@ -4,7 +4,7 @@
 # eklenmiş (06db607), 4 Tem'de Zen lehine düşürülmüştü. Gerekçesi hâlâ zen.nix'in
 # ikinci satırında duruyor — "Chromium tabanı istenen özelleştirmeleri
 # desteklemiyordu". 3 Eyl 2026'da kullanıcı isteğiyle geri geldi. Zen'in YERİNE
-# değil, YANINDA; firefox.nix ile aynı ilişki, aynı kural: öntanımlı tarayıcı
+# değil, YANINDA; kaldırılan firefox.nix ile aynı ilişki, aynı kural: öntanımlı tarayıcı
 # DEĞİŞMEZ, xdg mime varsayılanlarına dokunulmuyor, http/https hâlâ zen'e gidiyor.
 #
 # BEDELİ AÇIK YAZILIYOR — bu depo "ikinci Chromium yığını"nı iki kez reddetti:
@@ -14,7 +14,7 @@
 # kullanıcı bedeli bilerek kabul ettiği için duruyor. Kuralı silme — istisnayı say.
 #
 # PAKETLEME: .deb'den dpkg + patchelf + wrapGAppsHook3 ile açılıyor, kaynaktan
-# derleme YOK (Caelestia/quickshell gibi bir maliyet getirmez). Bağımlılıklarında
+# derleme YOK (kaynaktan derlenen bir Qt/kabuk yığını gibi maliyet getirmez). Bağımlılıklarında
 # libva/wayland/pipewire tanımlı, yani VAAPI donanım kod çözme yolu hazır.
 #
 # WAYLAND: ekstra bayrak GEREKMİYOR. Upstream sarmalayıcı NIXOS_OZONE_WL'i bizzat

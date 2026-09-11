@@ -1,5 +1,7 @@
 # Zen Browser — Firefox tabanlı
-# (Helium'un yerine: Chromium tabanı istenen özelleştirmeleri desteklemiyordu)
+# (Chromium tabanlı Helium 4 Tem 2026'da bu yüzden düşürülmüştü — istenen
+# özelleştirmeleri desteklemiyordu. Helium 3 Eyl 2026'da Zen'in YANINA geri
+# geldi, bkz. home/apps/helium.nix; öntanımlı tarayıcı Zen olarak KALDI.)
 { inputs, ... }:
 
 {
@@ -26,7 +28,7 @@
   # ~/.config/zen/r1lawe90.Default Profile (yer imleri/geçmiş/açık sekmeler).
   # profiles.ini'de Default=1. HM'de yeni bir profil tanımlamak bu profiles.ini'yi
   # bir store symlink'iyle değiştirir; zen ise profiles.ini'yi runtime'da YAZAR
-  # → read-only symlink çakışması (bu repoda vesktop/vscodium'daki mutable-copy
+  # → read-only symlink çakışması (bu repoda vesktop'taki mutable-copy
   # sorununun aynısı) + yanlışlıkla boş profile düşme riski.
   #
   # GÜVENLİ YOL (kullanıcı onayıyla): mevcut profili HM'ye ADIYLA adapte et —
@@ -41,7 +43,6 @@
   #
   # Uygulamadan ÖNCE: profiles.ini gerekirse mutable-copy aktivasyonuyla
   # korunmalı (vesktop.nix deseni). Switch sonrası zen'in AYNI profille (yer
-  # imleri yerinde) açıldığını DOĞRULA. Not: Hyprland active_opacity zaten
-  # zen penceresini compositor seviyesinde camsı yapıyor — renk teması bu adımın
-  # asıl kazancı, saydamlık değil.
+  # imleri yerinde) açıldığını DOĞRULA. Not: bu adımın kazancı RENK TEMASIDIR,
+  # saydamlık değil — pencere saydamlığı oturumun (COSMIC) işi, uygulamanın değil.
 }

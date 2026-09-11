@@ -28,7 +28,8 @@
       # Uygulamalar
       zz = "yazi";
       open = "nautilus .";
-      c = "codium .";
+      # codium Eylül 2026'da ağaçtan çıktı; kurulu tek editör nvim.
+      c = "nvim .";
       rip = "yt-dlp -x --audio-format mp3";
       t = "topgrade";
     };
@@ -43,6 +44,10 @@
       aia = "taskset -c 0-15";
     };
 
+    # DİKKAT: bu seçeneğin İKİNCİ bir tanımı home/shell/starship.nix'te var —
+    # açılıştaki fastfetch çağrısı. `types.lines` olduğu için ikisi birleşir,
+    # çakışma yok. Fastfetch'i burada arama; bash karşılığıyla yan yana dursun
+    # diye bilerek orada (aynı kararın iki evi olmasın).
     interactiveShellInit = ''
       set fish_greeting
     '';
