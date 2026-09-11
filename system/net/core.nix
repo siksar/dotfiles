@@ -103,8 +103,8 @@ in
 
   # NetworkManager-wait-online kapalı (2026-07-18). Bu servis boot'ta ~49s bekliyordu
   # (eth+wifi ikisi bağlıyken biri geç DHCP/carrier alıyor) ve network-online.target →
-  # graphical.target zincirini kilitliyordu. uwsm'in start-hyprland'ı derleyiciyi
-  # sistem graphical.target'ı aktifleşene kadar başlatmadığından, giriş sonrası 10-20s
+  # graphical.target zincirini kilitliyordu. Oturum başlatıcısı bileşkeni sistem
+  # graphical.target'ı aktifleşene kadar başlatmadığından, giriş sonrası 10-20s
   # boş ekran (yanıp sönen imleç) tam olarak bu beklemeydi. Dizüstünde grafik oturumunu
   # "ağ tam hazır" olmasına kilitlemenin bir gereği yok; tek ardıl mullvad-daemon zaten
   # ağ gelip gitmesini kendi yönetiyor. Kapatınca graphical.target ~3s'de gelir → giriş

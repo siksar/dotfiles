@@ -1,7 +1,7 @@
 # Güç yönetimi — 4.28W idle bütçesinin çekirdeği. GERİLEMEZ.
 # PPD (TLP değil) + kernel parametreleri + ASPM + zram + powertop --auto-tune.
 # Ölçüm defteri: Documentation/aerox16/power.md
-{ config, pkgs, ... }:
+{ config, pkgs, inputs, ... }:
 
 {
   # Güç profili yönetimi: power-profiles-daemon (2026-07-18, TLP'den geçildi).
@@ -16,8 +16,34 @@
   services.printing.enable = false;
   systemd.oomd.enable = false;
 
-  # Kernel versiyonu
-  boot.kernelPackages = pkgs.linuxPackages_latest;
+  # ---------- Çekirdek: CachyOS bore-lto-zen4 (1 Eyl 2026, linuxPackages_latest'ten) ----------
+  #
+  # NEDEN bu varyant (hepsi ölçüldü, tahmin yok):
+  #  - BORE: görev başına "burst" süresi (uyku↔uyku arası CPU tüketimi) üstel ortalamayla
+  #    izlenir; kısa-burst iş (UI thread'i, vsync'te uyanan oyun döngüsü, terminal) ağırlık
+  #    bonusu, uzun-burst iş (derleyici, encode) ceza alır. Kazancı YÜK ALTINDA görünür;
+  #    boştayken hiçbir şey yapmaz → 4.28W bütçesine dokunmaz. Katı adaletten ödün verir.
+  #  - ThinLTO (clang): modüller arası inline/DCE. Kazanç mütevazı, maliyeti sıfır (cache'te).
+  #  - zen4: -march=znver4. CPU'nun (Ryzen AI 7 350, Zen5) avx512_bf16 + avx512_vnni dahil
+  #    znver4'ün istediği TÜM ISA'ya sahip olduğu /proc/cpuinfo'dan doğrulandı. Bu çekirdek
+  #    CPU'ya bağımlıdır: başka bir makinede boot etmez.
+  #
+  # pkgs.linuxPackagesFor KASITLI — flake'in legacyPackages.linuxPackages-cachyos-* seti
+  # xddxdd'nin nixpkgs pin'ini taşır ve NVIDIA'yı 595.99.02'ye düşürür. Böyle sararak
+  # yalnız çekirdek oradan gelir; nvidia (610.57.04, gpu.nix), acpi_call ve aorus-laptop
+  # bizim pin'imizde kalır. Bu üçü çekirdek sürümüne bağlı olduğu için her çekirdek/sürücü
+  # bump'ında YEREL derlenir (~15-25 dk) — cache onları kurtarmaz, normaldir.
+  boot.kernelPackages =
+    pkgs.linuxPackagesFor inputs.cachyos-kernel.packages.${pkgs.stdenv.hostPlatform.system}.linux-cachyos-bore-lto-zen4;
+
+  # xddxdd'nin attic cache'i — çekirdek buradan İNER, derlenmez (out/dev/modules üçü de
+  # doğrulandı). Anahtar flake'in kendi nixConfig'inden alındı. Bu blok olmadan her
+  # rebuild bir CachyOS çekirdeği derler (~40+ dk).
+  nix.settings = {
+    substituters       = [ "https://attic.xuyh0120.win/lantian" ];
+    trusted-public-keys = [ "lantian:EeAUQ+W+6r7EtwnmYjeVwx5kOGEBpjlBfPlzGlTNvHc=" ];
+  };
+
   boot.initrd.kernelModules = [ "amdgpu" ];
 
   # NPU kullanılmıyor — amdxdna modülü yüklenmesin (lokal AI istenirse kaldır)
@@ -44,6 +70,31 @@
     # varsayılan açık; niyet karşılanıyor, parametreye gerek yok.
     "amdgpu.abmlevel=4"           # eDP panel Auto Brightness Management (max seviye)
 
+    # --- zswap KAPALI (1 Eyl 2026, CachyOS çekirdeğiyle birlikte geldi) ---
+    # CachyOS config'i CONFIG_ZSWAP_DEFAULT_ON=y ile geliyor (nixpkgs çekirdeğinde
+    # kapalıydı). Bizde sched.nix'in zram'i var: zswap açık kalırsa sayfa önce zswap
+    # havuzunda zstd ile sıkışır, oradan taşınca zram'e yazılırken TEKRAR sıkışır —
+    # boşa CPU + çift bellek muhasebesi. Tek katman istiyoruz, o da zram.
+    "zswap.enabled=0"
+
+    # --- lazy RCU GERİ AÇILDI (1 Eyl 2026, CachyOS geçişinin gerilemesi) ---
+    # ÖLÇÜM: taban 4.28 W (nixpkgs 7.2.0) → 5.16 W (cachyos 7.2.2), +0.88 W.
+    # İkisi de temiz koşu (yayılım 0.65 W, fork/s 0, gpu_busy %0, %40 parlaklık,
+    # low-power/power, dGPU suspended) — gürültü değil.
+    # İki config yan yana konunca güçle ilgili üç fark çıktı:
+    #   CONFIG_RCU_LAZY_DEFAULT_OFF   eski: kapalı (lazy AÇIK)  yeni: y (lazy KAPALI)
+    #   CONFIG_PREEMPT vs _LAZY       eski: PREEMPT_LAZY        yeni: PREEMPT (full)
+    #   CONFIG_CPU_IDLE_GOV_TEO       eski: yok                 yeni: y
+    # Üçüncüsü ELENDİ: canlıda governor ikisinde de `menu` (teo derli ama seçili değil).
+    # Kalan ilk şüpheli lazy RCU: boştaki CPU'yu RCU callback'i için uyandırmamak
+    # üzere onları toplu işler — tam olarak idle bütçesinin konusu. CachyOS varsayılanı
+    # kapalı getiriyor, nixpkgs açık getiriyordu. Parametre boot-time (sysfs 0444),
+    # runtime'da açılamıyor → burada.
+    # TEK DEĞİŞKEN olarak eklendi. Yetmezse sıradaki kaldıraç `preempt=voluntary`
+    # (PREEMPT_DYNAMIC ikisinde de açık; cachyos'ta `lazy` modu derli DEĞİL, o yüzden
+    # birebir eski davranış değil, en yakını voluntary). Onu ayrı ölçümle dene.
+    "rcutree.enable_rcu_lazy=1"
+
     # --- Enerji Verimliliği ---
     "nowatchdog"                   # NMI watchdog kapalı → wakeup azalır
     "nmi_watchdog=0"               # aynı şeyin kernel param karşılığı
@@ -52,6 +103,8 @@
     "pcie_port_pm=force"           # PM'i reddeden PCIe köprülerde de runtime PM zorla
     "workqueue.power_efficient=1"  # kworker'ları boşta çekirdeklere topla → daha derin C-state
     "mem_sleep_default=s2idle"     # Modern Standby (s2idle) tercih et
+    "nohibernate"                  # hibernate YETENEĞİ kapalı — gerekçe aşağıda,
+                                   # "HİBERNATE NEDEN KAPALI" bloğunda (24 Ağu 2026)
     # NOT: nvidia_drm.fbdev=1 kaldırıldı → dGPU fbcon tutmaz, D3cold'da kalıcı kalır.
     # Konsol fbdev'i zaten amdgpu'da (/proc/fb = amdgpudrmfb). dGPU idle'da uyur.
     "snd_hda_intel.power_save=1"   # HDA ses kartı boşta power save
@@ -115,15 +168,37 @@
   # power-tunables-restore.service powertop'tan sonra aynı değerleri geri yazıyor.
   # Kural yine de kalıyor — hotplug (yeniden enumerasyon) yolunu o kapatıyor.
   # Birkaç mW için girdi gecikmesine değmez.
+  #
+  # UYANDIRMA POLİTİKASI — 24 Ağu 2026: iki klavye de sistemi uyandıramaz.
+  # Yetenek denetimi: uykudan uyandırma izni olan yalnız iki USB cihazı vardı —
+  # harici BY Tech klavye (258a:0049, removable) ve dahili GIGABYTE HID
+  # denetleyicisi (0414:8104, fixed). Fare (22d4:1503) ve Bluetooth (0bda:0852)
+  # zaten çekirdek varsayılanıyla "disabled"; onlara kural YAZILMADI — kapsam
+  # dışı ve ölçülmemiş bir davranışı sabitlemek regresyon üretir.
+  #
+  # Geriye kalan uyandırıcılar: kapak (PNP0C0D), güç tuşu (PNP0C0C) ve dahili
+  # AT klavye (serio0/i8042 — yazdığın asıl klavye, USB'den ayrı yol). Yani
+  # "tuşa basınca uyanma" jesti korunuyor.
+  #
+  # ⚠️ /proc/acpi/wakeup KULLANMA. O arayüz TOGGLE: cihaz adını yazmak durumu
+  # ters çevirir, aynı satırı iki kez çalıştırmak ilk yazımı geri alır — yani
+  # idempotent değil, bir serviste ölümcül. Buradaki sysfs yolu idempotent.
+  #
+  # Doğrulama: `cat /sys/bus/usb/devices/{3-2,3-4}/power/wakeup` → disabled;
+  # bir uykudan sonra kimin uyandırdığı `/sys/.../power/wakeup_count` sayaçlarında.
   services.udev.extraRules = ''
-    ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="0414", ATTR{idProduct}=="8104", ATTR{power/control}="on"
-    ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="258a", ATTR{idProduct}=="0049", ATTR{power/control}="on"
+    # power/control="on"      : autosuspend kapalı (yukarıdaki girdi-gecikmesi gerekçesi)
+    # power/wakeup="disabled" : uykudayken sistemi uyandıramasın (yukarıdaki politika)
+    ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="0414", ATTR{idProduct}=="8104", ATTR{power/control}="on", ATTR{power/wakeup}="disabled"
+    ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="258a", ATTR{idProduct}=="0049", ATTR{power/control}="on", ATTR{power/wakeup}="disabled"
     ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="22d4", ATTR{idProduct}=="1503", ATTR{power/control}="on"
   '';
 
-  # powertop --auto-tune'un ezdiği İKİ ayarı geri yazar. powertop'un kendisi
+  # powertop --auto-tune'un ezdiği ayarları geri yazar. powertop'un kendisi
   # kalıyor (ASPM, SATA, ses, i2c vb. onlarca ayarı hâlâ değerli) — yalnız
-  # bilinçli olarak istediğimiz bu ikisini ondan sonra geri alıyoruz.
+  # bilinçli olarak istediğimiz birkaçını ondan sonra geri alıyoruz: writeback
+  # gecikmesi ve USB power/control ÖLÇÜLMÜŞ ezme; USB power/wakeup ise ihtiyaten
+  # (gerekçesi ExecStart'ın içinde, 24 Ağu 2026).
   # Sıralama tek kritik nokta: After=powertop.service.
   #
   # Ölçülen ezme davranışı (16 Ağu 2026):
@@ -154,13 +229,29 @@
         # 1) writeback gecikmesi — boot.kernel.sysctl'deki değerle EŞ tutulmalı
         echo 6000 > /proc/sys/vm/dirty_writeback_centisecs
 
-        # 2) girdi cihazları: autosuspend kapalı (udev kuralıyla aynı üç cihaz)
+        # 2) girdi cihazları: autosuspend kapalı (udev kuralıyla aynı üç cihaz),
+        #    iki klavyede ayrıca uyandırma kapalı (udev kuralıyla aynı iki cihaz).
+        #
+        #    wakeup NEDEN BURADA DA YAZILIYOR (24 Ağu 2026): powertop ikilisinde
+        #    /sys/bus/usb/devices/%s/power/wakeup yolu ve bir usb_wakeup tunable
+        #    sınıfı VAR (strings ile görüldü). Ölçüm: klavyeler 17:10:51'de
+        #    enumere oldu, powertop 17:10:57-59'da koştu, sonrasında ikisi de
+        #    hâlâ "enabled" — yani auto-tune wakeup'ı KAPATMIYOR. Ama çekirdek
+        #    varsayılanı da "enabled" olduğu için "hiç dokunmuyor" ile "enabled
+        #    yazıyor" ayırt EDİLEMİYOR. İkinci ihtimalde udev kuralı (17:10:51)
+        #    powertop tarafından ezilirdi — power/control'de bizzat yaşanan
+        #    senaryo. Tek satır maliyetine ihtimali kapatıyoruz.
         for D in /sys/bus/usb/devices/*/; do
           V=$(cat "$D/idVendor" 2>/dev/null) || continue
           P=$(cat "$D/idProduct" 2>/dev/null) || continue
           case "$V:$P" in
             0414:8104|258a:0049|22d4:1503)
               echo on > "$D/power/control" 2>/dev/null || true
+              ;;
+          esac
+          case "$V:$P" in
+            0414:8104|258a:0049)
+              echo disabled > "$D/power/wakeup" 2>/dev/null || true
               ;;
           esac
         done
@@ -175,40 +266,73 @@
   # kernel parametresi hiç eklenmiyor — /sys/power/resume "0:0" kalıp hibernate
   # tamamen çalışmaz (ölçüldü). hardware-configuration.nix'teki tek
   # swapDevices girdisini tekrar UUID yazmadan referans alıyoruz.
+  #
+  # Hibernate 24 Ağu 2026'da KAPATILDI (aşağıdaki nohibernate). Bu satır yine de
+  # duruyor: kapatan şey politika (nohibernate), yeteneğin nasıl kurulduğu bilgisi
+  # bu satır. Yukarı akış düzelince nohibernate'i çıkarmak yeniden açmaya yeter.
   boot.resumeDevice = (builtins.head config.swapDevices).device;
 
-  # s2idle kapak kapalıyken bile saatlerce yavaşça pil tüketir — "Modern Standby"
-  # gerçek sıfır güç değil. Bu makinede /sys/power/mem_sleep YALNIZCA [s2idle]
-  # listeler (deep/S3 hiç yok), yani "daha ucuz bir düz uyku" alternatifi mevcut
-  # değil → suspend-then-hibernate kozmetik değil, tek gerçek kaldıraç.
-  # Önce s2idle'a gir (hızlı açılış), 25 dk sonra hâlâ uyanmadıysa gerçek
-  # hibernate'e düş (RAM diske yazılır, güç tamamen kesilebilir).
+  # ═══ HİBERNATE NEDEN KAPALI — 24 Ağu 2026, journal ölçümüyle ═══════════════
+  # Hibernate'in dondurma (freeze) aşaması amdgpu'nun TTM defterini BOZUYOR ve
+  # sistem saatler sonra, GPU yükü altında, kurtarılamaz biçimde kilitleniyor:
   #
-  # HibernateOnACPower=true (systemd 257+) → fişteyken de sayaç işler. false
-  # olsaydı geri sayım yalnız fiş çekildiğinde başlardı; bu, elektrik kesintisinde
-  # oturum kaybı ve fişte hiç 0W'a inmeme demekti.
+  #   amdgpu_pmops_freeze → amdgpu_device_evict_resources
+  #     → ttm_device_prepare_hibernation → ttm_bo_swapout → ttm_resource_alloc
+  #     → WARNING drivers/gpu/drm/ttm/ttm_resource.c:235
+  #        (ttm_resource_add_bulk_move)          ← her denemede 10-11 kez
+  #   ...saatler sonra, ilk ağır GPU tahsisinde...
+  #     → list_del corruption → kernel BUG at lib/list_debug.c:65
+  #     → görev TTM LRU spinlock'unu TUTARKEN ölüyor (preempt_count 1)
+  #     → amdgpu'ya dokunan her şey sonsuza kilitleniyor → rcu_preempt stall
+  #     → ne TTY, ne kapanış, ne SysRq-siz çıkış: güç tuşunu basılı tutmak
+  #
+  # 25 boot tarandı (29 Tem – 24 Ağu). Bağıntı temiz:
+  #   - Çöken 3 boot'un (16/19/24 Ağu) 3'ünde de hibernate denemesi var.
+  #   - Hibernate denenmemiş 9 boot'un hiçbirinde çökme yok.
+  #   - TTM WARN gören 2 boot'un 2'sinde de çökme geldi → WARN, saatler
+  #     öncesinden haber veren bir sinyal.
+  #
+  # Karşılığında kaybedilen bir şey YOK: hibernate bu makinede bir kez bile
+  # tamamlanmadı. Hiçbir boot'ta imaj yazma logu yok, her açılışta
+  # "systemd-hibernate-resume: Unable to resume from device ... continuing",
+  # boot ID'ler uykular boyunca kesintisiz. MAINTAINERS'ın 30 Tem'den beri
+  # "ELLE TEST BEKLİYOR" dediği doğrulama işte bu — ve sonucu: çalışmıyor.
+  #
+  # Yeniden açmadan önce: kernel'i güncelle, elle bir `systemctl hibernate`
+  # dene, sonra `journalctl -kb | grep ttm_resource_add_bulk_move` BOŞ dönmeli
+  # ve `journalctl -b | grep 'Resuming from'` bir satır vermeli. İkisi birden
+  # olmadan açma. Tam kanıt: Documentation/aerox16/power.md.
+
+  # Yeteneği kapatan parametre "nohibernate", yukarıdaki boot.kernelParams
+  # listesinde (tek bir tanım olmak zorunda). Yalnız aşağıdaki logind
+  # handler'larını değiştirmek YETMEZDİ: HandleHibernateKey systemd
+  # varsayılanıyla hibernate'te kalır ve bir masaüstünün oturum menüsü
+  # `hibernate` komutunu suspendThenHibernate'e eşleyebilir.
+  # nohibernate ile logind'in CanHibernate'i "na" döner → o yollar
+  # kendiliğinden düz suspend'e düşer, çağıran avlamaya gerek kalmaz.
+
+  # HibernateDelaySec/HibernateOnACPower yalnızca suspend-then-hibernate
+  # yolunda iş görür; o yol kapalı olduğu için şu an ATIL. Silinmedi — geri
+  # açarken 25 dk'nın neden seçildiği burada duruyor: s2idle kapak kapalıyken
+  # bile yavaşça pil tüketir ("Modern Standby" gerçek sıfır güç değil) ve bu
+  # makinede /sys/power/mem_sleep YALNIZCA [s2idle] listeler (deep/S3 hiç yok),
+  # yani daha ucuz bir düz uyku alternatifi mevcut değil.
+  # HibernateOnACPower=true (systemd 257+) → fişteyken de sayaç işlerdi; false
+  # olsaydı geri sayım yalnız fiş çekildiğinde başlardı.
   systemd.sleep.settings.Sleep = {
     HibernateDelaySec  = "25min";
     HibernateOnACPower = true;
   };
 
-  # Kapak kapama / suspend tuşu suspend-then-hibernate'e yönleniyor; fişte-pilde
-  # davranış farkı yok (HibernateOnACPower=true). Hibernate tuşu (varsa) systemd
-  # varsayılanıyla doğrudan hibernate'e düşmeye devam eder.
-  #
-  # DİKKAT — yukarıdaki 25 dk'lık sayaç YALNIZCA uykuya `suspend-then-hibernate`
-  # olarak girildiyse başlar. Düz `systemctl suspend` çağıran her yol zinciri
-  # baypas eder ve s2idle'da sonsuza kalır; systemd'de düz suspend'i s2h'e
-  # yükseltmenin desteklenen bir yolu YOK (SuspendState= sadece /sys/power/state'e
-  # yazılan stringi değiştirir), yani çağıran tarafı düzeltmek tek çözüm.
-  # Yeni bir uyku tetikleyicisi eklerken `suspend-then-hibernate` yaz. Caelestia'nın
-  # oturum menüsü örnek: systemctl/loginctl çağrılarını logind D-Bus'a alias'lar
-  # ve `hibernate` komutu SessionManager.suspendThenHibernate'e eşlenir (CanHibernate
-  # ön kontrolüyle, kullanılamazsa düz suspend'e düşer) — bkz.
-  # home/desktop/caelestia/default.nix, Documentation/desktop.md'de gerekçesi.
+  # Kapak kapama / suspend tuşu düz s2idle suspend'e gidiyor. 24 Ağu 2026'ya
+  # kadar burası suspend-then-hibernate'ti; yukarıdaki gerekçeyle geri alındı.
+  # Yan kazanç: s2h, uykuya girdikten 25 dk sonra hibernate ayağını çalıştırmak
+  # için RTC alarmı kurar ve makineyi HER uykuda bir kez uyandırırdı
+  # (journalde her "suspend entry"den tam 25 dk sonraki "suspend exit" buydu).
+  # Düz suspend'de o uyanma da yok.
   services.logind.settings.Login = {
-    HandleLidSwitch              = "suspend-then-hibernate";
-    HandleLidSwitchExternalPower = "suspend-then-hibernate";
-    HandleSuspendKey             = "suspend-then-hibernate";
+    HandleLidSwitch              = "suspend";
+    HandleLidSwitchExternalPower = "suspend";
+    HandleSuspendKey             = "suspend";
   };
 }

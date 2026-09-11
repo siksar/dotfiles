@@ -5,17 +5,17 @@
 # şehri, gerçek konumdan bağımsız olabilir) daha isabetli olması beklenir ama
 # yine bir ağ sorgusu — literal "çip" değil.
 #
-# DURUM (15 Ağu 2026 sürü denetimi): bu alt sistemin HİÇBİR TÜKETİCİSİ YOK.
-# Burada bir NM dispatcher'ı vardı; WiFi "up" olayında `geo-weather-sync.service`
-# adlı bir kullanıcı servisini başlatıyordu ve o servis repoda HİÇ YAZILMAMIŞTI
-# (dosyanın kendi yorumu onu caelestia/default.nix'te sanıyordu; orada da yoktu).
+# DURUM (15 Ağu 2026 denetimi, 11 Eyl 2026'da güncellendi): bu repoda yazılmış
+# HİÇBİR TÜKETİCİSİ YOK. Burada bir NM dispatcher'ı vardı; WiFi "up" olayında
+# `geo-weather-sync.service` adlı, repoda HİÇ YAZILMAMIŞ bir servisi başlatıyordu.
 # Çağrı `2>/dev/null || true` ile yutulduğu için hiç ses çıkarmıyordu. Kaldırıldı.
 #
-# Köprüyü yazmadan önce bilinmesi gereken: hedefi olan hava durumu widget'ı
-# home/desktop/caelestia/default.nix'te BİLEREK kapalı (`dashboard.showWeather =
-# false`, periyodik ağ isteğini kesmek için; `services.weatherLocation` da o
-# yüzden boş). Yani köprüyü yazmak, aynı dosyada bilinçli alınmış bir idle-bütçe
-# kararıyla çakışır — önce o karar gözden geçirilmeli, sonra köprü.
+# Ama artık repo-DIŞI bir tüketici adayı var: COSMIC modülü de geoclue2'yi
+# istiyor (system/desktop/cosmic.nix'in karantina listesinde "zaten açıktı" diye
+# geçiyor) — saat dilimi / gece modu gibi şeyler için. Yani bu dosya bugün
+# "yetim" değil, "sistem tarafından paylaşılan" durumda.
+# Ölçüm (11 Eyl 2026): `busctl --system list | grep -i geoclue` → yalnız
+# `(activatable)`, yani süreç boşta KOŞMUYOR. Idle bütçesine etkisi hâlâ sıfır.
 #
 # Şu anki maliyet: SIFIR. geoclue.service D-Bus aktivasyonlu (upstream modülünde
 # `wantedBy` yok, `systemd.packages` ile geliyor) — kimse sormazsa hiç çalışmaz.

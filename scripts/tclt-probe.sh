@@ -33,7 +33,7 @@ mkdir -p "$OUT"
 AC=$(cat /sys/class/power_supply/ACAD/online)
 [ "$AC" = "1" ] || { echo "HATA: AC bagli degil (ACAD/online=$AC). Fisi tak, tekrar dene."; exit 1; }
 
-FANMODE=$(cat /sys/devices/platform/aorus_laptop/fan_mode 2>/dev/null || echo "?")
+FANMODE=$(cat $(echo /sys/bus/wmi/devices/ABBC0F75-*/fan_mode) 2>/dev/null || echo "?")
 echo "on kosul: AC=1, fan_mode=$FANMODE (olcum boyunca sabit kalmali)"
 
 K=""; A=""
@@ -41,10 +41,10 @@ for h in /sys/class/hwmon/hwmon*; do
   n=$(cat "$h/name" 2>/dev/null) || continue
   [ "$n" = "k10temp" ] && K="$h"
   [ "$n" = "amdgpu" ]  && A="$h"
-  [ "$n" = "aorus_laptop" ] && AO="$h"
+  [ "$n" = "aero_eg61h" ] && AO="$h"
 done
 [ -n "$K" ] && [ -n "$A" ] || { echo "HATA: k10temp/amdgpu hwmon bulunamadi."; exit 1; }
-echo "hwmon: k10temp=$K amdgpu=$A aorus=${AO:-yok}"
+echo "hwmon: k10temp=$K amdgpu=$A aero=${AO:-yok}"
 
 [ -n "$BURN" ] && [ -x "$BURN" ] || { echo "HATA: BURN=<avx512 yuk ikilisi> verilmeli."; exit 1; }
 
@@ -86,7 +86,7 @@ cleanup() {
     echo "  frekans tavani geri: $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq) (orijinal $CAP_ORIG)"
   fi
   echo "  EC TCLT@0x8C = $(read_tclt)  (EC'nin kendi degeri; 95 olmali)"
-  echo "  fan_mode = $(cat /sys/devices/platform/aorus_laptop/fan_mode 2>/dev/null)"
+  echo "  fan_mode = $(cat $(echo /sys/bus/wmi/devices/ABBC0F75-*/fan_mode) 2>/dev/null)"
 }
 trap cleanup EXIT INT TERM
 

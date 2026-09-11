@@ -32,9 +32,14 @@ let
         echo '\_SB.PCI0.AMW0.WMBD 0 0xED 2' > /proc/acpi/call
         cat /proc/acpi/call > /dev/null
       fi
-      # Turbo fan (max üfleme) — aorus-laptop preset selector
-      F=/sys/devices/platform/aorus_laptop/fan_mode
-      [ -w "$F" ] && echo 5 > "$F"
+      # Turbo fan (max üfleme) — aero_eg61h, PECM+0x2C = 0x0C (düz %63 eğrisi).
+      # 7 Eyl 2026: eskiden `aorus_laptop`'a `5` yazılıyordu ve bu, ADJF biti
+      # 0 iken TANINMAYAN bir desen (0x04) üretip varsayılana düşüyordu — yani
+      # oyun turbosu sessizce çalışmıyordu. Yeni sürücü deseni tam yazıp geri
+      # okuyor; yazma tutmazsa -EIO döner (burada sessizce yutuluyor, gamerun
+      # tasarım kuralı A: hiçbir yan etki oyunu engellemez).
+      F=$(echo /sys/bus/wmi/devices/ABBC0F75-*/fan_mode)
+      [ -w "$F" ] && echo turbo > "$F"
       # CPU güç profili — VARSAYILAN balanced (GPU-öncelik, 2026-07-18).
       # Neden performance DEĞİL: CPU ile dGPU, NVIDIA Dynamic Boost (ACBT 80W) altında
       # PAYLAŞIMLI güç/termal bütçe kullanıyor. performance preset'i amd-pmf'e en yüksek
@@ -94,17 +99,17 @@ in
                      # görevler içinde en yüksek öncelikli. Gerçek RT (SCHED_FIFO) DEĞİL:
                      # o, scx_lavd'ı bypass eder + busy-loop donma riski taşır (bilinçli).
         ioprio = 0;  # IO best-effort en yüksek öncelik
-        # DİKKAT (16 Ağu 2026): bu ayarın KONUŞACAĞI SERVİS YOK — ölçüldü.
-        # Eski yorum "hypridle org.freedesktop.ScreenSaver arayüzünü sağlar"
-        # diyordu; hypridle 9 Ağu'daki Caelestia geçişinde düştü, artık ne
-        # çalışıyor ne de home/*.nix'te tanımlı. D-Bus'ta hiçbir
-        # org.freedesktop.ScreenSaver sağlayıcısı yok, yani gamemode'un
-        # inhibit çağrısı boşa gidiyor. Idle'ı artık Caelestia yönetiyor
-        # (home/desktop/caelestia: general.idle → 300s lock, sonra dpms off).
-        # Ayar ZARARSIZ (sağlayıcı yoksa no-op) ve sağlayıcı geri gelirse
-        # kendiliğinden işler, o yüzden bırakıldı. Ama oyun sırasında ekranın
-        # kilitlenmesine karşı GÜVENCE DEĞİL: tam ekran oyun korunuyorsa bunun
-        # sayesinde değil, Wayland idle-inhibit protokolü sayesindedir.
+        # TARİHÇE — iki kez ölçüldü, cevap iki kez değişti:
+        #   16 Ağu 2026: SAĞLAYICI YOK. Eski yorum "hypridle sağlar" diyordu ama
+        #     hypridle 9 Ağu'da düşmüştü; D-Bus'ta hiçbir org.freedesktop.ScreenSaver
+        #     sahibi yoktu, yani gamemode'un inhibit çağrısı boşa gidiyordu.
+        #   11 Eyl 2026: SAĞLAYICI VAR — COSMIC'e geçişle `cosmic-idle` bu adı
+        #     alıyor (ölçüm: `busctl --user list | grep -i screensaver` →
+        #     org.freedesktop.ScreenSaver / cosmic-idle). Yani ayar artık gerçekten
+        #     çalışıyor; oyun sırasında otomatik kilit ERTELENİR.
+        # DERS: "bu ayar ölü" demek oturum değişince yanlışa döner — bırakılması
+        # doğru karardı. Yine de tek güvence değil: tam ekran oyunu asıl koruyan
+        # şey Wayland idle-inhibit protokolüdür.
         # TEST EDİLMEDİ: kontrolcüyle 5+ dk klavye/fare girdisi olmadan oyna.
         inhibit_screensaver = 1;
       };
@@ -128,9 +133,27 @@ in
   systemd.services.scx = {
     wantedBy = lib.mkForce [ ];       # boot'ta BAŞLAMASIN (idle taban korunur)
     partOf = [ "game-perf.service" ]; # game-perf durunca scx da durur → EEVDF döner
+    # Başlatma hız sınırını KALDIR — ÖLÇÜLDÜ 2 Eyl 2026. Upstream scx modülü
+    # StartLimitBurst=2 / StartLimitIntervalSec=30s koyuyor: 30 sn içinde İKİ kez
+    # oyun açmak scx.service'i kalıcı `failed`a düşürüyor ("Start request repeated
+    # too quickly") ve `systemctl reset-failed` yapılmadan bir daha ASLA başlamıyor.
+    # Yani çöken bir oyunu hemen tekrar açmak scx_lavd'ı SESSİZCE öldürüyordu —
+    # ve gamerun'ın "zincir çalışmıyor" şikâyetinin ikinci ayağı buydu.
+    # Sınır çöküş-döngüsü koruması içindir; burada tetikleyen bir insandır
+    # (gamerun → game-perf → Wants=scx), o yüzden anlamsız.
+    startLimitIntervalSec = lib.mkForce 0;   # upstream scx.nix 30s koyuyor → mkForce şart
   };
 
-  # game-perf: gamemode start/end kancalarının hedefi. Wants ile scx'i başlatır,
+  # game-perf: OTORİTE DEĞİŞTİ 2 Eyl 2026 — birincil tetikleyici artık gamerun'ın
+  # KENDİSİ (lib/gamerun.nix, doğrudan `systemctl start/stop`, referans sayaçlı).
+  # Aşağıdaki gamemode custom.start/end kancaları YEDEK yolda kaldı: gamerun'sız
+  # başlatılan, gamemode API'sini kendi çağıran oyunlar için. Steam yolunda zaten
+  # hiç ateşlemiyorlar (gamemode'un LD_PRELOAD'ı pressure-vessel konteynerinde
+  # libgamemode.so'yu bulamıyor — kanıt lib/gamerun.nix başlığında). DİKKAT: iki
+  # otorite var demek, gamemode'lu bir oyunun bitişi gamerun'lı bir oyunun
+  # game-perf'ini de durdurabilir demek. Aynı anda ikisini birden koşturma.
+  #
+  # Wants ile scx'i başlatır,
   # stop'ta PartOf scx'i durdurur. Faz E kanıtlanan kol: 0xED profil 2 (start,
   # AC'de) / profil 0 (stop). CPU kolu: start'ta PPD VARSAYILAN balanced (AC'de,
   # GPU-öncelik — dGPU'ya paylaşımlı Dynamic Boost bütçesi bırakır; GR_CPUMAX=1 ise
@@ -138,8 +161,9 @@ in
   # PPD'yi kendi D-Bus API'siyle sürüyoruz — ham governor/EPP yazımı DEĞİL, o yüzden
   # amd-pstate=active ile çatışmaz (TLP tam bu yüzden kaldırılmıştı, 2026-07-18).
   systemd.services.game-perf = {
-    description = "Oyun performans profili (scx_lavd + 0xED) — gamemode kancaları tetikler";
+    description = "Oyun performans profili (scx_lavd + 0xED) — gamerun tetikler";
     wants = [ "scx.service" ];
+    startLimitIntervalSec = 0;        # scx ile aynı gerekçe (varsayılan 5 / 10s)
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
