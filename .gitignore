@@ -7,3 +7,6 @@ result
 
 # API anahtarları / sırlar (opencode NVIDIA NIM vb.) — asla commit'lenmez
 secrets/
+
+# Claude Code oturum artığı (cron kilidi) — repoya ait değil
+.claude/scheduled_tasks.lock
