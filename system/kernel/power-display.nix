@@ -18,6 +18,15 @@ let
   # (EPP=balance_performance, tam boost) ama gereksiz pinlemez.
   # KRİTİK: pilde power-saver KALIR → 4.28W idle bütçesi hiç değişmez (idle'da profil ne
   # olursa olsun CPU en düşük frekansta; 2 GHz sınırı sadece yük altında fark eder).
+  #
+  # "2.0 GHz'e sabitliyor" İFADESİNİN GERÇEĞİ (27 Ağu 2026, ölçüldü). power-saver
+  # kolunda `scaling_max_freq` 16 mantıksal CPU'da TEKDÜZE değil: cpu0-7 = 623377
+  # (= cpuinfo_min_freq), cpu8-15 = 2000000. İlk bakışta yarısı çivilenmiş görünüyor
+  # ve bir kez "regresyon" diye raporlandı — DEĞİL: cpu0-7 ile cpu8-15 aynı fiziksel
+  # çekirdeklerin SMT eşleri ve çekirdek İKİ THREAD'İN TAVANININ YÜKSEĞİNDE koşuyor.
+  # Kanıt: cpu6'da scaling_max=623377 iken scaling_cur=1997798 ölçüldü. Yani efektif
+  # tavan gerçekten 2.0 GHz; asimetri kozmetik. Bu satırlar bu yüzden duruyor — ama
+  # sysfs'te tekdüze 2 GHz BEKLEME, göreceğin şey bölünmüş tablodur.
   powerDisplayScript = pkgs.writeShellScript "power-display" ''
     BL=/sys/class/backlight/amdgpu_bl1
     AC=$(cat /sys/class/power_supply/ACAD/online 2>/dev/null || echo 1)
@@ -177,32 +186,44 @@ let
       fi
     done
 
-    # Kullanıcı oturumu varsa Hyprland adaptasyon servisini tetikle
+    # Kullanıcı oturumu varsa ekran adaptasyon servisini tetikle
     systemctl --user -M zixar@.host start power-display-user.service 2>/dev/null || true
   '';
 
-  # --- Kullanıcı servisi: Hyprland refresh rate + animasyon ---
-  # hyprctl keyword ile canlı ayar; oturum yoksa (Hyprland kapalı) sessizce
-  # çıkılır. MOD DEĞERİ lua/main.lua'daki hl.monitor({mode="2560x1600@165"})
-  # ile ELLE SENKRON tutulmalı — panel değişirse ikisi birden güncellenmeli.
+  # --- Kullanıcı servisi: tazeleme hızı (COSMIC) ---
+  # cosmic-randr ile canlı ayar; oturum yoksa sessizce çıkılır.
+  #
+  # 11 EYL 2026 — HYPRLAND'DAN COSMIC'E TAŞINDI. Bu blok `hyprctl` çağırıyordu ve
+  # servisi `hyprland-session.target`'a asılıydı; Hyprland Eylül 2026'da ağaçtan
+  # çıkınca o target hiç başlamaz oldu → özellik SESSİZCE ÖLDÜ ve üstelik
+  # ${pkgs.hyprland} yalnız hyprctl için kapanışta duruyordu (3 store yolu).
+  # Yeni çağrı canlı makinede doğrulandı (`cosmic-randr mode eDP-1 2560 1600
+  # --refresh 60 --test` → rc 0; geçersiz değer `ModeNotFound` veriyor).
+  #
+  # ANİMASYON KOLU KALDIRILDI (27 Ağu 2026). Burada pilde `animations:enabled 0`
+  # yazılıyordu. Hyprland 0.56.1 kaynağında animasyonun BOŞTAKİ maliyeti tam olarak
+  # sıfır: `shouldTickForNext()` = `!m_vActiveAnimatedVariables.empty()`, yani son
+  # animasyon bitip liste boşalınca tick zinciri kopuyor ve `scheduleFrame`
+  # çağrılmıyor. Maliyet tam olarak animasyonun süresi kadar, bir kuyruğu yok.
+  # power.md'nin "kalıcı kazançlar" satırı bunu PAKET halinde sayıyordu
+  # (60Hz + %40 parlaklık + blur/gölge/animasyon kapalı); animasyon bileşeni hiç
+  # izole ölçülmedi ve blur/gölge bugün zaten kapatılmıyor — geriye yalnız his
+  # kaybı kalıyordu. 60 Hz geçişi AYNEN DURUYOR: onun etkisi ayrı ve ölçülmedi
+  # (27 Ağu'daki 165-vs-60 A/B'si yük altında alındı, temiz değildi).
   powerDisplayUserScript = pkgs.writeShellScript "power-display-user" ''
     AC=$(cat /sys/class/power_supply/ACAD/online 2>/dev/null || echo 1)
 
-    HYPRCTL=${pkgs.hyprland}/bin/hyprctl
-    "$HYPRCTL" monitors >/dev/null 2>&1 || exit 0
+    RANDR=${pkgs.cosmic-randr}/bin/cosmic-randr
+    # Oturum yoksa (Wayland soketi yok) burada sessizce çık — hata basma.
+    "$RANDR" list >/dev/null 2>&1 || exit 0
 
     if [ "$AC" = "0" ]; then
-      # Pil: 60Hz + animasyonlar kapalı → residency artar
-      MODE="2560x1600@60"
-      ANIM=0
+      HZ=60      # Pil: 60Hz → scanout yükü düşer
     else
-      # AC: 165Hz + animasyonlar açık (misc:vrr=2 zaten yalnız tam ekranda devreye girer)
-      MODE="2560x1600@165"
-      ANIM=1
+      HZ=165     # AC: tam yenileme (adaptive-sync'e DOKUNULMUYOR, otomatik kalır)
     fi
 
-    "$HYPRCTL" keyword monitor "eDP-1,$MODE,auto,1" >/dev/null 2>&1 || true
-    "$HYPRCTL" keyword animations:enabled "$ANIM" >/dev/null 2>&1 || true
+    "$RANDR" mode eDP-1 2560 1600 --refresh "$HZ" >/dev/null 2>&1 || true
   '';
 in
 {
@@ -228,7 +249,7 @@ in
   # systemd bunu kıramayıp PPD'nin BAŞLATMA JOB'INI düşürdü ("Unable to break cycle");
   # PPD ancak ~16 sn sonra D-Bus etkinleştirmesiyle geldi ve profil hiç uygulanmadı.
   # graphical.target zaten After=multi-user.target olduğundan buraya asılmak döngüyü
-  # kırar (bu makine ly ile hep grafik boot ediyor). display-manager.target bu sistemde
+  # kırar (bu makine greeter ile hep grafik boot ediyor). display-manager.target bu sistemde
   # hiç tanımlı değil, PPD'nin ona olan After='ı ölü bağ — yeni döngü riski yok.
   systemd.services.power-display = {
     description = "AC/BAT display brightness + webcam + power-profile adaptation";
@@ -241,14 +262,14 @@ in
     };
   };
 
-  # Kullanıcı servisi — Hyprland oturumu açılınca otomatik koşar. Generic
-  # graphical-session.target DEĞİL: rice'ın diğer servisiyle (caelestia.service)
-  # aynı desen — yalnız Hyprland'de aktifleşsin.
+  # Kullanıcı servisi — COSMIC oturumu açılınca otomatik koşar. Generic
+  # graphical-session.target DEĞİL: cosmic-randr compositor'a konuşuyor, o yüzden
+  # oturumun KENDİ target'ına asılı (greeter'ın grafik oturumunda boşa koşmasın).
   systemd.user.services.power-display-user = {
-    description = "AC/BAT Hyprland refresh rate + render profile adaptation";
-    wantedBy = [ "hyprland-session.target" ];
-    after    = [ "hyprland-session.target" ];
-    partOf   = [ "hyprland-session.target" ];
+    description = "AC/BAT ekran tazeleme hızı adaptasyonu (COSMIC)";
+    wantedBy = [ "cosmic-session.target" ];
+    after    = [ "cosmic-session.target" ];
+    partOf   = [ "cosmic-session.target" ];
     serviceConfig = {
       Type      = "oneshot";
       ExecStart = powerDisplayUserScript;
