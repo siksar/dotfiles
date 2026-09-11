@@ -1,6 +1,10 @@
 # Draft PR for tangalbert919/gigabyte-laptop-wmi
 
-> Durum: kullanıcı gönderecek. Gövde (---'den sonrası) İngilizce, PR açıklaması
+> Durum (12 Eyl 2026): kullanıcı gönderecek — HÂLÂ AÇIK.
+> UYARI: bu repo 7 Eyl 2026'da aorus-laptop'ı bıraktı (kendi sürücümüz aero_eg61h).
+> Yani PR artık BİZİM için değil, diğer AERO sahipleri için; gönderilirse
+> "test edildi" iddiası o tarihteki ölçüme dayanır, bugün tekrar sınanamaz
+> (sürücü sistemde yüklü değil). Gövde (---'den sonrası) İngilizce, PR açıklaması
 > olarak olduğu gibi kullanılabilir. Kod değişikliği:
 > `aorus-laptop-silent-0x57.patch` (repoda tutulmuyor) (aynı diff aşağıda gömülü).
 > Test edildi: AERO X16 1VH, sürücü 912b4e9 + reboot → "Newer model detected".

@@ -2,6 +2,209 @@
 
 *Kurulum: 2026-07-05 · Sürücü: NVIDIA 610.43.02 (open) · Kernel 7.1.1 · DLSS 4.5 dönemi*
 
+## 11 Eyl 2026 — COSMIC varsayılan oturum oldu; dGPU zinciri ÖLÇÜLDÜ, sağlam
+
+Hyprland/Caelestia Eylül 2026'da ağaçtan çıktı, `defaultSession = "cosmic"`.
+`system/desktop/cosmic.nix` 2 Eyl'de şu notu taşıyordu: *"COSMIC_DRM_ALLOW_DEVICES
+yalnız iGPU'ya izin verdiği için bu oturumda dGPU HİÇ açılmaz, yani gamerun'ın
+PRIME offload'ı COSMIC'te çalışmaz."* O not **kapsam dışı bırakılmış bir tahmindi**
+ve COSMIC varsayılan olunca kritik hale geldi. Canlı oturumda ölçüldü:
+
+```
+$ echo $XDG_CURRENT_DESKTOP $COSMIC_DRM_ALLOW_DEVICES
+COSMIC 0x1002:0x1114                       ← guard oturumda AKTİF
+
+$ vulkaninfo --summary | grep deviceName
+AMD Radeon 860M Graphics (RADV KRACKAN1)
+NVIDIA GeForce RTX 5060 Laptop GPU         ← dGPU GÖRÜNÜYOR
+llvmpipe (LLVM 21.1.8, 256 bits)
+
+$ GR_NOPERF=1 GR_QUIET=1 gamerun vulkaninfo --summary
+GPU1: deviceType = PHYSICAL_DEVICE_TYPE_DISCRETE_GPU
+
+$ GR_NOPERF=1 GR_QUIET=1 gamerun env | grep __NV
+__NV_PRIME_RENDER_OFFLOAD=1
+__NV_PRIME_RENDER_OFFLOAD_PROVIDER=NVIDIA-G0
+
+$ cat /sys/bus/pci/devices/0000:64:00.0/power_state
+D3cold                                     ← boştayken hâlâ uykuda
+```
+
+**Sonuç:** `COSMIC_DRM_ALLOW_DEVICES` yalnız **compositor'ın** açacağı DRM node'unu
+kısıtlar; oyunun kendi süreci Vulkan/NVIDIA sürücüsüne doğrudan gider ve guard'dan
+etkilenmez. Yani idle bütçesi (dGPU D3cold) ile oyun offload'ı **aynı anda**
+geçerli — biri için diğerinden vazgeçmek gerekmiyor.
+
+**Ölçülmeyen (kalan iş):** gerçek bir Steam oyununun COSMIC altında uçtan uca
+açılması. Yukarıdaki ölçüm cihaz görünürlüğünü ve env zincirini kanıtlar, kare
+üretimini değil.
+
+## 2 Eyl 2026 — gamerun SIFIRDAN YAZILDI (iki ölçülmüş kök neden)
+
+Belirti (kullanıcı): *"gamerun bozuk, çoğu oyunda çalıştıramıyorum; gamerun ile
+başlatınca Sekiro vs. ayar menüsüne girince donabiliyor."* `localconfig.vdf`
+bunu doğruluyordu — kullanıcı çoğu oyundan gamerun'ı çıkarmış, kalan bir satır
+da `%command%`siz `"gamerun"` yazılıydı.
+
+### Kök neden 1 — `DXVK_NVAPI_VKREFLEX=1` bir env AYARI değil, KATMAN anahtarı
+
+Eski gamerun bunu koşulsuz export ediyordu ve yorumu *"Reflex — güvenli, açık
+kalır"* diyordu. Gerçekte proton-cachyos içinde bir **implicit Vulkan katmanı**
+manifesti var ve bu değişken onun `enable_environment`'ı:
+
+```json
+// share/dxvk-nvapi-vkreflex-layer/implicit_layer.d/VkLayer_DXVK_NVAPI_reflex.json
+"name": "VK_LAYER_DXVK_NVAPI_reflex",
+"device_extensions": [{ "name": "VK_NV_low_latency", "spec_version": "1" }],
+"enable_environment": { "DXVK_NVAPI_VKREFLEX": "1" }
+```
+
+Katman **eski** `VK_NV_low_latency` (rev 1) uzantısını taklit eder. Ama bu
+makinenin sürücüsü yerlisini zaten veriyor (`vulkaninfo`, 2 Eyl 2026):
+
+```
+VK_NV_low_latency2 : extension revision 2   ← dxvk-nvapi'nin gerçekte kullandığı
+VK_NV_low_latency  : extension revision 1   ← katmanın taklit ettiği eski sürüm
+```
+
+Yani katman **gereksizdi**; tek yaptığı oyunla sürücü arasına fazladan bir aracı
+koymaktı.
+
+> **Kanıtın sınırı — dürüst olalım.** ÖLÇÜLEN: (a) değişkenin bir katman
+> anahtarı olduğu (manifest okundu), (b) sürücünün `low_latency2`'yi yerlisinden
+> verdiği (`vulkaninfo` koşturuldu), dolayısıyla (c) katmanın **gereksiz**
+> olduğu. ÖLÇÜLMEYEN: donmaların *bu katmandan* geldiği. Bu bir çıkarım —
+> gerekçesi güçlü (ayar menüsü swapchain'i yeniden kurar, bir katmanın en
+> kırılgan anı odur; ayrıca 26 Ağu 2026'da Elden Ring'de zaten
+> `DXVK_NVAPI_VKREFLEX=0` denenmiş, Steam logunda duruyor) ama kanıt değil.
+> Bu repo kuralı gereği (CLAUDE.md: *"grep/okuma ile türetilen bir bulgu, bir
+> şey koşturulana kadar bulgu değildir"*) böyle işaretleniyor. **Kaldırma kararı
+> yine de doğru ve risksiz**, çünkü (c) tek başına yeter: gereksiz bir katman
+> tutulmaz. Donma sürerse suçlu başkadır — ilk bakılacak yer
+> `system/drivers/gpu.nix`'teki `powerManagement.finegrained` (dGPU runtime
+> D3cold; ayar menüsü adaptör listeler → uyandırma yolu) ve Proton sürümü.
+> Doğrulama: aynı sahneyi yeni gamerun'la 3 kez dene; donarsa
+> `GR_NOPERF=1 gamerun` ve sonra gamerun'sız tekrarla.
+
+Bu, `home/apps/games.nix`'in 22 Tem 2026'da
+MangoHud'u kaldırma gerekçesiyle **aynı sınıf** hata ("oyun↔Vulkan sürücüsü
+arasına giren katman, burada segfault geçmişi var"); o ilke burada ihlal
+edilmişti. **Yeni gamerun hiçbir Vulkan katmanı enjekte etmez.** Reflex
+kaybolmadı — sürücü/dxvk-nvapi onu `low_latency2` üzerinden zaten yapıyor.
+
+### Kök neden 2 — `gamemoderun`'ın LD_PRELOAD'ı konteyneri geçemiyor
+
+Eski gamerun son adımda `exec gamemoderun "$@"` yapıyordu. `gamemoderun` işini
+`LD_PRELOAD=libgamemodeauto.so.0` + `LD_LIBRARY_PATH=<nix store>` ile yapar.
+Oyun ise Steam'in **pressure-vessel konteynerinin içinde** açılır; o konteyner
+kendi `LD_LIBRARY_PATH`'ini kurar, store yolu içeride yoktur. Ölçülen sonuç
+(`~/steam-1245620.log`, Elden Ring — satır satır tekrarlıyor):
+
+```
+gamemodeauto: dlopen failed - libgamemode.so: cannot open shared object file
+```
+
+→ gamemode **aktive olmuyor** → `custom.start` kancası koşmuyor →
+`game-perf.service`, `scx_lavd`, 0xED profili, turbo fan: **hiçbiri**.
+Yani 10 Ağu 2026'daki düzeltme yalnız `command not found`u çözmüş; **zincirin
+geri kalanı 2 Eyl'e kadar ölü kalmış.** Üstelik bu `LD_PRELOAD` oyun ağacındaki
+her sürece miras kalıyordu — anti-cheat'li oyunlarda (Elden Ring
+`start_protected_game.exe` = EAC) gereksiz risk.
+
+**Düzeltme:** gamemode aradan çıkarıldı; gamerun `game-perf.service`'i
+**doğrudan** sürüyor. Zaten çalışan bir yoldu, kullanılmıyordu — ölçüm
+(kullanıcı `zixar`, parolasız, `system/kernel/sched.nix` polkit kuralı):
+
+```
+systemctl start game-perf.service → rc=0
+scx.service → active | fan_mode → 5 (turbo) | PPD → balanced
+systemctl stop  game-perf.service → fan_mode → 1 | PPD → balanced
+```
+
+### Kök neden 3 — PRIME offload OpenGL'de HİÇ ÇALIŞMIYORDU (Minecraft iGPU'daydı)
+
+`glxinfo -B` ile ölçüldü (2 Eyl 2026, `mesa-demos` bu flake'in pinli
+nixpkgs'inden):
+
+| Ortam | `OpenGL renderer string` |
+|---|---|
+| ham (sarmalayıcısız) | AMD Radeon 860M Graphics (radeonsi) |
+| **ESKİ gamerun** | **AMD Radeon 860M Graphics (radeonsi)** ← offload ETMEMİŞ |
+| ESKİ gamerun + `GR_NVONLY=1` | NVIDIA GeForce RTX 5060 Laptop GPU |
+| **YENİ gamerun** | **NVIDIA GeForce RTX 5060 Laptop GPU** |
+
+Sebep: `__NV_PRIME_RENDER_OFFLOAD=1` **tek başına GLX'i yönlendirmez** —
+libglvnd'nin hangi GLX satıcısını yükleyeceğini `__GLX_VENDOR_LIBRARY_NAME`
+belirler (`libGLX_nvidia.so.0` vs `libGLX_mesa.so.0`, ikisi de
+`/run/opengl-driver/lib` altında var). Eski gamerun bu değişkeni `GR_NVONLY`'nin
+arkasına saklamıştı; `GR_NVONLY` ise "riskli" diye varsayılan kapalıydı. Sonuç:
+**yarım yapılandırma** — "NVIDIA'ya offload et" deniyor ama GLX mesa'ya gidiyor.
+
+Bu, nixpkgs'in kendi `nvidia-offload` betiğinin dört değişkenini karşılaştırınca
+apaçık: o betik `__GLX_VENDOR_LIBRARY_NAME=nvidia`'yı **her zaman** verir.
+
+**Kimi vurdu:** OpenGL kullanan her şey — başta **Minecraft** (`mc-run` →
+gamerun; vanilla LWJGL OpenGL'dir). Yani bu belgenin Minecraft bölümündeki
+"dGPU PRIME offload (RTX 5060) — MC OpenGL, GLX vendor=nvidia yeterli" satırı
+doğru olanı *tarif ediyordu* ama kod onu yapmıyordu; MC bugüne kadar **iGPU'da**
+koşmuş. Vulkan oyunları etkilenmedi (DXVK/VKD3D cihazı kendi seçer, GLX satıcısı
+onları ilgilendirmez) — bu yüzden arıza Steam tarafında görünmedi.
+
+**Yeni gamerun üçlüyü her zaman verir.** Ters yöne ihtiyaç olursa (yazılım GL
+gereken bir launcher gibi) dışarıdan ezilir; gamerun `:-` deseni kullandığı için
+verilen değer kazanır — ölçüldü:
+
+```
+LIBGL_ALWAYS_SOFTWARE=1 gamerun …                          → NVIDIA (NO-OP! LIBGL_* Mesa'ya özgü)
+LIBGL_ALWAYS_SOFTWARE=1 __GLX_VENDOR_LIBRARY_NAME=mesa gamerun … → llvmpipe (doğru)
+```
+
+**Bu HOI4'ü doğrudan ilgilendiriyor** — aşağıdaki Paradox launcher düzeltmesi
+(`LIBGL_ALWAYS_SOFTWARE=1`) gamerun'la birlikte kullanılacaksa
+`__GLX_VENDOR_LIBRARY_NAME=mesa` da yazılmalı, yoksa sessizce etkisiz kalır.
+
+### Kök neden 4 (yan bulgu) — `scx.service` iki oyun açılışında ÖLÜYORDU
+
+Test sırasında ortaya çıktı: upstream `scx.nix` modülü `StartLimitBurst=2` /
+`StartLimitIntervalSec=30s` koyuyor. **30 saniye içinde iki kez oyun açmak**
+scx.service'i kalıcı `failed`a düşürüyor:
+
+```
+scx.service: Start request repeated too quickly.
+scx.service: Failed with result 'start-limit-hit'.
+```
+
+ve `systemctl reset-failed` yapılmadan bir daha **hiç** başlamıyor. Yani çöken
+bir oyunu hemen tekrar açmak scx_lavd'ı sessizce öldürüyordu. `sched.nix`'te
+`startLimitIntervalSec = lib.mkForce 0` ile kaldırıldı (game-perf için de aynısı;
+onun varsayılanı 5/10s idi). Sınır çöküş-döngüsü koruması içindir — burada
+tetikleyen bir insandır, anlamsız.
+
+> **Bir kereye mahsus elle:** bu değişiklikten önce sınıra takıldıysan
+> `sudo systemctl reset-failed scx.service` gerekir; `switch` sonrası tekrarı yok.
+
+### Yeni gamerun'ın tasarım ilkeleri
+
+| İlke | Ne demek |
+|---|---|
+| **A — Oyun her hâlükârda açılır** | taskset/game-perf/PRIME hepsi opsiyonel; başarısız olursa uyarı basıp devam eder. Hiçbir kod yolu oyunu başlatmamaya karar veremez. |
+| **B — Katman enjekte etme** | Vulkan katmanı yok, LD_PRELOAD yok. Yalnız süreç nitelikleri (env, CPU affinity) + sistem servisleri. |
+| **C — Yalnız ölçülmüş iş** | DLSS/MFG/FG/SmoothMotion/low-latency/ntsync/VKD3D env'leri gamerun'dan **çıkarıldı**. Oyuna özgüler; launch options'a doğrudan yazılırlar (aşağıdaki tablo). |
+| **D — Temizlik garantili** | `trap` + referans sayacı: çıkışta game-perf mutlaka durur (fan turbo'da unutulmaz). Tek kaçak SIGKILL. |
+
+**C'nin pratik sonucu — hiçbir şey kaybolmadı, sahibi değişti.** gamerun artık
+o değişkenlere *dokunmuyor*, dolayısıyla ezmiyor da: `PROTON_USE_NTSYNC=1
+gamerun %command%` yazınca değişken oyuna olduğu gibi geçer. Eskiden bir
+`GR_*` takma adı gerekiyordu; artık gerekmiyor. Bunun asıl kazancı **OptiScaler
+ile birlikte kullanabilmek**: `PROTON_USE_OPTISCALER=1 PROTON_FSR4_UPGRADE=1
+gamerun %command%` artık çakışmıyor, çünkü gamerun kendi NGX/DLSS override'ını
+yapmıyor.
+
+**Kaybedilen tek şey:** gamemode'un `renice -20` + `ioprio 0`'ı. Steam yolunda
+zaten hiç çalışmıyordu (kök neden 2); mc-run/emu-run yolunda çalışıyordu, orada
+küçük bir gerileme. Karşılığında oyun boyunca gerçekten koşan bir `scx_lavd
+--performance` var — asıl gecikme kolu oydu.
+
 ## 10 Ağu 2026 — KRİTİK: gamerun Steam'den hiç çalışmıyordu
 
 `~/.local/share/Steam/logs/console-linux.txt` bu tarihe kadar tekrarlı olarak
@@ -36,11 +239,18 @@ dar pinleme hâlâ mümkün).
 **Üçüncü değişiklik — bu sarmalayıcı hiç test edilmediğinden varsayılan yüzey
 daraltıldı:** `__VK_LAYER_NV_optimus=NVIDIA_only` + `__GLX_VENDOR_LIBRARY_NAME`
 (AMD cihazını gizleme), NGX updater + DLSS SR/RR override, ve NVIDIA GL shader
-cache artık VARSAYILAN KAPALI — sırasıyla `GR_NVONLY=1`, `GR_DLSS=1`, `GR_CACHE=1`
-ile opt-in (aşağıdaki tablo). Gerekçe: `NVIDIA_only` AMD Vulkan cihazını
-gizliyor — NVIDIA ICD kum havuzunda görünmezse oyun sıfır cihaz görüp anında
-kapanabilir; DLSS override bloğu ise kullanıcının OptiScaler kullanan
-oyunlarıyla (aşağıdaki "860M FSR4" bölümü) aynı katmanda çakışıyor.
+cache VARSAYILAN KAPALI'ya alındı — sırasıyla `GR_NVONLY=1`, `GR_DLSS=1`,
+`GR_CACHE=1` ile opt-in. Gerekçe: `NVIDIA_only` AMD Vulkan cihazını gizliyor —
+NVIDIA ICD kum havuzunda görünmezse oyun sıfır cihaz görüp anında kapanabilir;
+DLSS override bloğu ise kullanıcının OptiScaler kullanan oyunlarıyla (aşağıdaki
+"860M FSR4" bölümü) aynı katmanda çakışıyor.
+
+> **ÜSTÜ ÇİZİLDİ 2 Eyl 2026.** Bu üç `GR_*` takma adı artık YOK. `GR_NVONLY`'nin
+> yerini `GR_GPU=nvidia` aldı (ve `__GLX_VENDOR_LIBRARY_NAME=nvidia` ondan
+> ayrıldı: artık her zaman açık, çünkü yalnız GL/EGL'i etkiliyor ve OpenGL
+> oyunlarının doğru çalışması için ŞART). `GR_DLSS`/`GR_CACHE` ise ilke C
+> uyarınca tamamen kaldırıldı — ham env'leriyle launch options'a yazılırlar.
+> Yukarıdaki 2 Eyl bölümüne bak.
 
 **Steam tarafında elle düzeltilmesi gereken (nix dışı):** üç oyunda launch
 options `"gamerun"` / `"gamerun "` yazılıydı — `%command%` YOK. Steam'de
@@ -49,29 +259,48 @@ sonuna eklenir. Her launch option `gamerun %command%` biçiminde olmalı.
 
 ## Mimari özet
 
+Yeniden yazıldı 2 Eyl 2026 — gamemode artık zincirde DEĞİL (yukarıdaki kök neden 2):
+
 ```
 Steam (iGPU'da açılır)
   └─ launch options: gamerun %command%   (FHS kum havuzunda /usr/bin/gamerun — 10 Ağu)
-       ├─ taskset -c 0-15 (cores.nix'in Zen5c-only masaüstü maskesini del — varsayılan;
-       │  GR_PIN=big/fast/liste ile daralt)
-       ├─ dGPU PRIME offload (RTX 5060; GR_NVONLY=1 AMD cihazını tamamen gizler — opt-in)
-       ├─ DLSS 4.5 zinciri (opt-in): GR_DLSS=1 → NGX updater + SR/RR override;
-       │  GR_FG/MFG/DYNFG → Frame Generation (render_preset_latest: GR_PRESET)
-       ├─ Reflex (DXVK_NVAPI_VKREFLEX, varsayılan açık) + ntsync (opt-in GR_NTSYNC)
-       ├─ Blackwell DX12/VKD3D kaçış-flag'leri (opt-in: GR_VKD3DNOCACHE / GR_HEAP / GR_VKD3D)
-       └─ exec gamemoderun
-            ├─ renice -20 + ioprio 0 (oyun süreci — maksimum normal öncelik)
-            └─ start kancası → game-perf.service
-                 ├─ scx_lavd --performance
-                 ├─ AC'deyse WMBD 0xED profil 2: ACBT 160 + agresif fan eğrisi
-                 │  (KCD ölçümü: GPU 38W→~70W sustained; fan %32-35→%46-49)
-                 ├─ AC'deyse fan_mode 5 (turbo/max) — fişte/uykuda ARTIK sıfırlanmıyor
-                 │  (10 Ağu düzeltmesi; "oyunlarda hep soğuk" tercihi, 2026-07-17)
-                 └─ AC'deyse PPD → balanced (GPU-öncelik; GR_CPUMAX=1 ise performance)
-               oyun bitince: stop → scx durur (EEVDF döner) + 0xED profil 0 +
-               gigabyte-power-profile (ACBT 80/fan modu AC→0'a geri) +
-               power-display (PPD → balanced, fişte / power-saver, pilde)
+       │
+       ├─ 0. argüman yoksa HATA VER (=%command% unutulmuş; eskiden sessizdi)
+       │
+       ├─ 1. dGPU PRIME offload — GL/EGL tarafı, nixpkgs `nvidia-offload` üçlüsü:
+       │     __NV_PRIME_RENDER_OFFLOAD=1 + _PROVIDER=NVIDIA-G0 + __GLX_VENDOR_LIBRARY_NAME=nvidia
+       │     (Vulkan cihaz SAYIMINA dokunmaz → "sıfır cihaz görüp kapanma" riski yok)
+       │
+       ├─ 2. Vulkan cihaz seçimi: VARSAYILAN KARIŞMAZ (DXVK zaten ayrık GPU'yu seçer)
+       │     GR_GPU=nvidia → yalnız dGPU | GR_GPU=igpu → yalnız iGPU  (opt-in, filtreler)
+       │
+       ├─ 3. taskset -c 0-15 — cores.nix'in Zen5c-only masaüstü maskesini del
+       │     GR_PIN=big/fast/liste ile daralt · maske geçersizse UYAR ve devam et (ilke A)
+       │
+       ├─ 4. GR_CPUMAX=1 ise $XDG_RUNTIME_DIR/gamerun-cpumax işaretini bırak
+       │
+       ├─ 5. systemctl start game-perf.service   ← DOĞRUDAN (polkit), referans sayaçlı
+       │        ├─ scx_lavd --performance
+       │        ├─ AC'deyse WMBD 0xED profil 2: ACBT 160 + agresif fan eğrisi
+       │        │  (KCD ölçümü: GPU 38W→~70W sustained; fan %32-35→%46-49)
+       │        ├─ AC'deyse fan_mode 5 (turbo/max)
+       │        └─ AC'deyse PPD → balanced (GPU-öncelik; gamerun-cpumax varsa performance)
+       │
+       └─ 6. oyunu ARKA PLANDA çalıştır + wait  (exec DEĞİL — trap koşabilsin)
+             ├─ INT/TERM/HUP → oyuna ilet (Steam'in "Durdur" düğmesi çalışsın)
+             └─ ÇIKIŞTA: kendi PID kaydını sil; başka CANLI gamerun yoksa
+                systemctl stop game-perf.service
+                  → scx durur (EEVDF döner) + 0xED profil 0 +
+                    gigabyte-power-profile (ACBT 80 / fan modu AC→0'a geri) +
+                    power-display (PPD → balanced fişte / power-saver pilde)
 ```
+
+**Referans sayacı neden var:** iki oyun aynı anda açıkken biri kapanınca
+diğerinin fanını düşürmesin diye. Her gamerun örneği
+`$XDG_RUNTIME_DIR/gamerun.d/<pid>` dosyası bırakır; çıkışta yalnız **canlı**
+başka örnek kalmadıysa servis durdurulur (ölü kayıtlar aynı taramada silinir).
+Ölçüldü 2 Eyl 2026: kısa örnek biterken `fan_mode` 5'te kaldı, uzun örnek
+bitince düştü.
 
 **Turbo fan (2026-07-17):** oyun süresince (AC'de) fanlar tam güce alınır (fan_mode 5,
 ~6900 RPM) → dGPU en soğuk + fan tepkisi maksimum. **CPU yine ~95°C** olur (EC/SMU
@@ -88,9 +317,12 @@ devam ediyor (`system/arch/aerox16/wmi.nix`).
 
 Donanım tarafı zaten AC'ye bağlı otomatik: fiş takılıyken fan modu 2 ("oyun") +
 NPCF.ACBT 80W → nvidia-powerd dGPU'yu 75–85W bandına çıkarır
-(`system/arch/aerox16/wmi.nix`). VRR Hyprland'ın `misc.vrr = 2` ayarıyla açık
-(`home/desktop/wm/main.lua`); yalnız tam ekranda devreye girer. Pilde panel zaten
-60Hz'e çekilir (`power-display-user`, power-display.nix).
+(`system/arch/aerox16/wmi.nix`). VRR artık COSMIC tarafında: panel
+`Adaptive Sync: automatic` bildiriyor (ölçüm 11 Eyl 2026, `cosmic-randr list`),
+yani tam ekran/oyun durumunda devreye girer. Bu ayar COSMIC'in kendi
+ayarlarında yaşar — repo ona dokunmaz. Pilde panel zaten 60Hz'e çekilir
+(`power-display-user`, power-display.nix; 11 Eyl 2026'dan beri `cosmic-randr`
+ile, önceden `hyprctl` ile).
 
 **GPU-öncelik: oyunda PPD balanced (18 Tem 2026).** CPU ile dGPU, ACBT 80W'lık
 NVIDIA Dynamic Boost bütçesini **paylaşır**. Oyunda PPD `performance` yapılırsa
@@ -114,66 +346,105 @@ sarmalayıcı sayılmaz, oyunun argümanı olarak sonuna eklenir (`gamerun` tek
 başına yazılırsa oyun `oyun.exe gamerun` diye açılır ve gamerun hiç koşmaz).
 Her satır `gamerun %command%` biçiminde olmalı.
 
+### gamerun'ın KENDİ anahtarları (`GR_*`) — hepsi bu kadar (2 Eyl 2026)
+
 | Amaç | Launch options |
 |---|---|
-| **Taban** (dGPU offload + Reflex + taskset -c 0-15, tam ekran) | `gamerun %command%` |
-| AMD Vulkan/GL cihazını gizle (yalnız NVIDIA görünsün) | `GR_NVONLY=1 gamerun %command%` |
-| DLSS NGX updater + SR/RR override (OptiScaler ile ÇAKIŞIR — o oyunlarda AÇMA) | `GR_DLSS=1 gamerun %command%` |
-| NVIDIA GL disk shader cache (kalıcı, ~12GB) | `GR_CACHE=1 gamerun %command%` |
-| MFG 4x (FG override'ı da açar; FG'yi oyun menüsünden aç) | `GR_MFG=4 gamerun %command%` |
-| Dinamik MFG — 165 FPS hedef, otomatik çarpan | `GR_DYNFG=165 gamerun %command%` |
-| DLSS FG override'ı aç (MFG'siz) | `GR_FG=1 gamerun %command%` |
-| DLSS render preset'i zorla (en yeni) | `GR_PRESET=latest gamerun %command%` |
-| ntsync'i zorla aç / kapat | `GR_NTSYNC=1 gamerun %command%` / `GR_NTSYNC=0 …` |
-| Smooth Motion (DLSS'i OLMAYAN oyuna sürücü framegen) | `GR_SMOOTH=1 gamerun %command%` |
-| **Düşük gecikme** kare tempolama (yalnız Proton-CachyOS; FG ile birleşmez) | `GR_LL=1 gamerun %command%` |
-| Tek-çekirdek sim oyunu (HOI4/Stellaris/Factorio) | `GR_PIN=big gamerun %command%` |
+| **Taban** — dGPU offload + `taskset -c 0-15` + game-perf zinciri | `gamerun %command%` |
+| Yalnız dGPU görünsün (oyun iGPU'ya düşüyorsa) | `GR_GPU=nvidia gamerun %command%` |
+| Yalnız iGPU görünsün (hafif oyun, dGPU'yu uyandırma) | `GR_GPU=igpu gamerun %command%` |
+| Tek-çekirdeğe bağımlı sim (HOI4/Stellaris/Factorio) | `GR_PIN=big gamerun %command%` |
+| En hızlı iki çekirdek + SMT | `GR_PIN=fast gamerun %command%` |
+| Özel CPU listesi (`taskset -c` biçimi) | `GR_PIN=0,2,4 gamerun %command%` |
 | CPU tam güç (CPU-bound oyun; varsayılan balanced/GPU-öncelik) | `GR_CPUMAX=1 gamerun %command%` |
-| Proton Wayland (deneysel) | `GR_WL=1 gamerun %command%` |
-| Windowed aç (verilen boyutta) | `GR_WIN=1920x1200 gamerun %command%` |
-| **Blackwell:** DX12 bir süre sonra donarsa → VKD3D cache kapat (#2793) | `GR_VKD3DNOCACHE=1 gamerun %command%` |
-| **Blackwell:** Xid 109 sert çökme fix (o oyuna Proton-CachyOS seç) | `GR_HEAP=1 gamerun %command%` |
-| **Blackwell:** ham VKD3D_CONFIG (dxr11 / force_raw_va_cbv…) | `GR_VKD3D=dxr11 gamerun %command%` |
+| **Arıza ikilemesi:** perf zincirini hiç kurma (yalnız offload+taskset) | `GR_NOPERF=1 gamerun %command%` |
+| gamerun'ın kendi loglarını sustur | `GR_QUIET=1 gamerun %command%` |
 
-**Pencere modu (17 Tem 2026):** `gamerun` artık **varsayılan tam ekran** — hiçbir
-pencere argümanı eklemez, oyunlar kendi (genelde tam ekran) davranışını kullanır.
-Windowed default eski Hyprland+waybar rice'ı içindi; GNOME'da gereksiz. `GR_WIN=WxH`
-verilirse windowed'a geçer: `-w/-h/-freq/-windowed` (Source) + `-screen-*` (Unity —
-House Flipper, Phasmophobia, Planet Crafter). Tanımayan motorlar yok sayar; onlarda
-çözünürlük config'ten gelir (FromSoft GraphicsConfig.xml, HOI4 settings.txt, Hogwarts
-GameUserSettings.ini, KCD user.cfg, RE Engine config.ini). **NOT:** o config'ler daha
-önce windowed'a çevrilmişti (`*.bak` yedekleri var) → tam ekran default'a rağmen yine
+`GR_NOPERF=1` neden var: "oyun açılmıyor" şikâyetinde suçluyu ikiye bölmek için.
+Açılıyorsa sorun perf zincirinde (systemd/polkit tarafı), hâlâ açılmıyorsa
+gamerun'la ilgisi yok — launch options'tan çıkarıp doğrula.
+
+gamerun stderr'e tek satırlık bir banner basar (`gamerun: başlıyor — CPU=… GPU=…
+perf=…`) ve bu **Steam'in `console-linux.txt`'sine düşer** → "gerçekten koştu
+mu?" sorusu bir daha ölçüm oturumu gerektirmez.
+
+### Oyuna özgü env'ler — gamerun'a DEĞİL, doğrudan launch options'a
+
+Bunlar 2 Eyl 2026'da gamerun'dan çıkarıldı (ilke C). gamerun onlara artık
+dokunmadığı için **ezmez de** — yani hem gamerun'la hem gamerun'sız aynı
+şekilde çalışırlar, ve OptiScaler ile birlikte kullanılabilirler.
+
+| Amaç | Launch options |
+|---|---|
+| ntsync'i zorla aç / kapat | `PROTON_USE_NTSYNC=1 gamerun %command%` / `=0` |
+| DLSS NGX updater (en yeni DLL) | `PROTON_ENABLE_NGX_UPDATER=1 gamerun %command%` |
+| DLSS SR / RR override | `DXVK_NVAPI_DRS_NGX_DLSS_SR_OVERRIDE=on DXVK_NVAPI_DRS_NGX_DLSS_RR_OVERRIDE=on gamerun %command%` |
+| DLSS Frame Generation override | `DXVK_NVAPI_DRS_NGX_DLSS_FG_OVERRIDE=on gamerun %command%` |
+| MFG 4x | `DXVK_NVAPI_DRS_NGX_DLSSG_MODE=on DXVK_NVAPI_DRS_NGX_DLSSG_MULTI_FRAME_COUNT=3 gamerun %command%` |
+| Dinamik MFG — 165 FPS hedef | `DXVK_NVAPI_DRS_NGX_DLSSG_MODE=dynamic DXVK_NVAPI_DRS_NGX_DLSSG_DYNAMIC_TARGET_FRAME_RATE=165 gamerun %command%` |
+| DLSS render preset'i zorla | `DXVK_NVAPI_DRS_NGX_DLSS_SR_OVERRIDE_RENDER_PRESET_SELECTION=render_preset_latest gamerun %command%` |
+| Smooth Motion (DLSS'siz oyuna sürücü framegen; FG/MFG ile BİRLEŞMEZ) | `NVPRESENT_ENABLE_SMOOTH_MOTION=1 gamerun %command%` |
+| Düşük gecikme kare tempolama (yalnız Proton-CachyOS; FG ile birleşmez) | `PROTON_DXVK_LOWLATENCY=1 PROTON_VKD3D_LOWLATENCY=1 DXVK_FRAME_PACE=low-latency-vrr-165 gamerun %command%` |
+| Proton Wayland (deneysel) | `PROTON_ENABLE_WAYLAND=1 gamerun %command%` |
+| NVIDIA GL disk shader cache (kalıcı, ~12GB) | `__GL_SHADER_DISK_CACHE=1 __GL_SHADER_DISK_CACHE_PATH=$HOME/.cache/nv __GL_SHADER_DISK_CACHE_SIZE=12000000000 gamerun %command%` |
+| **Blackwell:** DX12 bir süre sonra donarsa → VKD3D cache kapat (#2793) | `VKD3D_SHADER_CACHE_PATH=0 gamerun %command%` |
+| **Blackwell:** Xid 109 sert çökme fix (o oyuna Proton-CachyOS seç) | `PROTON_VKD3D_HEAP=1 gamerun %command%` |
+| **Blackwell:** ham VKD3D_CONFIG | `VKD3D_CONFIG=dxr11 gamerun %command%` |
+
+**Kaldırılan ve GERİ GELMEYECEK olan tek şey `DXVK_NVAPI_VKREFLEX=1`** — bu bir
+"Reflex aç" ayarı değil, yukarıda anlatılan gereksiz Vulkan uyumluluk katmanının
+anahtarı ve donmaların sebebi. Reflex zaten sürücünün `VK_NV_low_latency2`'si
+üzerinden çalışıyor; açmak için hiçbir şey yazmana gerek yok.
+
+**`GR_WIN` de kaldırıldı** (2 Eyl 2026). Varsayılanı zaten "hiçbir pencere
+argümanı ekleme"ydi, yani kimse kaybetmiyor; ama verildiğinde Proton komut
+satırının SONUNA `-w/-h/-screen-*` ekliyordu — "oyun açılmıyor" sınıfı bir
+riski, hiç ölçülmemiş bir kazanç için taşımaya değmez. Pencere modu oyunun kendi
+ayarından yapılır (FromSoft `GraphicsConfig.xml`, HOI4 `settings.txt`, Hogwarts
+`GameUserSettings.ini`, KCD `user.cfg`, RE Engine `config.ini` — `*.bak`
+yedekleri duruyor).
+
+**Pencere modu:** `gamerun` hiçbir pencere argümanı eklemez — oyunlar kendi
+(genelde tam ekran) davranışını kullanır. Çözünürlük/pencere ayarı oyunun kendi
+config'inden gelir (FromSoft `GraphicsConfig.xml`, HOI4 `settings.txt`, Hogwarts
+`GameUserSettings.ini`, KCD `user.cfg`, RE Engine `config.ini`). **NOT:** o
+config'ler daha önce windowed'a çevrilmişti (`*.bak` yedekleri var) → yine
 pencereli açılırlar; tam ekran istenirse `*.bak`'tan geri alınır.
 
-**Öncelik (18 Tem 2026):** oyun süreci artık `renice -20` (maksimum normal öncelik) —
-gamemode grubu + `enableRenice`. scx_lavd bunu ağırlık olarak onurlandırır → oyun,
-normal-sınıf görevler içinde en yüksek öncelikli. **Gerçek RT (SCHED_FIFO/RR) bilinçli
-olarak KULLANILMADI:** RT sınıfı sched_ext'in üstünde koşar → scx_lavd'ı (oyun için
-tasarlanan latency-aware zamanlayıcı) bypass eder, ayrıca bir thread busy-loop yaparsa
-makineyi kilitleyebilir. nice -20 + scx_lavd, RT davranışını riski olmadan verir
-(SteamOS/CachyOS de bu yolu izler).
+**Öncelik — DÜZELTİLDİ 2 Eyl 2026.** Bu bölüm 18 Tem'den beri "oyun süreci
+`renice -20` koşuyor" diyordu; **Steam yolunda hiç doğru olmamış** (gamemode'un
+`LD_PRELOAD`'ı pressure-vessel konteynerini geçemiyordu — yukarıdaki kök neden 2).
+Yeni gamerun gamemode'u zincirden çıkardı, yani renice/ioprio artık **hiçbir
+yolda** uygulanmıyor. Gecikme kolu tamamen **scx_lavd `--performance`** —
+ve o, 2 Eyl'den beri gerçekten koşuyor.
+`programs.gamemode` sistemde açık kalmaya devam ediyor: gamemode API'sini kendi
+çağıran oyunlar için yedek yol (`system/kernel/sched.nix`'teki "OTORİTE
+DEĞİŞTİ" bloğu).
+**Gerçek RT (SCHED_FIFO/RR) bilinçli olarak KULLANILMADI:** RT sınıfı sched_ext'in
+üstünde koşar → scx_lavd'ı (oyun için tasarlanan latency-aware zamanlayıcı) bypass
+eder, ayrıca bir thread busy-loop yaparsa makineyi kilitleyebilir.
 
 **Blackwell (RTX 5060) DX12/VKD3D kararlılık — kaçış-flag'leri (opt-in, 22 Tem 2026):**
 DXVK (D3D9/10/11→Vulkan) + VKD3D‑Proton (D3D12→Vulkan) + dxvk‑nvapi (DLSS/Reflex) zaten
 her Proton oyununu Vulkan'a çevirir. Blackwell'e özgü iki bilinen kararsızlık ve cerrahi
 (oyun-başına, VARSAYILAN KAPALI) çözümleri — kullanıcıda şu an sorun yok, gerektiğinde aç:
 
-- **`GR_VKD3DNOCACHE=1`** → `VKD3D_SHADER_CACHE_PATH=0`. NVIDIA'da bazı DX12 oyunları
+- **`VKD3D_SHADER_CACHE_PATH=0`** (launch options'a doğrudan). NVIDIA'da bazı DX12 oyunları
   dakikalar–saatler sonra donuyor/sessizce çöküyor (vkd3d-proton **#2793**, Ocak 2026;
   RTX 4070 **ve** 5070 doğrulanmış). VKD3D shader cache'i kapatmak donmayı bitirir;
   **bedeli** ilk-render shader stutter'ının artması → yalnız donan o oyunda aç.
-- **`GR_HEAP=1`** → `PROTON_VKD3D_HEAP=1` (VK_EXT_descriptor_heap). Blackwell'de bazı DX12
+- **`PROTON_VKD3D_HEAP=1`** (VK_EXT_descriptor_heap). Blackwell'de bazı DX12
   oyunlarının shader-derleme fazında **Xid 109 sert çökmesi** (vkd3d-proton **#2914** / PR
   #2805; ör. Crimson Desert). Fix yalnız descriptor_heap içeren Proton'da etkin → o oyuna
   **Steam'de Proton-CachyOS** seç (aşağı bak); GE-Proton'da zararsız no-op.
-- **`GR_VKD3D=<token>`** → ham `VKD3D_CONFIG` passthrough. İleri per-oyun: `dxr11` (D3D12
+- **`VKD3D_CONFIG=<token>`** ham passthrough. İleri per-oyun: `dxr11` (D3D12
   raytracing zorla), `force_raw_va_cbv` (bazı NVAPI/DLSS kurulumları), vb.
 
 **Proton-CachyOS (Blackwell-sertleştirilmiş, 22 Tem 2026):** `usr/steam.nix`
 artık GE-Proton'un **yanına** Proton-CachyOS'u da kurar (`chaotic-nyx` flake input +
 `nyx-cache.chaotic.cx` binary cache). Steam'de oyun-başına seçilir (Özellikler → Uyumluluk).
 GE-Proton **varsayılan** kalır; inatçı DX12/Blackwell oyunlarında (Xid 109, #2793 donma)
-Proton-CachyOS + `GR_HEAP=1` dene — en güncel dxvk/vkd3d + VK_EXT_descriptor_heap içerir.
+Proton-CachyOS + `PROTON_VKD3D_HEAP=1` dene — en güncel dxvk/vkd3d + VK_EXT_descriptor_heap içerir.
 
 **Oyunları Vulkan'a taşıma (launcher tarafı — kullanıcı uygular):**
 - **HOI4 (ve diğer Paradox / native-OpenGL oyunları):** Steam → Özellikler → Uyumluluk →
@@ -185,7 +456,15 @@ Proton-CachyOS + `GR_HEAP=1` dene — en güncel dxvk/vkd3d + VK_EXT_descriptor_
   GL context kompozisyona hiç düşmüyor → pencere kalıcı beyaz, ne uygulama logu ne Crashpad
   raporu var (sessiz kompozisyon hatası — asıl oyunun kendi log/crash altyapısı bu yüzden
   ipucu vermiyordu). HOI4 launch options: `LIBGL_ALWAYS_SOFTWARE=1 %command%` düzeltiyor
-  (Mesa'nın GL/GLX yolunu yazılığa zorlar). **Güvenli:** oyunun kendisi D3D11→DXVK→Vulkan
+  (Mesa'nın GL/GLX yolunu yazılığa zorlar).
+  **DİKKAT — 2 Eyl 2026:** yeni gamerun `__GLX_VENDOR_LIBRARY_NAME=nvidia`'yı
+  varsayılan verdiği için `LIBGL_ALWAYS_SOFTWARE=1` **gamerun'ın içinde no-op olur**
+  (o bir Mesa değişkeni; NVIDIA GLX satıcısını ilgilendirmez — ölçüldü, `glxinfo -B`
+  hâlâ RTX 5060 diyor). gamerun'la birlikte kullanılacaksa satıcıyı da geri çevir:
+  `__GLX_VENDOR_LIBRARY_NAME=mesa LIBGL_ALWAYS_SOFTWARE=1 GR_PIN=big gamerun %command%`
+  (ölçüldü → `llvmpipe`). Oyunun kendisi Vulkan koştuğu için bu yalnız launcher'ın
+  küçük GL arayüzünü etkiler.
+  **Güvenli:** oyunun kendisi D3D11→DXVK→Vulkan
   koşuyor (prefix'te taze `.dxvk.bin`/`.dxvk.lut` cache doğrulandı) — Vulkan bu env'den
   etkilenmez, yalnız launcher'ın küçük arayüzü CPU'da render olur (önemsiz maliyet). Aynı
   belirti başka Proton/Electron launcher'da (Epic, GOG Galaxy vb.) görülürse ilk şüpheli
@@ -231,11 +510,14 @@ Steam zincirinin native-Java karşılığı — Prism her instance'ı **Wrapper 
 Prism Launcher (iGPU'da açılır)
   └─ WrapperCommand=mc-run → __GL_THREADED_OPTIMIZATIONS=0 export → exec gamerun
        └─ gamerun java -Xmx8192m <G1 bayrakları> ...
-            ├─ dGPU PRIME offload (RTX 5060) — MC OpenGL, GLX vendor=nvidia yeterli
-            ├─ DLSS/Reflex/ntsync env'leri native Java'da ETKİSİZ (zararsız)
-            └─ exec gamemoderun → renice -20 + game-perf.service
+            ├─ dGPU PRIME offload (RTX 5060) — MC OpenGL, GLX vendor=nvidia ŞART
+            │  (2 Eyl 2026'ya kadar __GLX_VENDOR_LIBRARY_NAME opt-in'in arkasındaydı →
+            │   "NVIDIA'ya offload et" deniyor ama GLX hâlâ mesa'ya gidiyordu; MC gibi
+            │   OpenGL oyunları tam bundan etkilenir. Artık varsayılan.)
+            ├─ taskset -c 0-15 (Zen5c masaüstü maskesini del)
+            └─ systemctl start game-perf.service   ← DOĞRUDAN (gamemode yok, 2 Eyl 2026)
                  └─ scx_lavd + AC'deyse 0xED profil 2 + turbo fan + PPD balanced
-                    (Steam'dekiyle aynı; GR_CPUMAX ile performance)
+                    (Steam'dekiyle aynı; GR_CPUMAX=1 ile performance)
 ```
 
 **FPS düzeltmesi — `__GL_THREADED_OPTIMIZATIONS=0` (17 Tem 2026):** NVIDIA sürücüsü
@@ -310,22 +592,30 @@ gamescope `--mangoapp` coredump) → DXVK/VKD3D iletişimini sadeleştirmek içi
 
 | Özellik | Destek | Nasıl |
 |---|---|---|
-| DLSS SR (2. nesil transformer) | ✔ tüm RTX | `gamerun` varsayılan (SR override açık) |
-| DLSS Ray Reconstruction | ✔ | `gamerun` varsayılan (RR override açık) |
-| DLSS render preset (en yeni) | ✔ | opt-in: `GR_PRESET=latest` (varsayılan: sürücü/oyun) |
-| DLSS Frame Generation | ✔ (oyun desteği şart) | opt-in: `GR_FG=1` (ya da GR_MFG/GR_DYNFG); oyun menüsünden de aç |
-| Multi Frame Gen 2x–6x | ✔ RTX 50'ye özel | `GR_MFG=2..6` (FG override'ı da açar) |
-| Dynamic MFG (hedef FPS) | ✔ RTX 50'ye özel | `GR_DYNFG=165` |
-| Reflex (VK_NV_low_latency2) | ✔ | `gamerun` varsayılan (`DXVK_NVAPI_VKREFLEX=1`) |
-| ntsync (Proton NT senkron) | ✔ | opt-in: `GR_NTSYNC=1` (varsayılan: Proton karar verir) |
-| Smooth Motion (sürücü framegen) | ✔ RTX 50 | `GR_SMOOTH=1` — yalnız FG'siz oyunlarda |
+**GÜNCELLENDİ 2 Eyl 2026** — bu satırların hiçbiri artık `gamerun` varsayılanı
+değil. Hepsi oyun-başına launch options'a yazılır (yukarıdaki "Oyuna özgü
+env'ler" tablosu); gamerun onlara dokunmaz, dolayısıyla ezmez.
+
+| Özellik | Destek | Nasıl |
+|---|---|---|
+| DLSS SR (2. nesil transformer) | ✔ tüm RTX | `DXVK_NVAPI_DRS_NGX_DLSS_SR_OVERRIDE=on` (ya da oyun menüsü) |
+| DLSS Ray Reconstruction | ✔ | `DXVK_NVAPI_DRS_NGX_DLSS_RR_OVERRIDE=on` |
+| DLSS render preset (en yeni) | ✔ | `DXVK_NVAPI_DRS_NGX_DLSS_SR_OVERRIDE_RENDER_PRESET_SELECTION=render_preset_latest` |
+| DLSS Frame Generation | ✔ (oyun desteği şart) | `DXVK_NVAPI_DRS_NGX_DLSS_FG_OVERRIDE=on`; oyun menüsünden de aç |
+| Multi Frame Gen 2x–6x | ✔ RTX 50'ye özel | `DXVK_NVAPI_DRS_NGX_DLSSG_MODE=on` + `..._MULTI_FRAME_COUNT=<N-1>` |
+| Dynamic MFG (hedef FPS) | ✔ RTX 50'ye özel | `DXVK_NVAPI_DRS_NGX_DLSSG_MODE=dynamic` + `..._DYNAMIC_TARGET_FRAME_RATE=165` |
+| Reflex (VK_NV_low_latency2) | ✔ | **hiçbir şey yazma** — sürücü uzantıyı yerlisinden veriyor (`vulkaninfo`: revision 2). `DXVK_NVAPI_VKREFLEX=1` YAZMA: o, eski rev-1 uyumluluk KATMANINI açar ve donmalara sebep oldu |
+| ntsync (Proton NT senkron) | ✔ | `PROTON_USE_NTSYNC=1` / `=0` (varsayılan: Proton karar verir) |
+| Smooth Motion (sürücü framegen) | ✔ RTX 50 | `NVPRESENT_ENABLE_SMOOTH_MOTION=1` — yalnız FG'siz oyunlarda |
 | NGX güncelleyici (DLL OTA) | ✔ | `PROTON_ENABLE_NGX_UPDATER=1` → prefix `ProgramData/NVIDIA/NGX/` |
 
 **Kurallar:**
 - **Smooth Motion ile oyun-içi FG/MFG asla birlikte kullanılmaz** (resmî uyarı:
-  artefakt + daha düşük performans). `gamerun` bunu zorlar: ikisi birden verilirse
-  Smooth Motion'ı yok sayıp uyarı basar.
-- FG/MFG yalnız DLSS-FG içeren oyunlarda çalışır; içermeyenlerde `GR_SMOOTH=1`.
+  artefakt + daha düşük performans). Eskiden `gamerun` bunu zorluyordu; artık
+  **zorlayan yok** — ikisini aynı launch options'a yazmamak sende.
+- FG/MFG yalnız DLSS-FG içeren oyunlarda çalışır; içermeyenlerde Smooth Motion.
+- DLSS override'ları **OptiScaler ile çakışır** (ikisi de aynı NGX/nvapi
+  katmanına oynar) — OptiScaler kullanan oyunda DLSS satırlarını yazma.
 - Frame gen çıktısı VRR ile en iyi sonucu verir (AC'de otomatik açık).
 
 ## 860M (iGPU) FSR4 durumu — 30 Tem 2026 araştırması
@@ -382,7 +672,11 @@ oynanabilir kılar) tutarlı.
 **Sonuç:** Bu donanım/yazılım yığınında (RDNA 3.5 iGPU + OptiScaler + Linux) FG şu an
 güvenilir değil — daha fazla ini ayarı denemek yerine yalnız upscale ile kalınıyor.
 
-## Düşük gecikme kare tempolama — `GR_LL=1` (31 Tem 2026)
+## Düşük gecikme kare tempolama (31 Tem 2026 · anahtar değişti 2 Eyl 2026)
+
+> **2 Eyl 2026:** `GR_LL=1` takma adı kaldırıldı. Artık üç env doğrudan yazılır:
+> `PROTON_DXVK_LOWLATENCY=1 PROTON_VKD3D_LOWLATENCY=1 DXVK_FRAME_PACE=low-latency-vrr-165 gamerun %command%`
+> Aşağıdaki metin aynen geçerli; yalnız `GR_LL=1` yerine bu üçlüyü oku.
 
 Proton-CachyOS **11.0-20260703** (bizim pinlediğimiz sürüm, 22 Tem 2026'da yayınlandı)
 netborg-afps'in iki eklentisini getirdi. Store'daki `version` dosyalarından
@@ -396,28 +690,28 @@ files/lib/wine/vkd3d-proton/version      vkd3d-proton (vkd3d-1.1-5438)
 ```
 
 **GE-Proton11-1'de bu env'lerin ikisi de YOK** (`grep PROTON_.*LOWLATENCY proton` boş
-döner) → Steam'de o oyuna **Proton-CachyOS seçilmezse `GR_LL=1` sessizce no-op**.
+döner) → Steam'de o oyuna **Proton-CachyOS seçilmezse bu env'ler sessizce no-op**.
 
 **Ne yapıyor:** NVIDIA Reflex API'sini çeviri katmanının *içinde* uyguluyor —
 `VK_NV_low_latency2`'ye dönüştürmeden. Ayrıca Waitable DXGI Swapchain ile kare
-tempoluyor. `gamerun` `DXVK_FRAME_PACE=low-latency-vrr-165` seçiyor: bu mod v-blank'i
+tempoluyor. `DXVK_FRAME_PACE=low-latency-vrr-165` seçilir: bu mod v-blank'i
 hesaba katıp fazladan v-sync tamponlama gecikmesini kesiyor. Bu makinede uyum tam —
-165 Hz panel + Hyprland `misc.vrr = 2` (tam ekranda VRR açık) + `gamerun`'ın tam ekran
-varsayılanı. Başka hedef istenirse `:-` deseniyle ezilir:
-`DXVK_FRAME_PACE=low-latency-vrr-120 GR_LL=1 gamerun %command%`.
+165 Hz panel + Hyprland `misc.vrr = 2` (tam ekranda VRR açık) + oyunların tam ekran
+varsayılanı. Başka hedef istenirse doğrudan değiştir:
+`DXVK_FRAME_PACE=low-latency-vrr-120 PROTON_DXVK_LOWLATENCY=1 gamerun %command%`.
 
 **Neden varsayılan DEĞİL de opt-in (üstakım README'sindeki sınırlar):**
 
 | Sınır | Sonuç |
 |---|---|
-| Frame Generation **desteklenmiyor** | `GR_MFG`/`GR_DYNFG` ile birleşmez — `gamerun` uyarıp GR_LL'i yok sayar |
+| Frame Generation **desteklenmiyor** | DLSSG (FG/MFG) env'leriyle birleşmez. **Eskiden `gamerun` uyarıp yok sayardı; artık zorlayan yok** — ikisini aynı satıra yazma |
 | Oyun Reflex marker'ı (Simulation Start + Present Begin) göndermeli, ya da Waitable Swapchain kullanmalı | Desteklemeyen oyunda **hiçbir etkisi yok** |
 | Kareler `dxgi.present()` öncesi CPU'da örtüşmüyor | CPU-bound sahnede **tavan FPS düşebilir** |
 | D3D12 tarafı "initial-release" | VRR pacing modu D3D12'de henüz yok (planlı) |
 | Intel GPU / AMD Anti-Lag 2 | Desteklenmiyor — bizde ilgisiz (NVIDIA offload) |
 
 **Ölçüm nasıl yapılır:** FPS değil **gecikme** ölçülmeli — bu bir FPS özelliği değil.
-Aynı sahnede `GR_LL=1` ile ve olmadan input→ekran hissini karşılaştır; `nvidia-smi dmon`
+Aynı sahnede bu env'lerle ve onlarsız input→ekran hissini karşılaştır; `nvidia-smi dmon`
 ile GPU kullanımının düşmediğini teyit et (düşüyorsa CPU-bound sınırına takıldın demektir,
 o oyunda kapat).
 
@@ -512,16 +806,24 @@ değerlendirilebilir — şu an öneri, karar kullanıcıda.
 
 ```bash
 # Kurulum sonrası (bir kez):
-gamemoded -t                      # gamemode öz-testi (Wayland'de gpu testi uyarısı normaldir)
-groups                            # "gamemode" görünmeli (yoksa re-login)
 ls -l /dev/ntsync                 # crw-rw-rw-
 swapon --show                     # zram0 prio 5 + nvme prio -1
 sysctl vm.max_map_count           # 2147483642
 hyprctl getoption misc:vrr                            # int: 2
 
+# gamerun'ı Steam'siz, 5 saniyede sına (2 Eyl 2026 — her şey bunun üstünde duruyor):
+gamerun                            # rc=2 + "%command% EKSİK" uyarısı
+gamerun sh -c 'grep Cpus_allowed_list /proc/self/status'   # 0-15 (maske delindi)
+gamerun sh -c 'env | grep ^__NV'   # PRIME offload üçlüsü
+gamerun sleep 5 &                  # koşarken: aşağıdaki "oyun sırasında" bloğu
+                                   # bitince: game-perf inactive + fan_mode 1'e döner
+GR_NOPERF=1 gamerun <oyun>         # arıza ikilemesi: perf zinciri olmadan aç
+
 # gamerun artık Steam'in kum havuzunda bulunuyor mu (10 Ağu 2026 düzeltmesi):
 rg 'command not found' ~/.local/share/Steam/logs/console-linux.txt | tail   # yeni satır OLMAMALI
-taskset -pc <oyun pid>                                                     # 0-15 (GR_PIN yoksa)
+rg 'gamerun: başlıyor' ~/.local/share/Steam/logs/console-linux.txt | tail   # 2 Eyl'den sonra HER launch'ta OLMALI
+rg 'gamemodeauto: dlopen failed' ~/steam-*.log | tail                       # yeni satır OLMAMALI (gamemode zincirden çıktı)
+taskset -pc <oyun pid>                                                      # 0-15 (GR_PIN yoksa)
 
 # Oyun sırasında (AC'de):
 cat /sys/kernel/sched_ext/state /sys/kernel/sched_ext/root/ops   # enabled + scx_lavd
@@ -542,9 +844,9 @@ cat /sys/devices/system/cpu/cpufreq/policy0/scaling_governor     # PPD yönetimi
 
 ## Bilinen sınırlar
 
-- `GR_WL=1` (Proton Wayland) Steam Overlay ve Steam Input'u bozar — yalnız test için.
+- `PROTON_ENABLE_WAYLAND=1` (Proton Wayland) Steam Overlay ve Steam Input'u bozar — yalnız test için.
 - ntsync artık varsayılanda zorlanmıyor (Proton/GE kendi per-game blocklist'iyle
-  karar verir); bir oyunda faydası varsa `GR_NTSYNC=1`, sorun çıkarırsa `GR_NTSYNC=0`.
+  karar verir); bir oyunda faydası varsa `PROTON_USE_NTSYNC=1`, sorun çıkarırsa `=0`.
 - NVIDIA sürücü `nvidiaPackages.latest` (`system/drivers/gpu.nix`; şu an 610.43.03) —
   `nix flake update` nixpkgs'i tazeleyince sürücü de oynayabilir. Belirli sürüme geri
   pinlemek: `mkDriver { version + hash }` (Dynamic Boost gerekçesi gpu.nix'te).
@@ -555,9 +857,13 @@ cat /sys/devices/system/cpu/cpufreq/policy0/scaling_governor     # PPD yönetimi
   `allow_tearing` doğrudan mevcut, ama şu an set edilmiyor. Test edilmedi;
   düşük gecikme öncelikli bir başlıkta gerekirse Hyprland pencere kuralına
   `immediate` eklenmesi denenebilir.
-- Renice (-20) ilk kurulumdan sonra **re-login** ister (gamemode grubu).
+- **Renice (-20) artık UYGULANMIYOR** (2 Eyl 2026): gamemode zincirden çıktı.
+  Steam yolunda zaten hiç uygulanmamıştı. Gecikme kolu scx_lavd `--performance`.
 - gamescope + MangoHud KALDIRILDI (22 Tem 2026): gamescope bu hibritte çöküyordu, MangoHud
   fazladan bir Vulkan katmanıydı. Ölçüm dış araçla (nvtop/nvidia-smi).
+  **Aynı gerekçe 2 Eyl 2026'da `DXVK_NVAPI_VKREFLEX` katmanını da düşürdü** —
+  "araya katman koyma" bu makinede tekrar eden bir arıza sınıfı, tek seferlik
+  bir olay değil. Yeni bir Vulkan katmanı eklemeden önce bu iki vakayı oku.
 
 ## Faz E — Deneysel EC kolları (0xED, 0xF1–F3) · KOŞU BAŞINA ONAY
 

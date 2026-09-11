@@ -1,5 +1,14 @@
 # AERO X16 1VH — güvenli manuel test planı (sürücü bulgu doğrulama)
 
+> **DURUM (12 Eyl 2026): AMACINA ULAŞTI, ARTIK TARİHÎ.** Bu plan
+> `Documentation/upstream/gigabyte-wmi-report.md`'nin iddialarını doğrulamak için
+> yazıldı; rapor 16 Ağu 2026'da **upstream'e kabul edildi**. Ayrıca 7 Eyl 2026'da
+> `aorus-laptop` tamamen bırakıldı (yerine kendi sürücümüz `aero_eg61h`), yani
+> buradaki adımlar bu makinede artık koşturulamaz — sürücü yüklü değil.
+> Korunma gerekçesi: **yöntem** öğretici (salt-okuma/yazma ayrımı, tek seferde tek
+> değişken, her adımda sysfs'ten geri okuma). Yeni bir EC deneyi tasarlarken
+> şablon olarak kullan, adımları birebir değil.
+
 Amaç: `Documentation/upstream/gigabyte-wmi-report.md` (issue #22 yorumu) yayınlanmadan önce,
 pinlenen sürücü kaynağıyla (`912b4e9`) **çelişen** iki iddiayı canlı makinede
 doğrulamak: (1) RPM byte-swap zaten `convert_fan_rpm` ile düzeltilmiş mi, (2) sürücü bu

@@ -1,8 +1,8 @@
 # nixos-zixar
 
 Tek makine için flake tabanlı NixOS yapılandırması: **Gigabyte AERO X16 (EG61H)**.
-Tek kullanıcı (`zixar`), tek host (`nixos`), tek oturum (Hyprland).
-Yorumlar ve commit mesajları Türkçe.
+Tek kullanıcı (`zixar`), tek host (`nixos`). Masaüstü: COSMIC (varsayılan) +
+KDE Plasma (ikinci oturum). Yorumlar ve commit mesajları Türkçe.
 
 | Nereye bakmalı | Dosya |
 |---|---|
@@ -53,49 +53,53 @@ değil; `kernel/`, `desktop/`). Sözlük Linux çekirdeğinden alınma.
 ├── hardware-configuration.nix üretilmiş — elle düzenleme
 ├── default.nix                `nix repl ./` kapısı (rebuild yolu DEĞİL)
 ├── MAINTAINERS                konu → dosya haritası
-├── CLAUDE.md                  mimari + kurallar (ajan ve insan için)
+├── CLAUDE.md                  kurallar + tuzaklar (Claude için)
+├── AGENTS.md                  codex / GitHub Copilot için — ayrı dosya
 │
 ├── system/                    ── NixOS modülleri: makinenin tesisatı ──
 │   ├── arch/aerox16/          YALNIZ bu donanımda anlamlı (EC/WMI, DSDT).
 │   │                          Makine değişirse ilk silinecek dizin burası.
 │   ├── drivers/               gpu, input/keyboard-rgb
-│   ├── kernel/                power, power-display, sched, cores (Zen5/Zen5c)
+│   ├── kernel/                power, power-display, sched, cores (Zen5/Zen5c),
+│   │                          ryzen-smu
 │   ├── init/                  limine, locale
 │   ├── net/                   core, censorship (zapret DPI bypass + DoH),
-│   │                          vpn (Mullvad, kapalı), localsend,
-│   │                          geoclue (konum — tüketicisi yok)
-│   ├── security/              users, keyring, onepassword
-│   ├── desktop/               session, login (ly), theme (stylix)
-│   │                          serpantinum.nix (deneysel karantinalı ikinci oturum)
+│   │                          vpn (Mullvad, kapalı), localsend, geoclue
+│   ├── security/              users, keyring, askpass, onepassword
+│   ├── desktop/               login (COSMIC greeter), cosmic (varsayılan oturum),
+│   │                          plasma (ikinci oturum), theme (Stylix),
+│   │                          mux (dGPU-only bayrağı, varsayılan KAPALI)
 │   ├── sound.nix
 │   └── virt.nix
 │
 ├── usr/                       ── sistem geneli kurulan programlar ──
-│                              steam, netflix, firefox, local-ai
+│                              steam, netflix, github-copilot, aero-eg61h
 │
 ├── home/                      ── Home Manager modülleri ──
-│   ├── desktop/               Hyprland oturumu: wm/ (Lua) + caelestia/ (kabuk: bar/
-│   │                          launcher/bildirim/kilit/idle/tema motoru, tek modül)
-│   │                          + serpantinum/ (deneysel karantinalı ikinci oturum)
 │   ├── shell/                 fish, starship, ghostty, tmux
-│   └── apps/                  kullanıcı uygulamaları
+│   └── apps/                  zen, helium, vesktop, media, games, minecraft,
+│                              emu, opencode, downloads
 │
 ├── lib/                       ── İKİ katmanın da paylaştığı saf veri ──
-│                              theme.nix, schemes/, wallpapers/, gamerun.nix
+│                              theme.nix, theme-standalone.nix, schemes/,
+│                              wallpapers/, gamerun.nix
 │
 ├── Documentation/             ── yaşayan lab defterleri ──
-│   ├── aerox16/               wmi-ec, power, cpu-hybrid, keyboard-rgb, undervolt, test-plan
-│   ├── desktop.md  gaming.md  1password.md
+│   ├── aerox16/               wmi-ec, power, cpu-hybrid, keyboard-rgb,
+│   │                          undervolt, test-plan
+│   ├── desktop.md (COSMIC+Plasma)  gaming.md  1password.md
 │   ├── upstream/              üstakıma gönderilecek raporlar
 │   └── archive/               DONMUŞ — yolları ve durumları kasıtlı eski
 │
-└── scripts/                   power-audit.sh
+└── scripts/                   verify-context.sh (kapı), power-audit.sh,
+                               idle-baseline.sh, diag-game.sh, tclt-probe.sh …
 ```
 
-**Neden `lib/`:** duvar kağıtları ve base16 şemalarını hem sistem katmanı
-(Stylix) hem kullanıcı katmanı (`home/desktop/caelestia/`) okuyor. `system/`
-altında bırakılsalardı `home/` oraya `../../system/…` ile uzanacaktı.
-Çekirdekteki anlamıyla aynı: iki dalın da paylaştığı şey.
+**Neden `lib/`:** duvar kağıtlarını ve base16 şemalarını hem sistem katmanı
+(Stylix) hem kullanıcı katmanı okuyor; `gamerun` hem Steam'in FHS kabına hem
+kullanıcı PATH'ine giriyor. `system/` altında bırakılsalardı `home/` oraya
+`../../system/…` ile uzanacaktı. Çekirdekteki anlamıyla aynı: iki dalın da
+paylaştığı şey.
 
 ### Katmanı nasıl anlarsın
 
@@ -106,7 +110,7 @@ katmana birden dokunuyorsa iki dosyası olur, örneğin:
 | Konu | Sistem tarafı | Kullanıcı tarafı |
 |---|---|---|
 | Oyun | `system/kernel/sched.nix` | `home/apps/games.nix` |
-| Masaüstü | `system/desktop/session.nix` | `home/desktop/session.nix` |
+| Emülatör/oyun sarmalayıcı | `usr/steam.nix` (FHS kabı) | `home/apps/emu.nix` (PATH) |
 
 ---
 
@@ -137,6 +141,7 @@ eklenen hiçbir şey boşta koşmamalı/yoklamamalı. Tabanın nasıl ölçüld�
 pin'ini değil).
 
 ```bash
+bash scripts/verify-context.sh   # kapı: iki eval + statix + deadnix + zemin (~13 s)
 deadnix .        # beklenen: 1 bulgu (üretilmiş hardware-configuration.nix)
 statix check .   # beklenen: 0 bulgu — herhangi bir çıktı regresyondur
 ```

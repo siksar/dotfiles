@@ -1,23 +1,34 @@
-# system/desktop — session, login, theme
+# system/desktop — oturumlar, giriş ekranı, tema
 
-Loaded only when working under `system/desktop/`. The cross-cutting rules (the
-`desktop.hyprland.enable` toggle contract, Stylix as the single source of truth for
-colors) live in the root `CLAUDE.md`; the rice's HM-side gotchas are in
-`home/desktop/CLAUDE.md`; the full design doc is `Documentation/desktop.md`.
+Yalnız bu dizinde çalışırken yüklenir. Katmanlar arası kurallar kök `CLAUDE.md`'de,
+tasarım defteri `Documentation/desktop.md`'de.
 
-## Display manager: ly
+**Yerleşim:** `login.nix` COSMIC greeter'ı açar; `cosmic.nix` varsayılan oturumu,
+`plasma.nix` ikinci oturumu kurar; `theme.nix` Stylix'in NixOS tarafıdır;
+`mux.nix` dGPU-only bayrağıdır ve **varsayılan kapalıdır** (dört DRM köprüsünü
+birden çevirir).
 
-The **display manager is ly** (`login.nix`), a TUI greeter on the TTY.
-ly 1.4.1 takes 32-bit `0xSSRRGGBB` truecolor, so it's themed by feeding
-`config.lib.stylix.colors` (kanagawa-dragon) directly into
-`services.displayManager.ly.settings` (Stylix has no ly target).
-`services.displayManager.defaultSession = "hyprland-uwsm"` (`configuration.nix`)
-picks the working session entry: the `hyprland` package also installs a plain
-"Hyprland" desktop file that does **not** work here (no uwsm systemd units without
-`withUWSM = true`), and ly otherwise lists both.
+## Burada bilinmesi gereken üç şey
 
-ly now lists **three** session entries: `Hyprland` (the non-working plain entry above,
-unchanged), `Hyprland (uwsm-managed)` (the default, Caelestia — `defaultSession` still
-points here), and `Serpantinum` (`system/desktop/serpantinum.nix`, new — a quarantined
-second session, opt-in only by picking it at the greeter; see `home/desktop/CLAUDE.md`'s
-"Serpantinum — karantinalı ikinci oturum" for the quarantine boundary).
+- **Her oturumun kendi iGPU kilidi var ve sözdizimleri birbirinin tersi.**
+  Plasma `KWIN_DRM_DEVICES = "/dev/dri/kwin-igpu"` ile kendi udev symlink'ini
+  kullanır (değerde `:` olamaz); COSMIC ise `COSMIC_DRM_ALLOW_DEVICES` ile
+  `0x1002:0x1114` gibi virgülle ayrılan bir liste bekler, yani symlink'e ihtiyacı
+  yoktur. Oturumlar birbirinin dosyasına dayanmaz — biri kapatılınca diğeri
+  çalışmaya devam etsin diye. Yanlış yaparsan dGPU açık bir DRM fd'si tutar, D3cold'a
+  hiç inmez ve boşta güç 4.28 W'tan ~7 W'a çıkar.
+
+- **`defaultSession` bu dizinde değil, `configuration.nix`'te belirlenir**
+  (`= "cosmic"`, düz atama). Plasma modülü `mkDefault "plasma"` diyor; düz atama onu
+  yener. Buradaki satırı `mkDefault`'a çevirirsen greeter sessizce Plasma'ya döner.
+
+- **Karantina sınırı: "o oturumun dışında da koşuyor mu?"** Yalnız oturumun içinde
+  yaşayan şeyler (powerdevil, baloo, kded6) varsayılanında bırakılır — sen o oturumda
+  değilken bir şeye mal olmazlar. Sistem geneline sızanlar kapatılır: Plasma'nın
+  `fwupd`'ı (kalıcı `fwupd-refresh.timer` kurar, boşta-yoklama yasağına takılır),
+  COSMIC'in `avahi` ve `orca`'sı. Her dosyadaki "karantina sınırı" bloğuna bak.
+
+**`~/.config/cosmic` altına Nix'ten hiçbir şey yazma.** cosmic-config'in kullanıcı
+katmanı sistem katmanını ezer; oraya konan bir store symlink'i ayar GUI'sinin
+kaydetmesini **sessizce** bozar. COSMIC ayarları kasıtlı olarak imperatif bırakıldı:
+Stylix köprüsü ve HM modülü yok.

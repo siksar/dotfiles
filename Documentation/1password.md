@@ -44,7 +44,9 @@ bir daemon sürekli açık kalır — ölçmeden açma (`powertop`, BAT1 `curren
 - **1Password SSH agent** — ssh anahtarlarını kasada tutup git/ssh'ı ona yönlendirmek
   (`IdentityAgent ~/.1password/agent.sock`, HM tarafında `programs.ssh`).
 - **`op` ile secret enjeksiyonu** — API anahtarlarını nix store'a sızdırmadan çekmek
-  (`op run` / `op read`); `usr/local-ai.nix` için aday.
+  (`op run` / `op read`). Bugünkü aday `home/apps/opencode.nix`'in
+  `NVIDIA_API_KEY`'i — şu an `secrets/opencode.env` + kabuk login'i ile çözülüyor.
+  (Eski aday `usr/local-ai.nix` Eylül 2026'da ağaçtan çıktı.)
 - ~~**İlgisiz ama bu iş sırasında görüldü:** `usr/steam.nix`'te
   `security.pam.services.gdm-password.enableGnomeKeyring = true` duruyordu — display
   manager **ly** (2026-07-18 geçişi) ama satır hâlâ GDM'i hedefliyordu.~~ **Çözüldü**

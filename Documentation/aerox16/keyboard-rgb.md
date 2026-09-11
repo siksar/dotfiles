@@ -107,29 +107,37 @@ efektiyle üstüne yazar.
   boot'ta/oturumda AÇILMAZ. **4.28W idle bütçesi** gereği: idle'da dönen hiçbir
   şey olamaz. `ExecStopPost` firmware efektlerini iade eder, böylece Rust
   tarafında sinyal yakalamaya gerek kalmaz.
-- **Tema entegrasyonu** — Caelestia'nın tema motoru şema değişince
-  `xdg.configFile."caelestia/templates/kbd-color"` şablonunu (tek satır,
-  `{{ primary.hex }}`) işler; çıktı yolu SEÇİLEMEZ, her zaman
-  `~/.local/state/caelestia/theme/kbd-color`. Ardından
-  `cli.settings.theme.postHook` o dosyayı okuyup `kbd-rgb set <hex>` çağırır
-  (kod: `home/desktop/caelestia/default.nix`). Olay-güdümlü: yalnız tema
-  değişince tek yazma, idle maliyeti sıfır.
-  9 Ağu 2026'ya kadar bu iş matugen'in `[templates.keyboard]` + `post_hook`
-  zinciriydi (`~/.config/kbd-rgb/color`); Caelestia geçişiyle o yol öldü.
-  Matugen depoda hâlâ var ama yalnız Serpantinum oturumunun renk zincirinde —
-  klavye RGB'siyle ilgisi yok.
+- **Tema entegrasyonu — üçüncü kuşak (11 Eyl 2026).** Renk artık doğrudan
+  **Stylix paletinden** geliyor: `kbd-rgb-theme.service` (kullanıcı servisi,
+  `system.nix`) oturum açılışında bir kez `kbd-rgb set <base0D>` çağırır.
+  `wantedBy = graphical-session.target` olduğu için hem COSMIC'te hem Plasma'da
+  çalışır; `Type = oneshot` olduğu için yazdıktan sonra süreç ölür → idle
+  maliyeti sıfır. Palet `lib/theme.nix`'te değişince rebuild sonrası kendiliğinden
+  takip eder.
+
+  **Neden üç kuşak oldu — buradaki ders:** bu köprü iki kez sessizce koptu,
+  çünkü her iki kez de çağrıyı YAPAN taraf repo dışındaki bir tema motoruydu.
+  1. kuşak (–9 Ağu 2026): matugen `[templates.keyboard]` + `post_hook`.
+  2. kuşak (9 Ağu – Eyl 2026): Caelestia'nın tema motoru + `theme.postHook`.
+  3. kuşak (bugün): sahibi bu repo — Stylix değeri eval zamanında gömülü, arada
+  şablon dosyası, state dizini ya da üçüncü parti hook yok. Kopacak bir halka
+  kalmadı.
 - **Animasyon durumu 0.5 sn'de bir tazeler** — böylece animasyon dönerken
   tema rengi değiştirse ya da parlaklık bind'ına basılsa efekt canlı uyum
   sağlar; iki yazarın aynı lambayı çekiştirip titretmesi önlenir.
 
 ## Kısayollar
 
-Bind'lar Caelestia oturumunun Hyprland Lua config'inde tanımlı
-(`home/desktop/wm/binds.lua`; 31 Tem ağaç düzeninden önce `lua/binds.lua`
-idi). 30 Tem'de tek oturum kalınca burası tek yerdi, artık DEĞİL: Serpantinum
-(karantinalı ikinci oturum) kendi `keybindings.conf`'unda parlaklık bind'larını
-ayrıca taşıyor — bkz. `home/desktop/serpantinum/default.nix`'in postPatch'i.
-Rebuild olmadan da `kbd-rgb`/`kbd-anim` CLI'dan kullanılabilir.
+**DURUM (11 Eyl 2026): repoda tanımlı klavye RGB kısayolu YOK.** Bind'lar
+Hyprland'ın Lua config'inde yaşıyordu; o oturum ağaçtan çıkınca kısayollar da
+gitti. COSMIC tarafında kısayol **imperatif** tanımlanır (Ayarlar → Klavye →
+Kısayollar, komut olarak `kbd-anim breathe` ya da `kbd-rgb bright +10`) —
+`~/.config/cosmic` altına Nix'ten yazmak YASAK olduğu için burada deklaratif
+bir karşılığı olamaz; bu bilinçli bir eksiktir, unutulmuş bir madde değil.
+Her durumda `kbd-rgb`/`kbd-anim` doğrudan CLI'dan çalışır.
+
+Aşağıdaki tablo bind'ların ne yaptığını tarif eder — komut sütunu hâlâ geçerli,
+tuş sütunu tarihîdir.
 
 | Kısayol | Eylem |
 |---|---|
