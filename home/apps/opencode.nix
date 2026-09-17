@@ -9,59 +9,50 @@
 # /etc/nixos üzerinden okunuyor bilerek: /home/zixar/nixos-zixar'a taşındıktan
 # sonra da /etc/nixos kalıcı bir compat symlink olarak kalacağından bu yol her
 # iki durumda da (taşımadan önce/sonra) doğru dosyayı gösterir.
+#
+# MODEL LİSTESİ BURADA TUTULMAZ. Elle sabitlenen dört model 17 Eyl 2026'da
+# ölçüldüğünde dördü de NIM'de ölüydü (qwen3-coder-480b çağrısı HTTP 410
+# "end of life on 2026-06-11" döndürdü) — sabit liste sessizce eskiyor.
+# Katalog artık iki katmandan geliyor:
+#   1. models.dev — opencode'un kendi indirdiği metadata (limit, maliyet,
+#      tool_call/reasoning yetenekleri). NIM'i geriden takip eder.
+#   2. plugins/nvidia-nim-catalog.js — her açılışta NIM'in /v1/models'ını
+#      okuyup listeyi canlı gerçeğe kesen kanca (aşağıda).
+# Buraya bir `models` bloğu eklemek bu zinciri BOZAR: config override'ları
+# kancadan SONRA uygulanır, yani ölü bir model burada yaşamaya devam eder.
 { ... }:
 
 {
-  xdg.configFile."opencode/opencode.json".text = builtins.toJSON {
-    "$schema" = "https://opencode.ai/config.json";
-    provider = {
-      nvidia = {
+  xdg.configFile = {
+    "opencode/opencode.json".text = builtins.toJSON {
+      "$schema" = "https://opencode.ai/config.json";
+      provider.nvidia = {
         npm = "@ai-sdk/openai-compatible";
         name = "NVIDIA NIM";
         options = {
           baseURL = "https://integrate.api.nvidia.com/v1";
           apiKey = "{env:NVIDIA_API_KEY}";
         };
-        models = {
-          "qwen/qwen3-coder-480b-a35b-instruct" = {
-            name = "Qwen3 Coder 480B A35B (NIM)";
-            tool_call = true;
-            limit = {
-              context = 256000;
-              output = 32768;
-            };
-          };
-          "qwen/qwen3.5-397b-a17b" = {
-            name = "Qwen3.5 397B A17B (NIM)";
-            reasoning = true;
-            tool_call = true;
-            limit = {
-              context = 262144;
-              output = 8192;
-            };
-          };
-          "minimaxai/minimax-m3" = {
-            name = "MiniMax M3 (NIM)";
-            reasoning = true;
-            tool_call = true;
-            limit = {
-              context = 1000000;
-              output = 16384;
-            };
-          };
-          "z-ai/glm-5.2" = {
-            name = "GLM-5.2 (NIM)";
-            reasoning = true;
-            tool_call = true;
-            limit = {
-              context = 1000000;
-              output = 131072;
-            };
-          };
-        };
       };
+      # Eski öntanımlı (qwen3-coder-480b) 11 Haz 2026'da EOL oldu, çağrısı
+      # HTTP 410 döndürüyor. Yerine geçen 17 Eyl 2026'da ÖLÇÜLEREK seçildi:
+      # araç tanımı gönderilen /chat/completions çağrısına 1,1 s'de 200 + "PONG".
+      # Aynı turda kimi-k3, glm-5.3, glm-5.3-flash ve deepseek-v4-flash 60-120 s
+      # içinde hiç yanıt vermedi (ücretsiz katmanda kuyruk), kimi-k2.6 ise
+      # /v1/models'da görünmesine rağmen 404 — yani canlı liste "çağrılabilir"in
+      # üst sınırı, garantisi değil. Model değiştirmek bu tek satırlık iş;
+      # seçenekleri `opencode models | grep '^nvidia/'` listeler.
+      model = "nvidia/nvidia/nemotron-3-super-120b-a12b";
     };
-    model = "nvidia/qwen/qwen3-coder-480b-a35b-instruct";
+
+    # Dizin adı ÇOĞUL. opencode 1.18.29 yalnız ~/.config/opencode/plugins/
+    # altını tarar; belgelerin bir yerinde geçen tekil "plugin/" yüklenmiyor.
+    # 17 Eyl 2026'da ölçüldü: tekil dizinde `opencode models` 103 nvidia modeli
+    # sayıyor (yani kanca hiç koşmamış), çoğulda 62 (canlı NIM listesi).
+    # `.text = readFile` bilinçli: içerik eval anında gömülür, store kopyası
+    # olmadığı için kaynak dosya serbestçe yeniden adlandırılabilir
+    # (CLAUDE.md sert kural 2 — `${./x}` olsaydı ad kilitlenirdi).
+    "opencode/plugins/nvidia-nim-catalog.js".text = builtins.readFile ./opencode-nim-catalog.js;
   };
 
   # secrets/opencode.env yoksa (ör. taze clone) sessizce atlanır.

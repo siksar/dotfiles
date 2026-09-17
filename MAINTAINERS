@@ -557,6 +557,10 @@ W:	Runtime'da yazılan HM config'leri (vesktop settings.json) "mutable-copy
 N:	opencode = terminal AI ajanı. API anahtarı bu ağaca YAZILMAZ: nix store
 	dünyaya okunabilir olduğundan sır secrets/opencode.env'de (gitignore'lu)
 	durur, opencode.json {env:NVIDIA_API_KEY} ile runtime'da okur.
+N:	opencode model listesi ELLE TUTULMAZ: home/apps/opencode-nim-catalog.js
+	(→ ~/.config/opencode/plugins/, dizin adı ÇOĞUL) her açılışta NIM'in
+	/v1/models'ını okur. opencode.json'a `models` bloğu eklemek bu zinciri
+	bozar — config override'ları kancadan SONRA uygulanır, ölü model yaşar.
 
 TARAYICILAR
 S:	Maintained
