@@ -30,6 +30,11 @@ let
       [ "#!/usr/bin/env perl" ] [ "#!${pkgs.perl}/bin/perl" ]
       (builtins.readFile ./fn-bridge.pl)
   );
+
+  # Aydınlatma tuşları (0xFF02'nin "tür 1" kanalı) kbd-rgb'yi çağıracak. Aynı
+  # türetme keyboard-rgb/system.nix'te de callPackage ile alınıyor — Nix aynı
+  # girdilerden aynı store yolunu üretir, ikinci bir kopya çıkmaz.
+  kbd-rgb = pkgs.callPackage ../../drivers/input/keyboard-rgb/package.nix { };
 in
 {
   environment.systemPackages = [ fn-bridge ];
@@ -56,8 +61,15 @@ in
             pkgs.systemd # systemctl
             pkgs.coreutils # env
             pkgs.procps # pgrep — GNOME oturumu tespiti
+            kbd-rgb # aydınlatma tuşları (%MAP1 dolunca kullanılır)
           ]
         }"
+        # Köprü ROOT koşuyor, ama kbd-rgb'nin durum dosyası $HOME'a bağlı
+        # (main.rs state_file()). Sabitlenmezse root kendi /root/.local/state'ine
+        # yazar ve kullanıcının gerçek renk/parlaklık durumundan KOPAR — iki ayrı
+        # "gerçek" oluşur, Fn ile yapılan değişikliği ne GUI ne tema servisi görür.
+        # ExecStart'taki `--user zixar` ile aynı sabit (tek kullanıcılı makine).
+        "XDG_STATE_HOME=/home/zixar/.local/state"
       ];
     };
     startLimitBurst = 3;

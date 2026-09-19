@@ -42,6 +42,23 @@ my %MAP = (
 	0x81 => [530, 'KEY_TOUCHPAD_TOGGLE', 'Fn+F9 touchpad kilidi',      \&act_touchpad, 1],
 );
 
+# İKİNCİ ALT-PROTOKOL — 19 Eyl 2026'da CANLI journal'dan bulundu.
+# Klavye 0xFF02'de İKİ ayrı rapor biçimi gönderiyor ve İKİNCİ BAYT hangisi
+# olduğunu söylüyor:
+#     04 00 00 <kod>    tür 0 → kod 4. baytta   (yukarıdaki %MAP: Fn+F4/F7/F9)
+#     04 01 <kod> 00    tür 1 → kod 3. baytta   (bu tablo)
+# Köprü eskiden kodu KOŞULSUZ $b[3]'ten okuyordu; tür 1'in bütün raporları bu
+# yüzden "0x00" diye loglandı, hiçbiri eşleşmedi ve kanalın varlığı iki ay
+# görülmedi. Journal kanıtı (aero-fn-bridge.service, PID 867):
+#     Eyl 19 16:29:47.011  EŞLENMEMİŞ 0xFF02 kodu: 0x00  (04 01 20 00)
+#     Eyl 19 16:29:47.315  EŞLENMEMİŞ 0xFF02 kodu: 0x00  (04 01 00 00)
+# Görülen tür 1 kodları: 0x00, 0x18, 0x20, 0x32. Basışlar klavye aydınlatma
+# tuşlarıyla zaman içinde örtüştü, AMA hangi kodun hangi tuş/seviye olduğu
+# HENÜZ ÖLÇÜLMEDİ — bu yüzden tablo bilinçli olarak BOŞ.
+# Ölçüm protokolü: Documentation/aerox16/fn-keys.md "tür 1 kanalı".
+my %MAP1 = (
+);
+
 # Mikrofon: ses sunucusu KULLANICI oturumunda, köprü root'ta → oturuma in.
 sub act_mic {
 	my $env = "runuser -u $USER -- env XDG_RUNTIME_DIR=/run/user/" . (getpwnam($USER) // 1000);
@@ -133,17 +150,23 @@ while (1) {
 	my $got = sysread($hid, $buf, 64) or next;
 	my @b = unpack('C*', substr($buf, 0, $got));
 	next unless @b >= 4 && $b[0] == 4;
-	my $code = $b[3];
+	# Kodun HANGİ BAYTTA olduğunu ikinci bayt söyler (bkz. %MAP1 notu):
+	#   tür 0 → "04 00 00 <kod>",  tür 1 → "04 01 <kod> 00".
+	my ($tur, $code) = $b[1] == 1 ? (1, $b[2]) : (0, $b[3]);
+	# Debounce anahtarı TÜRÜ de taşımak zorunda: iki tablonun kod uzayları
+	# ayrı ve ikisinde de 0x00 görülebiliyor — tek anahtar olsaydı bir türün
+	# basışı diğerininkini 250 ms boyunca yutardı.
+	my $anahtar = "$tur:$code";
 	my $now  = now();
-	if (($last{$code} // 0) + $DEBOUNCE > $now) {
-		print "  yok sayıldı (debounce): 0x" . sprintf('%02X', $code) . "\n" if $DEBUG;
+	if (($last{$anahtar} // 0) + $DEBOUNCE > $now) {
+		printf("  yok sayıldı (debounce): tür%d 0x%02X\n", $tur, $code) if $DEBUG;
 		next;
 	}
-	$last{$code} = $now;
-	my $m = $MAP{$code};
+	$last{$anahtar} = $now;
+	my $m = $tur == 1 ? $MAP1{$code} : $MAP{$code};
 	if (!$m) {
-		printf("EŞLENMEMİŞ 0xFF02 kodu: 0x%02X  (%s) — fn-keys.md'ye ekle\n",
-			$code, join(' ', map { sprintf('%02X', $_) } @b));
+		printf("EŞLENMEMİŞ 0xFF02 kodu: tür%d 0x%02X  (%s) — fn-keys.md'ye ekle\n",
+			$tur, $code, join(' ', map { sprintf('%02X', $_) } @b));
 		next;
 	}
 	emit(EV_KEY, $m->[0], 1); emit(EV_SYN, 0, 0);
