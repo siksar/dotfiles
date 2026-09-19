@@ -7,6 +7,12 @@ yüzden renk kontrolü, bu repodaki fan/güç işlerinin aksine, DSDT kazısı y
 EC tahmini gerektirmiyor — yayımlanmış bir spesifikasyon var ve firmware onu
 eksiksiz implemente etmiş.
 
+**Ama LampArray tek yol değil ve en yetenekli yol da değil.** Klavye ayrıca
+Gigabyte'ın satıcı protokolünü konuşuyor (`0xFF01`, `/dev/hidraw8`) ve orada
+**per-key renk + 13 donanım modu** var. LampArray tek bölge sunar, satıcı kanalı
+tuş başına. İkisi de bugün kullanımda: `kbd-rgb` LampArray'de, OpenRGB satıcı
+kanalında. Ayrıntı: "Satıcı protokolü (0xFF01)" bölümü.
+
 ## Neden WMI/EC değil
 
 İlk aday `Documentation/aerox16/wmi-ec.md`'de zaten haritalanmış olan WMBD `0xF6`
@@ -27,6 +33,12 @@ eksiksiz implemente etmiş.
 Hazır araç durumu da elverişsizdi: OpenRGB bu nesil Gigabyte klavyelerini
 desteklemiyor, `paul-ridgway/aero-keyboard` eski Aero 15 HID protokolü.
 
+> **DÜZELTME (19 Eyl 2026):** OpenRGB cümlesi YANLIŞTI. OpenRGB bu protokolü
+> biliyordu; yalnız PID listesinde bizimki yoktu. Tek satırlık bir yamayla
+> klavye per-key ve 13 donanım moduyla görünür hâle geldi —
+> "Satıcı protokolü (0xFF01)" bölümüne bak. 2026-07 taraması muhtemelen
+> yalnız PID eşleşmesine bakıp protokol ailesini kontrol etmedi.
+
 ## Cihaz profili (ölçülen)
 
 USB `0414:8104` ("GIGABYTE USB-HID Keyboard"), 5 arayüz. `.0009` arayüzü
@@ -39,7 +51,7 @@ Diğer arayüzler: `.0006` ve `.0008` satıcı tanımlı 64-baytlık boru
 
 | Alan | Değer | Yorum |
 |---|---|---|
-| `LampCount` | **1** | Tek bölge → tuş-başına efekt İMKÂNSIZ |
+| `LampCount` | **1** | LampArray'de tek bölge. ⚠️ CİHAZ için değil: satıcı kanalı per-key sürüyor (19 Eyl 2026) |
 | Sınırlayıcı kutu | 12000 × 16000 × 2000 µm | **YANLIŞ** (1.2 × 1.6 cm) |
 | `LampArrayKind` | 6 = Notification | **YANLIŞ** (1 = Keyboard olmalıydı) |
 | `MinUpdateInterval` | 100 µs | 60 FPS animasyona fazlasıyla yeter |
@@ -63,6 +75,79 @@ cihazda metadata'ya değil ölçüme güven.
 işlevsiz. Parlaklık ancak RGB değerlerini ölçekleyerek yapılabilir
 (`(255,0,0)` → `(64,0,0)`). Araç bu yüzden "temel renk + yüzde" durumu tutar;
 yoksa parlaklığı düşürmek rengi geri döndürülemez biçimde kaybettirirdi.
+
+## Satıcı protokolü (0xFF01) — gerçek yetenek BURADA (19 Eyl 2026)
+
+⚠️ **Bu bölüm yukarıdaki LampArray hükümlerini SINIRLANDIRIR.** Aşağıdaki
+"LampCount=1 → tuş-başına efekt İMKÂNSIZ" satırı **LampArray için** doğru, ama
+**cihaz için yanlış**. Klavyenin asıl yetenekleri satıcı kanalında duruyor.
+
+### Nasıl bulundu
+
+OpenRGB'nin `GigabyteAorusLaptopController`'ı bu protokolü zaten biliyordu;
+yalnız desteklenen PID listesi bizimkini içermiyordu (`7A3F`/`7A42`/`7A43`/`7A44`
+= Aorus 17X ve 15BKF; bizimki `8104`). Protokolün bizde de geçerli olduğu
+ölçümle saptandı:
+
+| OpenRGB detector | Bizim klavye |
+|---|---|
+| arayüz 3, usage page `0xFF01`, usage `0x01` | input3 = `0xFF01`, usage `0x01` |
+| 8 baytlık feature report, Report ID YOK | descriptor `95 08 b1 02`, unnumbered |
+| parlaklık `0x00`..`0x32` | Fn+Space ölçümü: `0x00, 0x18, 0x20, 0x32` |
+
+Üçüncü satır belirleyici: Fn+Space'in bildirdiği değerler tam olarak bu
+protokolün parlaklık ölçeği ve `0x32` onun tavanı (`fn-keys.md`, tür 1 kanalı).
+
+### Ölçülen yetenek
+
+`system/drivers/input/openrgb.nix` PID'i detector'e ekliyor (tek satırlık
+`postPatch`, protokol kodu değişmiyor). Sonuç:
+
+```
+0: Gigabyte AERO X16 Keyboard
+   Location: HID: /dev/hidraw8    Serial: AP0000000003
+   Modes: Direct Static Breathing 'Rainbow Wave' 'Spectrum Cycle' Droplet
+          Spiral Reactive Marquee 'Circle Marquee' 'Rainbow Marquee' Ripple
+          Hedge Custom
+   Zones: Keyboard, 'Keyboard layout'
+   LEDs:  'Key: Escape' 'Key: F1' … 'Key: Space' …   (tüm tuşlar tek tek)
+```
+
+Seri numarası cihazdan **okundu** → iletişim çift yönlü, cihaz gerçekten cevap
+veriyor. LED listesi **per-key**.
+
+### Paket biçimi
+
+8 baytlık feature report, checksum korumalı:
+
+```
+Direct:  08 01 RR GG BB Br 00 Ch        Br = 0x00..0x32
+Mode:    08 00 M  Sp Br Cl Dr Ch        Sp = 0x01..0x09 hız
+                                        Dr = 1 sağ, 2 sol, 3 yukarı, 4 aşağı
+Ch = 0xFF - (bayt 1..7 toplamı), 8 bit
+```
+
+`Custom` modu (`0x33`) renk **ve konum** dizisi alır — özel tema bu kapıdan
+geçiyor. Mod değerleri ve ayrıntı: OpenRGB kaynağında
+`Controllers/GigabyteAorusLaptopController/`.
+
+Canlı yazma denendi (`/dev/hidraw8`'e Direct paketi): `HIDIOCSFEATURE` kabul
+etti. Perl örneği bu bölümdeki paket biçiminden birebir türetilebilir.
+
+### Açık mimari sorusu — İKİ YAZAR
+
+Şu an klavyeye iki ayrı yoldan yazılabiliyor ve **ikisi birbirinden habersiz**:
+
+| Yol | Ne sunuyor | Kim kullanıyor |
+|---|---|---|
+| LampArray (`hidraw9`) | tek bölge, 8-bit renk, AutonomousMode anahtarı | `kbd-rgb`, Stylix köprüsü |
+| Satıcı 0xFF01 (`hidraw8`) | **per-key**, 13 donanım modu, hız/yön | OpenRGB |
+
+Hangisinin kazandığı, aynı anda yazıldığında ne olduğu **ölçülmedi**. Karar
+verilmesi gereken soru: `kbd-rgb` LampArray'de mi kalsın, yoksa satıcı
+protokolüne mi taşınsın? Taşınırsa Stylix rengi per-key yeteneğiyle birleşir
+(ör. palet renklerini tuş bölgelerine dağıtmak), ama `kbd-rgb`'nin sıfır
+bağımlılık sadeliği ve AutonomousMode devralma mantığı yeniden yazılır.
 
 ## Protokol (USB HID Usage Tables v1.4 §26)
 
