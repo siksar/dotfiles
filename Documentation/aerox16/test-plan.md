@@ -132,7 +132,7 @@ sleep 45; echo "[raw 0x57]"; base
 - Test edilecek tek şey: **hiçbir şey**. Bu kutu sadece "sakın" içindir.
 
 ### 2c. dGPU boost bütçesi (ACBT) — salt cross-check
-Zaten `gigabyte-power-profile.service` AC'de `WMBD 0x4C 10` (80W) yazıyor. Doğrula:
+Zaten `aero-power-profile.service` AC'de `WMBD 0x4C 10` (80W) yazıyor. Doğrula:
 ```bash
 nvidia-smi -q -d POWER | grep -iE 'current power limit|max power limit'
 ```

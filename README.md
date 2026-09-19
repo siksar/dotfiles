@@ -2,7 +2,7 @@
 
 Tek makine için flake tabanlı NixOS yapılandırması: **Gigabyte AERO X16 (EG61H)**.
 Tek kullanıcı (`zixar`), tek host (`nixos`). Masaüstü: COSMIC (varsayılan) +
-KDE Plasma (ikinci oturum). Yorumlar ve commit mesajları Türkçe.
+GNOME (ikinci oturum). Yorumlar ve commit mesajları Türkçe.
 
 | Nereye bakmalı | Dosya |
 |---|---|
@@ -59,7 +59,7 @@ değil; `kernel/`, `desktop/`). Sözlük Linux çekirdeğinden alınma.
 ├── system/                    ── NixOS modülleri: makinenin tesisatı ──
 │   ├── arch/aerox16/          YALNIZ bu donanımda anlamlı (EC/WMI, DSDT).
 │   │                          Makine değişirse ilk silinecek dizin burası.
-│   ├── drivers/               gpu, input/keyboard-rgb
+│   ├── drivers/               gpu, input/keyboard-rgb, usb-dac (hidraw izni)
 │   ├── kernel/                power, power-display, sched, cores (Zen5/Zen5c),
 │   │                          ryzen-smu
 │   ├── init/                  limine, locale
@@ -67,7 +67,7 @@ değil; `kernel/`, `desktop/`). Sözlük Linux çekirdeğinden alınma.
 │   │                          vpn (Mullvad, kapalı), localsend, geoclue
 │   ├── security/              users, keyring, askpass, onepassword
 │   ├── desktop/               login (COSMIC greeter), cosmic (varsayılan oturum),
-│   │                          plasma (ikinci oturum), theme (Stylix),
+│   │                          gnome (ikinci oturum), theme (Stylix),
 │   │                          mux (dGPU-only bayrağı, varsayılan KAPALI)
 │   ├── sound.nix
 │   └── virt.nix
@@ -86,13 +86,14 @@ değil; `kernel/`, `desktop/`). Sözlük Linux çekirdeğinden alınma.
 │
 ├── Documentation/             ── yaşayan lab defterleri ──
 │   ├── aerox16/               wmi-ec, power, cpu-hybrid, keyboard-rgb,
-│   │                          undervolt, test-plan
-│   ├── desktop.md (COSMIC+Plasma)  gaming.md  1password.md
+│   │                          fn-keys, undervolt, test-plan
+│   ├── desktop.md (COSMIC+GNOME)   gaming.md  1password.md
 │   ├── upstream/              üstakıma gönderilecek raporlar
 │   └── archive/               DONMUŞ — yolları ve durumları kasıtlı eski
 │
 └── scripts/                   verify-context.sh (kapı), power-audit.sh,
-                               idle-baseline.sh, diag-game.sh, tclt-probe.sh …
+                               idle-baseline.sh, diag-game.sh, tclt-probe.sh,
+                               fn-probe.pl …
 ```
 
 **Neden `lib/`:** duvar kağıtlarını ve base16 şemalarını hem sistem katmanı

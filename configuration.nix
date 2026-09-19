@@ -11,10 +11,12 @@
     # Başka bir makineye geçilirse ilk silinecek dizin burasıdır.
     ./system/arch/aerox16/wmi.nix
     ./system/arch/aerox16/acpi.nix
+    ./system/arch/aerox16/fn-keys.nix
 
     # drivers/ — aygıt sürücüleri ve aygıt-başı ayar
     ./system/drivers/gpu.nix
     ./system/drivers/input/keyboard-rgb/system.nix
+    ./system/drivers/usb-dac.nix
 
     # kernel/ — çekirdek davranışı: güç, zamanlayıcı, bellek
     ./system/kernel/power.nix
@@ -44,10 +46,10 @@
     ./system/security/askpass.nix
     ./system/security/onepassword.nix
 
-    # desktop/ — KDE Plasma + COSMIC oturumları ve Stylix
+    # desktop/ — COSMIC + GNOME oturumları ve Stylix
     ./system/desktop/login.nix
     ./system/desktop/theme.nix
-    ./system/desktop/plasma.nix
+    ./system/desktop/gnome.nix
     ./system/desktop/cosmic.nix
     # MUX/dGPU-only bayragi — dort DRM koprusunu birden cevirir. VARSAYILAN KAPALI.
     ./system/desktop/mux.nix
@@ -60,8 +62,9 @@
   ];
 
 
-  # KDE Plasma 6 ve COSMIC kullanılacak masaüstü oturumlarıdır.
-  desktop.plasma.enable = true;
+  # COSMIC (varsayılan) ve GNOME kullanılacak masaüstü oturumlarıdır.
+  # KDE Plasma 16 Eyl 2026'da ağaçtan çıktı — defteri Documentation/archive/.
+  desktop.gnome.enable = true;
   desktop.cosmic.enable = true;
   services.displayManager.defaultSession = "cosmic";
 

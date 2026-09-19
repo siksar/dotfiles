@@ -33,11 +33,22 @@ Gerçek özel-fan kanalı Linux'tan görünmüyor → keşfi Windows/GCC yakalam
 
 ## Şu an Linux'ta çalışanlar
 
-- `fan_mode`: 0=normal, 1=sessiz, 2=oyun, 3=custom(ölü), 4=auto-max, 5=turbo
-  → `gigabyte-power-profile` AC'de **1**, pilde 1 (udev ACAD + resume tetikli)
-  → SUPER+M döngüsü: 4→1→2→5 (`fan-mode-cycle.service`)
-  → **Modların davranışı 16 Ağu 2026'da ÖLÇÜLDÜ** — aşağıdaki "Fan modu ölçümü"
-    bölümü. AC varsayılanı o ölçümden sonra 4'ten 1'e alındı.
+- `fan_mode`: **isimli** — `quiet · balanced · responsive · gaming · turbo`
+  (7 Eyl 2026, `aero_eg61h`. Eski `aorus_laptop` numaralandırması 0/1/2/4/5 ARTIK
+  GEÇERSİZ; aşağıdaki 16 Ağu ölçüm tablosu hâlâ o numaralarla yazılı ve hangi
+  desene denk geldiği belirsiz — bkz. `system/arch/aerox16/wmi.nix` başlığı.)
+  → `aero-power-profile` AC'de **responsive**, pilde **balanced**
+    (12 Eyl 2026; udev ACAD + resume tetikli. Öncesinde ikisi de balanced'dı.)
+  → `aero-fan-cycle.service` döngüsü: balanced→quiet→gaming→turbo.
+    ⚠ 12 Eyl 2026'da ölçüldü: bu birim **hiçbir kısayola bağlı değil** — eski
+    SUPER+M bağı Hyprland'la birlikte düştü, COSMIC'te karşılığı kurulmadı
+    (`~/.config/cosmic/…Shortcuts/v1/custom` yok). Birim çalışıyor, tetikleyicisi
+    yok; kısayol COSMIC Ayarlar'dan ELLE eklenmeli (bu dizine Nix'ten yazmak yasak,
+    CLAUDE.md). Komut: `systemctl start aero-fan-cycle.service`
+  → Eğriler firmware imajından çıkarılmış ve `aero-sysfs/src/curves.rs`'te sabit
+    veri olarak duruyor; AERO Kontrol'ün "Fan curves" paneli bunları çiziyor.
+    `responsive` ile `balanced` AYNI duty merdivenini kullanıyor (18…43%), fark
+    eşiklerin ~14 °C erkene kayması.
 
   **Düzeltme (15 Ağu 2026):** bu satır önceden "4/5(ölü)" diyordu — YANLIŞ. 5 zaten
   Turbo olarak döngüde aktif kullanımdaydı, 4 ise canlı sistemde `fan_mode`'dan
@@ -49,7 +60,12 @@ Gerçek özel-fan kanalı Linux'tan görünmüyor → keşfi Windows/GCC yakalam
 - dGPU Dynamic Boost: acpi_call `WMBD 0x4C` → AC'de ACBT=80W (+
   `nvidia-powerd` ile GPU tavanı 50→75W+), pilde 0. (`gpu_boost`/0x51
   KULLANILMIYOR: 2=no-op, 3=dGPU eject, 1=LCBT(0) — işlevsiz)
-- `charge_mode`/`charge_limit`: custom(1) + %60 (boot'ta servisle)
+- `charge_mode`/`charge_limit`: BCPS=4 (WMBD 0x64) + **%80** (boot'ta
+  `aero-charge-limit.service`, 12 Eyl 2026 — önceki değer %60). Standart ABI:
+  `/sys/class/power_supply/BAT1/charge_control_end_threshold`. Sürücü yazımı geri
+  okuyup doğruluyor, uyuşmazlıkta -EIO. Uyanışta sürücünün kendi kancası yeniden
+  uyguluyor. DİKKAT: EC limiti AŞAĞI uygulamıyor — pil limitin üstündeyse boşalana
+  kadar bekler.
 - hwmon: 4× fan RPM (yalnız 1-2 gerçek) + 3× sıcaklık + **2× PWM/duty (CPU+GPU,
   salt-okuma; sürücü 0.2.0)** — `sensors`, btop, Caelestia dashboard
 - Fn tuşu düzeltmesi: çıplak Fn = F20 (HID 0x7006f) → hwdb `reserved`
@@ -640,6 +656,11 @@ edilmedi (muhtemelen reboot'ta 1'e döner).
 Çıplak Fn basımında hidraw2'de consumer-page olayları da görüldü (mute/vol
 kodları) — Fn'in ikincil rapor kanalı olabilir, derinleşilmedi.
 
+> **16 Eyl 2026 — Fn tarafı ayrı deftere taşındı:**
+> `Documentation/aerox16/fn-keys.md`. Orada: dört olay kanalı, EC→_Q45→WMI
+> zincirinin tamamı, klavyenin HID haritası ve EC imajının Fn açısından NE
+> içermediği. Bu dosyada kalan Fn bilgisi yalnız FNKS ölçümüdür.
+
 ## Uygulama planı
 
 TAMAMLANDI (2026-07-05): eğri testi (ölü), preset karakterizasyonu, mod
@@ -655,9 +676,9 @@ upstream taslağı (`Documentation/upstream/gigabyte-wmi-report.md`), acpi_call 
    (WMBD 0xC9 0/1) — harici klavye modu / temizlik kilidi.
 3. **0xF1-F3 CPU watt deneyleri**: SPL/SPPT/FPPT'yi EC'den ayarla (mW
    hassasiyet), RAPL/ryzen_smu ile doğrula; sessiz/serin profillere malzeme.
-4. **Fn+F9 touchpad toggle**: Windows'ta çalışıyordu, Linux'ta işlevsiz —
-   tuş olayını yakala (hidraw2 consumer kanalı şüpheli) ve Hyprland'de
-   touchpad enable/disable'a bağla.
+4. **Fn tuşları** → `fn-keys.md`'ye taşındı (16 Eyl 2026). Oradaki sıradaki
+   işler listesi bu maddenin yerini alır; "Hyprland'e bağla" planı zaten
+   oturum ağaçtan çıkınca geçersizleşmişti.
 5. Windows kurulunca: GCC'nin fan kanalını yakala (RWEverything/WMIExplorer,
    ERCD komutlarına odaklan); preset eğri ve 0xED/0xF1-F3 kullanım
    değerlerini referans al; EC çipini HWiNFO ile kesinleştir.

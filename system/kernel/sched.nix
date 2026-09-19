@@ -18,20 +18,18 @@ let
 
   # GCC performans profili 2 (WMBD 0xED): ACBT 80→160 + agresif fan eğrisi.
   # Ölçüm (2026-07-06, KCD A/B): GPU 38W→62-83W sustained, fan %32-35→%46-49.
-  # Ayrıca fan_mode 5 (turbo/max): "oyunlarda her zaman soğuk" tercihi (2026-07-17).
+  # Ayrıca fan_mode turbo: "oyunlarda her zaman soğuk" tercihi (2026-07-17).
   # Turbo, EC'nin fanlarını tam güce (~6900 RPM) alır → dGPU en soğuk + fan tepkisi
   # maksimum. NOT: CPU yine ~95°C SMU tavanında (fan bunu değiştirmez, defter E-matrisi)
-  # ve SESLİDİR — bilinçli seçim. 5→0 çıkışı temiz (defter E3). Yalnız AC'de:
-  # pilde oyun güç-limitli, max fan anlamsız gürültü+drain olur.
-  # EC uçucu → stop'ta 0xED profil 0 (boot varsayılanı) + gigabyte-power-profile
-  # ACBT 80/fan modunu (AC→0 dengeli) geri kurar.
-  # Ayrıntı: Documentation/aerox16/wmi-ec.md "Deneysel 0xED" tablosu + preset karakterizasyonu.
+  # ve SESLİDİR — bilinçli seçim. Yalnız AC'de: pilde oyun güç-limitli, max fan
+  # anlamsız gürültü+drain olur.
+  # ÇIKIŞ: aşağıdaki gamePerfStop başlığına bak — 12 Eyl 2026'da yeniden yazıldı,
+  # ham 0xED yazımı kaldırıldı (artık sürücünün platform_profile handler'ı aynı
+  # register'ı yönetiyor, iki otorite birbirini eziyordu).
+  # Ayrıntı: Documentation/aerox16/wmi-ec.md "Deneysel 0xED" tablosu + preset karakterizasyonu,
+  # ve Documentation/gaming.md "0xED'in İKİ yazıcısı var".
   gamePerfStart = pkgs.writeShellScript "game-perf-start" ''
     if [ "$(cat /sys/class/power_supply/ACAD/online 2>/dev/null)" = "1" ]; then
-      if [ -w /proc/acpi/call ]; then
-        echo '\_SB.PCI0.AMW0.WMBD 0 0xED 2' > /proc/acpi/call
-        cat /proc/acpi/call > /dev/null
-      fi
       # Turbo fan (max üfleme) — aero_eg61h, PECM+0x2C = 0x0C (düz %63 eğrisi).
       # 7 Eyl 2026: eskiden `aorus_laptop`'a `5` yazılıyordu ve bu, ADJF biti
       # 0 iken TANINMAYAN bir desen (0x04) üretip varsayılana düşüyordu — yani
@@ -54,6 +52,28 @@ let
       if [ -f "/run/user/$UID_ZIXAR/gamerun-cpumax" ]; then PROF=performance; else PROF=balanced; fi
       ${pkgs.power-profiles-daemon}/bin/powerprofilesctl set "$PROF" 2>/dev/null || true
 
+      # ---- 0xED oyun profili — PPD'DEN SONRA YAZILMALI (12 Eyl 2026 düzeltmesi) ----
+      # Bu blok eskiden fonksiyonun BAŞINDAYDI ve 7 Eyl'den beri sessizce
+      # eziliyordu: aero_eg61h sürücüsü platform_profile handler'ı olarak
+      # KAYITLI ve o handler aynı WMBD 0xED register'ını yazıyor
+      # (aero-profile.c: low-power→0, balanced→1, performance→2). PPD ise
+      # legacy /sys/firmware/acpi/platform_profile üzerinden TÜM handler'lara
+      # dağıtıyor — 12 Eyl'de ölçüldü:
+      #   powerprofilesctl set performance
+      #     → platform-profile-0 (aero_eg61h) = performance   ← 0xED 2 yazıldı
+      #     → platform-profile-1 (amd-pmf)    = performance
+      # Yani eski sırada: 0xED 2 yaz → PPD balanced → handler 0xED 1 yazar →
+      # oyun profili YOK OLUR (ACBT 0xA0→0x50, AC PL1 30→25 W). Sıra tersine
+      # çevrilince son söz oyun profilinde kalıyor.
+      # BEDELİ, BİLEREK: sürücünün önbelleği (aero_pprof_cur) artık EC ile
+      # uyuşmuyor — sysfs "balanced" der, EC 2'dedir. 0xED'in geri okuması YOK
+      # (WMBC'de karşılığı yok, aero-profile.c), o yüzden bu kaçınılmaz. Oyun
+      # bitince gamePerfStop ikisini yeniden senkronluyor.
+      if [ -w /proc/acpi/call ]; then
+        echo '\_SB.PCI0.AMW0.WMBD 0 0xED 2' > /proc/acpi/call
+        cat /proc/acpi/call > /dev/null
+      fi
+
       # Kritik düzeltme (2026-07-18): PPD power-saver profili platform_profile=low-power
       # üzerinden scaling_max_freq'i ~2.0 GHz'e hard-limiter olarak yazar; performance/
       # balanced'a geri dönerken bu limiti GERİ AÇMAZ (ölçüldü — profil/EPP doğru olsa
@@ -73,18 +93,90 @@ let
       [ -w "$B" ] && [ "$(cat "$B" 2>/dev/null)" != "1" ] && echo 1 > "$B" 2>/dev/null || true
     fi
   '';
+  # OYUN ÇIKIŞI — 12 EYL 2026'DA YENİDEN YAZILDI. Eski hâli üç yerden kırıktı ve
+  # üçü birlikte kullanıcının gördüğü tabloyu üretiyordu: "oyunu kapattım, fan
+  # turbo'da kaldı, ama AERO Kontrol'de hiçbir ön ayar seçili görünmüyor."
+  #
+  #  (1) ÖLÜ BİRİM ADI. `systemctl start gigabyte-power-profile.service` çağrılıyordu;
+  #      o birim 7 Eyl'de `aero-power-profile.service` oldu (sürücü değişimi) ve satır
+  #      `|| true` ile hatayı yutuyordu. Journal, 12 Eyl'de üç oyun kapanışı:
+  #        "Failed to start gigabyte-power-profile.service: Unit ... not found."
+  #      → fan modunu ve ACBT'yi geri kuran TEK kol hiç koşmadı. EC uçucu DEĞİL,
+  #      kendiliğinden dönmez → fan reboot'a kadar turbo.
+  #
+  #  (2) HAM `0xED 0` YAZIMI ARTIK YANLIŞ. "Boot varsayılanına dön" diye yazılmıştı,
+  #      ama 7 Eyl'den beri boot varsayılanı 0 DEĞİL: PPD açılışta balanced set ediyor
+  #      ve aero_eg61h handler'ı onu 0xED 1 olarak yazıyor. 0 en düşük profil
+  #      (ACBT kapalı, AC PL1 20 W) — yani oyun sonrası makine boot'takinden DAHA
+  #      KISITLI bir güç profilinde bırakılıyordu.
+  #
+  #  (3) VE O KISITTAN ÇIKIŞ YOK. power-display.service'in `ppd_apply balanced`i,
+  #      PPD zaten balanced olduğu için no-op'a düşüyor (bu davranış power-display.nix'te
+  #      2026-07-27'de ölçülüp belgelenmiş) → handler'a hiç yazılmıyor → EC 0xED 0'da
+  #      KİLİTLİ kalıyor, sysfs ise "balanced" diyor. Sürücünün önbelleği geri okumayla
+  #      doğrulanamıyor (WMBC'de 0xED yok), o yüzden yalanı kimse yakalayamıyor.
+  #
+  # YENİ SIRA — en görünür geri dönüş (fan) önce, profil senkronu sonra:
   gamePerfStop = pkgs.writeShellScript "game-perf-stop" ''
-    if [ -w /proc/acpi/call ]; then
-      echo '\_SB.PCI0.AMW0.WMBD 0 0xED 0' > /proc/acpi/call
-      cat /proc/acpi/call > /dev/null
-    fi
-    /run/current-system/sw/bin/systemctl start gigabyte-power-profile.service || true
-    # GR_CPUMAX işaret dosyasını temizle → sonraki oyun varsayılan balanced başlasın.
+    # GR_CPUMAX işaret dosyasını ÖNCE temizle: aşağıdaki power-display onu okuyor,
+    # kalırsa oyun bitmişken performance'ta bırakır.
     UID_ZIXAR=$(${pkgs.coreutils}/bin/id -u zixar 2>/dev/null || echo 1000)
     rm -f "/run/user/$UID_ZIXAR/gamerun-cpumax" 2>/dev/null || true
-    # CPU profilini geri al: power-display.service AC/BAT'a göre balanced/power-saver set
-    # eder (oyun bittiği için balanced/performance'tan düşer). Sabit yazmıyoruz → tek otorite orası.
+
+    # Fan modu + dGPU ACBT bütçesi: AC/BAT'a göre aero-eg61h modülü hesaplar.
+    # Bu birim `is-active game-perf.service` ile kendini oyun ortasında susturuyor;
+    # ExecStopPost sırasında birim "deactivating" durumda olduğu için `is-active`
+    # BAŞARISIZ döner ve fan yazımı gerçekten koşar (systemctl yalnız active/reloading
+    # için 0 döndürür).
+    /run/current-system/sw/bin/systemctl start aero-power-profile.service || true
+
+    # 0xED'i gerçekten geri getir. Ham acpi_call YAZMIYORUZ (yukarıdaki 2+3):
+    # standart platform_profile düğümüne yazmak hem EC'yi doğru profile alır hem
+    # sürücünün önbelleğini senkronlar, yani sysfs bir daha yalan söylemez.
+    # Değer power-display'in PPD kararıyla aynı olmalı: AC → balanced, pil → low-power.
+    PP=/sys/firmware/acpi/platform_profile
+    if [ -w "$PP" ]; then
+      if [ "$(cat /sys/class/power_supply/ACAD/online 2>/dev/null)" = "0" ]; then
+        echo low-power > "$PP" 2>/dev/null || true
+      else
+        echo balanced > "$PP" 2>/dev/null || true
+      fi
+    fi
+
+    # CPU tarafı: power-display.service AC/BAT'a göre PPD profilini, 4.5 GHz tavanını
+    # ve affinity maskesini geri hesaplar. Sabit yazmıyoruz → tek otorite orası.
     /run/current-system/sw/bin/systemctl start power-display.service || true
+  '';
+
+  # SIZINTI AĞI (12 Eyl 2026). game-perf `Type=oneshot` + `RemainAfterExit=true`,
+  # yani gamerun SIGKILL edilirse (trap yakalanamaz, lib/gamerun.nix ilke D'de kabul
+  # edilmiş) birim süresiz "active" kalır. Bunun bedeli yalnız "servis açık kalır"
+  # değil: aero-power-profile de power-display de `is-active game-perf` görünce
+  # fan/affinity yazmayı ATLIYOR — yani fişi çekmek, kapağı kapatmak, uyanmak,
+  # hiçbiri turbo'dan çıkaramaz. Reboot'a kadar.
+  #
+  # Bu betik o durumu tespit edip birimi kapatır: gamerun'ın referans sayacı
+  # dizininde CANLI bir PID kalmamışsa oyun oturumu bitmiştir. Yoklama YOK —
+  # yalnız olay anında koşar (udev ACAD, uyanış) ve gamerun'ın kendisi de
+  # başlamadan önce çağırır.
+  gamePerfReap = pkgs.writeShellScript "game-perf-reap" ''
+    /run/current-system/sw/bin/systemctl is-active --quiet game-perf.service || exit 0
+
+    UID_ZIXAR=$(${pkgs.coreutils}/bin/id -u zixar 2>/dev/null || echo 1000)
+    STATE="/run/user/$UID_ZIXAR/gamerun.d"
+
+    if [ -d "$STATE" ]; then
+      for F in "$STATE"/*; do
+        [ -e "$F" ] || continue
+        PID="''${F##*/}"
+        # Canlı bir gamerun varsa oyun sürüyor — dokunma.
+        if kill -0 "$PID" 2>/dev/null; then exit 0; fi
+        rm -f "$F" 2>/dev/null || true    # ölü kayıt
+      done
+    fi
+
+    echo "game-perf sizintisi toplandi (canli gamerun yok)" >&2
+    /run/current-system/sw/bin/systemctl stop game-perf.service || true
   '';
 in
 {
@@ -171,6 +263,27 @@ in
       ExecStopPost = [ "${gamePerfStop}" ];
     };
   };
+
+  # Sızıntı ağının birim tarafı. Tetikleyicileri aşağıda: udev (ACAD) ve uyanış —
+  # ikisi de aero-eg61h modülünün kullandığı desenin aynısı (olay → oneshot, timer
+  # ya da poll YOK, CLAUDE.md kural 6). Boot'ta çalışmasına gerek yok: game-perf
+  # RemainAfterExit'i reboot'u aşmaz.
+  systemd.services.game-perf-reap = {
+    description = "Sızmış game-perf oturumunu topla (canlı gamerun kalmadıysa durdur)";
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${gamePerfReap}";
+    };
+  };
+
+  services.udev.extraRules = ''
+    ACTION=="change", SUBSYSTEM=="power_supply", KERNEL=="ACAD", \
+      RUN+="${pkgs.systemd}/bin/systemctl start --no-block game-perf-reap.service"
+  '';
+
+  powerManagement.resumeCommands = ''
+    ${pkgs.systemd}/bin/systemctl --no-block start game-perf-reap.service
+  '';
 
   # zixar game-perf.service'i şifresiz yönetebilsin (yalnız bu unit)
   security.polkit.extraConfig = ''

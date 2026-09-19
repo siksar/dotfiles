@@ -82,10 +82,15 @@
 #     yazılabilir:  PROTON_USE_NTSYNC=1 gamerun %command%
 #     gamerun onları ezmez (hiç dokunmaz) — bu yüzden pass-through anahtarına
 #     da gerek yok. Tablo: Documentation/gaming.md.
-#  D. TEMİZLİK GARANTİLİ. Fan turbo'da (fan_mode 5) unutulursa dizüstü sonsuza
-#     kadar gürültü yapar. trap + referans sayacı ile çıkışta mutlaka durur.
-#     Tek kaçak SIGKILL'dir (trap yakalanamaz) — o durumda elle:
-#       systemctl stop game-perf.service
+#  D. TEMİZLİK GARANTİLİ. Fan turbo'da unutulursa dizüstü sonsuza kadar gürültü
+#     yapar. trap + referans sayacı ile çıkışta mutlaka durur.
+#     SIGKILL kaçağı 12 Eyl 2026'da KAPATILDI (trap hâlâ yakalanamıyor, ama artık
+#     tek savunma trap değil): (1) bir sonraki gamerun başlarken sızmış oturumu
+#     tespit edip sıfırlıyor — aşağıdaki 5. blok; (2) system/kernel/sched.nix'teki
+#     `game-perf-reap.service` aynı denetimi udev (ACAD) ve uyanışta koşuyor.
+#     Bu ikinci ağ şart, çünkü sızmış bir game-perf yalnız fanı turbo'da bırakmıyor:
+#     aero-power-profile ve power-display `is-active game-perf` görünce fan/affinity
+#     yazmayı atlıyor, yani sızıntı bütün kurtarma yollarını da kapatıyordu.
 #
 # ---------------------------------------------------------------------------
 # NEDEN lib/ ALTINDA (10 Ağu 2026 taşıması — hâlâ geçerli)
@@ -212,10 +217,62 @@ pkgs.writeShellScriptBin "gamerun" ''
     gr_say "UYARI: $GR_SYSTEMCTL yok — perf zinciri atlandı"
   else
     "$GR_CO/mkdir" -p "$GR_STATE" 2>/dev/null || true
+
+    # ---- SIZINTI SIFIRLAMASI (12 Eyl 2026) — kendi kaydımızdan ÖNCE ----
+    # İki ayrı arızayı birden kapatıyor:
+    #  (a) Önceki gamerun SIGKILL edilmişse trap koşmadı → game-perf hâlâ "active",
+    #      fan turbo'da. Üstelik aero-power-profile ve power-display `is-active
+    #      game-perf` görünce fan/affinity yazmayı ATLIYOR, yani fiş/uyanış dâhil
+    #      hiçbir olay o turbo'dan çıkaramıyor.
+    #  (b) game-perf Type=oneshot + RemainAfterExit → ZATEN aktif bir birime
+    #      `systemctl start` demek ExecStart'ı YENİDEN KOŞTURMAZ. Yani sızmış bir
+    #      oturumun üstüne açılan yeni oyun, profil/fan/boost ayarlarını hiç almaz.
+    # Ölü kayıtları temizleyip canlı bir örnek kalmadıysa birimi kapatıyoruz;
+    # hemen aşağıdaki `start` o zaman gerçek bir ExecStart olur.
+    GR_LIVE=0
+    for GR_F in "$GR_STATE"/*; do
+      [ -e "$GR_F" ] || continue
+      GR_P="''${GR_F##*/}"
+      if kill -0 "$GR_P" 2>/dev/null; then
+        GR_LIVE=1
+      else
+        "$GR_CO/rm" -f "$GR_F" 2>/dev/null || true
+      fi
+    done
+    # SIZMIŞ OTURUMDA `restart`, `stop` + `start` DEĞİL — ÖLÇÜLDÜ 12 Eyl 2026.
+    # İlk sürüm stop'layıp sonra start ediyordu ve bu YARIŞA giriyordu: `stop`
+    # döndükten sonra da scx.service (PartOf) ~2 sn daha duruyor, o sırada gelen
+    # `start` job'ını systemd iptal ediyor. Ölçülen sonuç:
+    #   game-perf.service: Main process exited, code=killed, status=15/TERM
+    #   game-perf.service: Failed with result 'signal'.
+    # Yani sıfırlama, düzeltmeye çalıştığı şeyi bozuyordu. `restart` tek bir job
+    # olarak sıralanıyor, çakışma yok — ve `failed` durumdaki birimi de temizler.
+    #
+    # `failed` de aynı muameleyi görür. Ölçüldü (12 Eyl): çok kısa süren bir oyun
+    # (ya da açılır açılmaz çöken bir oyun) stop'u scx daha başlarken tetikliyor ve
+    # birim `failed (Result: signal)` kalıyor. İşlevsel zararı yok — ExecStopPost
+    # yine koşuyor, fan geri dönüyor — ama kalıntıyı bir sonraki oyunda temizlemek
+    # `start`'ın belirsiz bir durumun üstüne binmesinden iyi.
+    GR_START_VERB=start
+    GR_UNIT_ST=$("$GR_SYSTEMCTL" is-active game-perf.service 2>/dev/null || true)
+    if [ "$GR_LIVE" = "0" ]; then
+      case "$GR_UNIT_ST" in
+        active)
+          gr_say "önceki oturum sızmış (game-perf açık, canlı gamerun yok) — sıfırlanıyor"
+          GR_START_VERB=restart
+          ;;
+        failed)
+          gr_say "game-perf 'failed' kalmış — sıfırlanıyor"
+          GR_START_VERB=restart
+          ;;
+      esac
+    fi
+
     : > "$GR_STATE/$$" 2>/dev/null || true
     GR_PERF=1
     # --no-block: servisin başlaması oyunun açılmasını GECİKTİRMESİN (ilke A).
-    if "$GR_SYSTEMCTL" start --no-block game-perf.service 2>/dev/null; then
+    # Fiil yukarıda seçildi: normalde `start`, sızmış oturum sıfırlanırken `restart`.
+    if "$GR_SYSTEMCTL" "$GR_START_VERB" --no-block game-perf.service 2>/dev/null; then
       gr_say "game-perf.service istendi (scx_lavd + AC'de 0xED profil 2 + turbo fan)"
     else
       gr_say "UYARI: game-perf.service başlatılamadı (polkit kuralı? sched.nix'e bak)"

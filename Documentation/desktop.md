@@ -1,32 +1,37 @@
-# Masaüstü — COSMIC (varsayılan) + KDE Plasma (ikinci oturum)
+# Masaüstü — COSMIC (varsayılan) + GNOME (ikinci oturum)
 
-*Durum: 11 Eyl 2026. Giriş ekranı: COSMIC greeter (`system/desktop/login.nix`).*
+*Durum: 16 Eyl 2026. Giriş ekranı: COSMIC greeter (`system/desktop/login.nix`).*
 
-Modüller: `system/desktop/` — `cosmic.nix`, `plasma.nix`, `login.nix`, `theme.nix`,
+Modüller: `system/desktop/` — `cosmic.nix`, `gnome.nix`, `login.nix`, `theme.nix`,
 `mux.nix`. Dizin-içi kurallar (her defasında okunması gerekenler):
 `system/desktop/CLAUDE.md`. Bu defter **neden** böyle kurulduğunu anlatır.
 
-**Önceki dönem arşivde:** Hyprland + Caelestia + Serpantinum kurulumunun tamamı
-(2 Tem – Eyl 2026) `Documentation/archive/desktop-hyprland-caelestia.md` içinde
-donmuş olarak duruyor. Oradaki yollar kasıtlı eskidir.
+**Önceki dönemler arşivde**, ikisi de donmuş ve yolları kasıtlı eski:
+Hyprland + Caelestia + Serpantinum (2 Tem – Eyl 2026) →
+`Documentation/archive/desktop-hyprland-caelestia.md`; KDE Plasma karantinalı
+ikinci oturum (24 Ağu – 16 Eyl 2026) → `Documentation/archive/desktop-plasma.md`.
 
 ---
 
 ## Greeter'daki oturumlar
 
-`cosmic-randr`/`sessionData` üzerinden doğrulanan girdi listesi (11 Eyl 2026):
+Girdi listesi — `sessionData.desktops` store yolundan OKUNDU (16 Eyl 2026,
+build sonrası; greeter'da ayrıca gözle doğrulanacak):
 
 | Girdi | Kaynak | Not |
 |---|---|---|
 | `cosmic.desktop` | upstream cosmic modülü | **varsayılan** (`defaultSession = "cosmic"`) |
-| `plasma.desktop` | upstream plasma-workspace | Wayland |
-| `plasmax11.desktop` | upstream plasma-workspace | X11 |
+| `gnome.desktop` | upstream gnome-session | Wayland |
 
-Elle yazılmış girdi **yok**. 25 Ağu 2026'da eklenen `plasma-karantina.desktop`
-sarmalayıcısı 11 Eyl 2026'da kaldırıldı: tek işi Caelestia'nın bıraktığı
-`QT_QPA_PLATFORMTHEME=qt6ct` değerini geri çevirmekti, Caelestia gidince kaynağı
-kalmadı ve no-op'a döndü (ölçüm: HM profilinde değişken yok, oturumdaki değer
-zaten `kde`). Gerekçenin tamamı `plasma.nix`'in başında.
+**X11 girdisi YOK.** Plasma iki girdi getiriyordu (`plasma` + `plasmax11`);
+GNOME'un `gnome-xorg.desktop`'u bu yapılandırmada üretilmiyor —
+`xsessions/` dizini boş. Aranan yer `sw/share/` DEĞİL:
+`config.services.displayManager.sessionData.desktops` ayrı bir store yolu,
+greeter oraya bakar (16 Eyl'de bir kez yanlış dizine bakıldı).
+
+Elle yazılmış girdi **yok** — bu kural iki oturum değişikliğinden de sağ çıktı.
+Plasma döneminde bir sarmalayıcı girdisi denenmiş ve kaldırılmıştı; gerekçesi
+arşivde (`desktop-plasma.md`).
 
 ---
 
@@ -53,203 +58,81 @@ mekanizma, ters sonuç — "borderless" beklentisi COSMIC'te oturum ayarından g
 Hyprland dönemindeki tam araştırma arşiv defterinde.
 
 ---
-## KDE Plasma — karantinalı ikinci oturum (24 Ağu 2026)
+## GNOME — karantinalı ikinci oturum (16 Eyl 2026, Plasma'nın yerine)
 
-`system/desktop/plasma.nix`, upstream nixpkgs modülünü (`services.desktopManager.plasma6`)
-greeter'da **karantinalı bir oturum** olarak açar. `desktop.plasma.enable = false;` ile tek
-satırda geri alınır. Serpantinum'dan iki yapısal farkı var:
+`system/desktop/gnome.nix`, upstream `services.desktopManager.gnome` modülünü
+greeter'da ayrı bir girdi olarak açar; `desktop.gnome.enable = false;` ile tek
+satırda geri alınır. Plasma'nın karantina sözleşmesi aynen devralındı; **önceki
+oturumun defteri** `Documentation/archive/desktop-plasma.md`'de donduruldu.
 
-- **HM tarafı YOK.** Serpantinum'da rice ağacını `$HOME`'a yerleştiren ayrı bir HM modülü
-  gerekiyordu; Plasma'da oturumun tamamını upstream modül kuruyor. Bu dosyanın işi
-  yalnızca o modülün bu makineye özgü kenarlarını yamamak.
-- **Bir deneme değil, bir karar.** Serpantinum ikinci bir rice'ı denemekti; bu, Hyprland'i
-  bırakıp bırakmama sorusunu ölçüye bağlamak için var.
+### Neden Plasma çıktı
 
-### Neden karantina (ve neden soru "beğendim mi" değil)
+Karar kullanıcıya ait (16 Eyl 2026): iki değil üç oturum taşımak yerine GNOME
+Plasma'nın yerine geçti. Teknik gerekçe değil, tercih — Plasma'nın ölçümleri
+(idle 4.28 W, D3cold, kapanış maliyeti) arşivde geçerli kayıt olarak duruyor.
 
-Bu makinede Hyprland yalnız pencere yöneticisi değil, güç zincirinin bir halkası:
+### DRM guard — ÜÇÜNCÜ sözdizimi
 
-| Hyprland'de | Plasma'da karşılığı | Durum |
+Bu deftere daha önce iki varyant yazılmıştı; GNOME bir üçüncüsünü getiriyor ve
+**ortam değişkeni değil**:
+
+| Oturum | Mekanizma | Değer biçimi |
 |---|---|---|
-| `AQ_DRM_DEVICES=/dev/dri/hypr-igpu` (dGPU'ya hiç dokunma → D3cold) | `KWIN_DRM_DEVICES=/dev/dri/kwin-igpu` | kuruldu, **ölçülmedi** |
-| `power-display-user.service` → `hyprctl keyword monitor` (60/165Hz + animasyon) | `kscreen-doctor` + `plasma-workspace.target` | **yazılmadı** — Plasma'da tazeleme geçişi yok |
-| PPD profilini `power-display.nix` sürüyor (masaüstünde güç kaydırıcısı yok) | powerdevil kendi sürer | **çakışma bekleniyor** |
-| Caelestia (bar/launcher/kilit/idle + 110-anahtarlı Material You) | plasmashell + Breeze + Stylix `kde` hedefi | Stylix `kde` hedefi zaten açık |
+| COSMIC | `COSMIC_DRM_ALLOW_DEVICES` | `0x1002:0x1114` — virgülle ayrılır, `:` serbest |
+| Plasma (arşiv) | `KWIN_DRM_DEVICES` | udev symlink yolu — `:` YASAK |
+| **GNOME** | **udev `TAG+="mutter-device-ignore"`** | env değişkeni YOK; kart etiketlenir |
 
-Zincirin geri kalanı (gamerun / gamemode / scx_lavd / WMI fan profilleri) tamamen sistem
-katmanında, compositor'dan bağımsız — Plasma oturumunda da aynen çalışır.
+`mutter-device-ignore` **iki bağımsız kanıtla** doğrulandı:
+1. String libmutter-18.so.0'da var (mutter 50.4, flake pin'inden çekilip binary'de
+   arandı — kwin'de kullanılan yöntemin aynısı).
+2. **Upstream mutter'ın KENDİ udev kuralları bu etiketi kullanıyor** — build
+   çıktısındaki `rules.d` içinde sanal sürücü için iki satır duruyor
+   (`ID_PATH=="platform-vkms"` ve `DEVPATH==".../faux/vkms/..."`). Yani etiket
+   tahmin değil, mutter'ın kendi kullandığı arayüz; bizimki üçüncü satır olarak
+   NVIDIA kartına ekleniyor.
+Kural kart numarasına değil sürücüye bakar; bu makinede ölçüldü (16 Eyl 2026):
+`card0 = nvidia @ 0000:64:00.0`, `card1 = amdgpu @ 0000:65:00.0`, numaralar boot
+sırasına göre yer değiştirebilir.
 
-### Karar kriteri — iki sayı
+### GNOME'un sızıntıları — Plasma'nınkinden çok daha fazla
 
-`Documentation/aerox16/power.md`'nin yöntemiyle, **Plasma oturumunda**, pilde, %40
-parlaklık, temiz idle (120 s sakinleşme + 6×10 s örnek):
+Plasma'da kapatılacak tek şey `fwupd`'ın timer'ıydı. GNOME modülü sistem geneline
+şunları açıyor ve hepsi `gnome.nix`'te kapatıldı: `localsearch` + `tinysparql`
+(dosya indeksleyici — kural 6'nın açık ihlali), `rygel` (DLNA sunucusu),
+`dleyna`, `gnome-user-share`, `gnome-remote-desktop`, `geoclue2`, `avahi`,
+`orca`, `i18n.inputMethod`, `gnome-browser-connector`, `gnome-initial-setup`.
 
-```bash
-# 1) idle watt — 4.28W ± gürültü mü?
-paste /sys/class/power_supply/BAT1/current_now /sys/class/power_supply/BAT1/voltage_now \
-  | awk '{printf "%.2f W\n", $1*$2/1e12}'
+Kapatılmayan, kayda geçen iki sızıntı: `evolution-data-server` (modül DÜZ `true`
+yazıyor, kapatmak `mkForce` ister; D-Bus aktivasyonlu, boşta maliyeti yok) ve
+`xdg-desktop-portal-gnome` (portal seçimi `UseIn=` ile masaüstü başına).
 
-# 2) dGPU gerçekten uykuda mı? (D3cold bekleniyor)
-cat /sys/bus/pci/devices/0000:64:00.0/power_state
-```
+### Greeter değişmiyor
 
-~7 W çıkıyorsa cevap net: `KWIN_DRM_DEVICES` tutmamış, geçiş kapalı. 4.28 W çıkıyorsa
-geçiş **teknik olarak** açık demektir; geriye Caelestia'yı bırakmaya değip değmediği
-tercihi kalır (7 el-bakımlı 110-anahtarlı şema + tema→klavye RGB hook zinciri).
+GNOME modülü GDM'i **zorlamıyor** — `services.displayManager.gdm.enable = true`
+satırı yalnız `nixos-generate-config` şablonunda. `defaultSession` da güvende:
+plasma6'nın aksine GNOME modülü ona hiç dokunmuyor, yani `"cosmic"` düz ataması
+tek başına yeter (Plasma dönemindeki "mkDefault'a çevirirsen sessizce Plasma'ya
+döner" tuzağı kalktı).
 
-### Karantina sınırı — kural
+### Ölçülmeden yazılmayacaklar
 
-**"Plasma oturumunun dışında koşuyor mu?"** Koşmuyorsa varsayılan bırakıldı, koşuyorsa
-kapatıldı.
-
-- **Varsayılan bırakıldı** (yalnız Plasma'ya girilince ayakta): powerdevil, baloo
-  (dosya indeksleyici), kded6, orca, kde-pim/akonadi. Caelestia'dayken maliyetleri sıfır.
-- **Kapatıldı**: `services.fwupd` — plasma6 `mkDefault true` yapıyor ve `fwupd-refresh.timer`
-  Plasma'ya hiç girilmese bile koşan **kalıcı** bir timer. `sched.nix`'in idle kuralı.
-
-### Kapanış maliyeti — ÖLÇÜLDÜ (24 Ağu 2026)
-
-`nix path-info -S`, aynı ağaçta yalnız bayrağı çevirerek (`extendModules` +
-`lib.mkForce false`), yani downloads.nix gibi ilgisiz değişiklikler dışarıda:
-
-| Yapılandırma | Kapanış |
-|---|---|
-| `desktop.plasma.enable = false` | 27.29 GB |
-| `desktop.plasma.enable = true` | 29.90 GB |
-| **Plasma'nın tek başına maliyeti** | **+2.62 GB** |
-
-En büyük kalemler: qtwebengine 427 MB · mariadb-server 259 MB ·
-plasma-workspace-wallpapers 255 MB · ibus 150 MB · openjdk-minimal-jre 90 MB ·
-breeze-icons 72 MB · plasma-workspace 71 MB.
-
-`mariadb-server` sürprizdir ve tek bir bayraktan gelir: `programs.kde-pim.enable`
-(plasma6 modülü `mkDefault true` yapıyor) akonadi'yi çekiyor, akonadi de **kullanıcı
-oturumu başına bir MariaDB örneği** çalıştırıyor. Ayrıca ölçüldü:
-
-| | Kapanış |
-|---|---|
-| `programs.kde-pim.enable = false` | 29.50 GB |
-| varsayılan (`true`) | 29.90 GB |
-| **kde-pim maliyeti** | **+0.40 GB** (mariadb-server 259 MB + kdepim-runtime + akonadi) |
-
-**Varsayılan bırakıldı, bilerek**: akonadi yalnız Plasma oturumu ayaktayken koşar,
-Caelestia'dayken sıfır maliyetlidir — yukarıdaki karantina kuralının tam olarak
-"içeride" tarafı. Bu makinede posta/takvim istemcisi kullanılmıyorsa tek satırla düşer:
-
-```nix
-programs.kde-pim.enable = false;   # system/desktop/plasma.nix içine
-```
-
-### Kayda geçen, kapatılmayan sızıntılar
-
-1. plasma6 koşulsuz olarak `XDG_CONFIG_DIRS`'e `$HOME/.config/kdedefaults` ekliyor — PAM
-   üzerinden Caelestia oturumuna da girer. Ölçülebilir maliyeti yok, kapatmak modülü
-   `mkForce`'la dövmek olurdu.
-2. `xdg-desktop-portal-kde` ve `kwallet` portalı `extraPortals`'a giriyor. İkisi de
-   `.portal` dosyasındaki `UseIn=kde` ile sınırlı (doğrulandı), xdph'ninki ise
-   `UseIn=wlroots;Hyprland;sway;…` — yani Caelestia'da devreye girmezler. Yine de
-   Hyprland'de ekran paylaşımı bozulursa **ilk bakılacak yer burası**;
-   `xdg.portal.config.Hyprland` ile açıkça pinlemek çözüm olur.
-
-### Bilinen eksik — AC/BAT tazeleme geçişi
-
-`power-display-user.service` `hyprland-session.target`'a bağlı ve `hyprctl` yoksa sessizce
-`exit 0` yapıyor (script'in kendi satırı). Yani Plasma oturumunda panel **165 Hz'de kalır**
-ve animasyonlar pilde kapanmaz — deneme ölçümünü yaparken bunu hesaba kat, ya da ölçümden
-önce elle 60 Hz'e al:
-
-```bash
-kscreen-doctor output.eDP-1.mode.2560x1600@60
-```
-
-Deneme kalıcılaşırsa yapılacak iş, o user service'i `plasma-workspace.target` için
-ikizlemek (`kscreen-doctor` ile) — ama önce yukarıdaki iki sayı.
-
-### İlk deneme neden kabuksuz açıldı (25 Ağu 2026) — ve düzeltmesi
-
-Belirti: Plasma seçildi, oturum açıldı, **bar/launcher/kabuk hiç gelmedi**. Journal her
-QML bileşeninde aynı satırı bastı:
-
-```
-plasmashell: qrc:/qt/qml/org/kde/kirigami/templates/Heading.qml: module "breeze" is not installed
-plasmashell: QQmlApplicationEngine failed to load component
-systemsettings: Fatal error while loading the sidebar view qml component  → SIGABRT
-```
-
-**SDDM ile ilgisi yok** — SDDM bu sistemde hiç kurulu değil (`sddm.service could not be
-found`, ikili sistem profilinde yok) ve zaten bir greeter'dır: `plasmashell`'i o
-başlatmaz. Greeter oturumu `exec` eder, gerisi oturumun kendi işidir.
-
-Gerçek zincir, `systemctl --user show-environment` ve `definitionsWithLocations` ile
-ölçüldü:
-
-1. `services.desktopManager.plasma6.enable = true` → `qt.enable = true`.
-2. `qt.enable` o ana dek **false**'tu. Stylix'in NixOS qt hedefi
-   (`stylix/modules/qt/nixos.nix`) `qt.platformTheme = "kde"` ve `qt.style = "breeze"`
-   değerlerini **zaten yazıyordu**, ama `nixos/modules/config/qt.nix`'in
-   `config = mkIf cfg.enable` bloğu hiç çalışmadığı için hiçbir ortam değişkeni
-   çıkmıyordu. Ayar yıllardır orada duruyordu, uykudaydı.
-3. Plasma o bloğu **uyandırdı**: sistem geneline `QT_QPA_PLATFORMTHEME=kde` ve
-   `QT_STYLE_OVERRIDE=breeze` girdi.
-4. Ama Home Manager, Caelestia için `QT_QPA_PLATFORMTHEME=qt6ct` diyor
-   (`home/desktop/caelestia/default.nix:123`) ve **HM kazanıyor**:
-   `hm-session-vars.sh` giriş kabuğunun `profile.d`'sinden gelir, `pam_env`'den
-   *sonra*. Kanıt: oturumdaki değer `qt6ct`, `kde` değil.
-5. Sonuç: Plasma'da KDE platform teması (`plasma-integration`) hiç yüklenmiyor —
-   yerine qt6ct yükleniyor — ama QStyle hâlâ zorla `breeze`. Breeze'in QML/QQC2
-   entegrasyonunu sağlayan bileşen platform temasıydı; o gelmeyince Plasma'nın tüm
-   QML sahnesi çöküyor.
-
-> **SONRADAN DÜŞTÜ (11 Eyl 2026).** Aşağıdaki düzeltme artık ağaçta YOK.
-> Zincirin 4. halkası (HM'in `qt6ct` değeri) Caelestia'yla birlikte ortadan
-> kalkınca sarmalayıcı no-op'a döndü ve kaldırıldı — ölçüm: HM profilinde
-> `QT_QPA_PLATFORMTHEME` tanımlı değil, oturumdaki değer zaten `kde`.
-> Greeter bugün yalnız upstream girdilerini listeliyor. Metin, **teşhis yöntemi**
-> öğretici olduğu için duruyor: bir seçeneğin değerini upstream'in `default =`
-> satırından çıkarma, `definitionsWithLocations` ile kimin yazdığına bak.
-
-**Düzeltme (tarihî)**: `plasma.nix`'teki `sessionWrapper` değişkeni **yalnız bu oturumun
-exec'inde** geri alıyor (`export QT_QPA_PLATFORMTHEME=kde`) ve kendi greeter girdisini
-kuruyor: **"Plasma (karantina)"**. Stok `Plasma` / `Plasma (X11)` girdileri listede
-durmaya devam eder ve hâlâ bozuktur — greeter'da karantina girdisi seçilecek.
-
-HM'e dokunulmadı, bilerek: `qt6ct` Caelestia'da gerçekten gerekli, ve karantina kuralı
-düzeltmenin oturumun kendi tarafında kalmasını istiyor.
-
-#### Bu olayın asıl dersi
-
-24 Ağu'daki not şöyle diyordu: *"QT_QPA_PLATFORMTHEME sistem geneline set edilmez
-(`qt.platformTheme = null`), yani Breeze ile qt6ct arasında bir çekişme yok."* Yanlıştı
-ve çökmenin sebebi tam olarak buydu. Hata, upstream kaynağındaki **`default = null`**
-satırını okuyup değerin o olduğunu varsaymaktı; gerçek değeri Stylix yazıyordu. Bir
-seçeneğin gerçek değeri ve **kimin yazdığı** tek komutla görülür:
-
-```bash
-nix eval --impure --json --expr '
-  let f = builtins.getFlake "git+file:///home/zixar/nixos-zixar";
-  in map (d: d.file)
-     f.nixosConfigurations.nixos.options.qt.platformTheme.definitionsWithLocations'
-```
-
-Kök `CLAUDE.md`'nin "grep/okuma ile türetilen bulgu, bir şey çalıştırılana kadar bulgu
-değildir" kuralının modül-sistemi versiyonu budur.
-
-#### Yeni sızıntı: QT_STYLE_OVERRIDE
-
-Aynı uyanma yüzünden `QT_STYLE_OVERRIDE=breeze` artık **sistem geneli** — Caelestia
-oturumundaki Qt uygulamalarına da giriyor (plasma6 öncesi hiç set edilmiyordu). Bu bir
-regresyon *olmayabilir*: Stylix'in qt hedefi tam olarak bunu istiyor ve renkleri
-kanagawa-dragon'dan alıyor, yani kök `CLAUDE.md`'nin "Stylix tek kaynak" kuralıyla
-uyumlu. Kapatmak istenirse tek satır (`plasma.nix` içine):
-
-```nix
-qt.style = lib.mkForce null;
-```
-
-`breeze` paketi plasma6'nın kendi `systemPackages`'ından geldiği için kaybolmaz
-(`plasma6.nix:129`, doğrulandı).
+1. **idle watt** — `Documentation/aerox16/power.md` yöntemi, GNOME oturumunda.
+2. **dGPU D3cold** — `power_state` + `gnome-shell`'in açtığı DRM fd'leri.
+3. ~~Closure farkı~~ → **ÖLÇÜLDÜ (16 Eyl 2026)**: Plasma'lı çalışan sistem
+   **26.47 GiB**, GNOME'lu build **24.93 GiB** → **net −1.54 GiB**. Sezginin
+   tersi: GNOME daha küçük geldi. Giden (kf6 yığını, xapian/baloo, drkonqi,
+   xdg-desktop-portal-kde ≈ 4.1 MiB, sycoca birimleri) gelenden
+   (webkitgtk 167 MiB, yelp, vte, xdg-desktop-portal-gnome) fazla.
+   Yöntem: `nix path-info -S /run/current-system ./result`.
+4. **`gsd-power` ↔ `power-display.nix`** — parlaklık/PPD sahipliği yarışı
+   (Plasma'da `powerdevil` için sorulan aynı soru, orada da ölçülmemişti).
+5. **Fn köprüsü** — GNOME `KEY_MICMUTE`/`KEY_TOUCHPAD_TOGGLE`'ı kendi işlediği
+   için `fn-bridge` o oturumda eylemi atlıyor (`gnome_running()`). Çift toggle
+   olmadığı GNOME'a ilk girişte doğrulanmalı. Ayrıntı:
+   `Documentation/aerox16/fn-keys.md`.
 
 ---
+
 
 ## COSMIC (System76) — kurulum defteri (2 Eyl 2026; 11 Eyl 2026'de VARSAYILAN oldu)
 

@@ -117,8 +117,8 @@ her sürece miras kalıyordu — anti-cheat'li oyunlarda (Elden Ring
 
 ```
 systemctl start game-perf.service → rc=0
-scx.service → active | fan_mode → 5 (turbo) | PPD → balanced
-systemctl stop  game-perf.service → fan_mode → 1 | PPD → balanced
+scx.service → active | fan_mode → turbo | PPD → balanced
+systemctl stop  game-perf.service → fan_mode → responsive | PPD → balanced
 ```
 
 ### Kök neden 3 — PRIME offload OpenGL'de HİÇ ÇALIŞMIYORDU (Minecraft iGPU'daydı)
@@ -190,7 +190,7 @@ tetikleyen bir insandır, anlamsız.
 | **A — Oyun her hâlükârda açılır** | taskset/game-perf/PRIME hepsi opsiyonel; başarısız olursa uyarı basıp devam eder. Hiçbir kod yolu oyunu başlatmamaya karar veremez. |
 | **B — Katman enjekte etme** | Vulkan katmanı yok, LD_PRELOAD yok. Yalnız süreç nitelikleri (env, CPU affinity) + sistem servisleri. |
 | **C — Yalnız ölçülmüş iş** | DLSS/MFG/FG/SmoothMotion/low-latency/ntsync/VKD3D env'leri gamerun'dan **çıkarıldı**. Oyuna özgüler; launch options'a doğrudan yazılırlar (aşağıdaki tablo). |
-| **D — Temizlik garantili** | `trap` + referans sayacı: çıkışta game-perf mutlaka durur (fan turbo'da unutulmaz). Tek kaçak SIGKILL. |
+| **D — Temizlik garantili** | `trap` + referans sayacı: çıkışta game-perf mutlaka durur (fan turbo.da unutulmaz). SIGKILL kaçağı 12 Eyl 2026.de kapatıldı: gamerun açılışta sızmış oturumu sıfırlıyor + `game-perf-reap.service` udev/uyanışta aynısını yapıyor. |
 
 **C'nin pratik sonucu — hiçbir şey kaybolmadı, sahibi değişti.** gamerun artık
 o değişkenlere *dokunmuyor*, dolayısıyla ezmiyor da: `PROTON_USE_NTSYNC=1
@@ -279,21 +279,67 @@ Steam (iGPU'da açılır)
        │
        ├─ 4. GR_CPUMAX=1 ise $XDG_RUNTIME_DIR/gamerun-cpumax işaretini bırak
        │
+       ├─ 4b. SIZINTI SIFIRLAMASI (12 Eyl 2026): state dizinindeki ölü PID kayıtlarını
+       │      sil; canlı örnek KALMADIYSA ve game-perf hâlâ "active" ise önce STOP.
+       │      (game-perf oneshot+RemainAfterExit → aktif birime `start` demek
+       │      ExecStart'ı yeniden KOŞTURMAZ; sızıntının üstüne açılan oyun hiçbir
+       │      ayarı almazdı.)
+       │
        ├─ 5. systemctl start game-perf.service   ← DOĞRUDAN (polkit), referans sayaçlı
        │        ├─ scx_lavd --performance
-       │        ├─ AC'deyse WMBD 0xED profil 2: ACBT 160 + agresif fan eğrisi
-       │        │  (KCD ölçümü: GPU 38W→~70W sustained; fan %32-35→%46-49)
-       │        ├─ AC'deyse fan_mode 5 (turbo/max)
-       │        └─ AC'deyse PPD → balanced (GPU-öncelik; gamerun-cpumax varsa performance)
+       │        ├─ AC'deyse fan_mode turbo
+       │        ├─ AC'deyse PPD → balanced (GPU-öncelik; gamerun-cpumax varsa performance)
+       │        └─ AC'deyse WMBD 0xED profil 2: ACBT 160 + agresif fan eğrisi
+       │           (KCD ölçümü: GPU 38W→~70W sustained; fan %32-35→%46-49)
+       │           ⚠ SIRA ZORUNLU: 0xED, PPD'DEN SONRA. Gerekçe aşağıda.
        │
        └─ 6. oyunu ARKA PLANDA çalıştır + wait  (exec DEĞİL — trap koşabilsin)
              ├─ INT/TERM/HUP → oyuna ilet (Steam'in "Durdur" düğmesi çalışsın)
              └─ ÇIKIŞTA: kendi PID kaydını sil; başka CANLI gamerun yoksa
                 systemctl stop game-perf.service
-                  → scx durur (EEVDF döner) + 0xED profil 0 +
-                    gigabyte-power-profile (ACBT 80 / fan modu AC→0'a geri) +
-                    power-display (PPD → balanced fişte / power-saver pilde)
+                  → scx durur (EEVDF döner) +
+                    aero-power-profile (fan modu AC→responsive / BAT→balanced, ACBT geri) +
+                    platform_profile → balanced (fişte) / low-power (pilde) +
+                    power-display (PPD + 4.5 GHz tavanı + affinity maskesi)
 ```
+
+### 0xED'in İKİ yazıcısı var (12 Eyl 2026 — üç ayrı arızanın ortak kökü)
+
+7 Eyl'de `aorus_laptop` yerine `aero_eg61h` geldiğinde sessiz bir şey değişti:
+yeni sürücü **`platform_profile` handler'ı olarak kayıtlı** ve o handler aynı
+WMBD 0xED register'ını yazıyor (`kernel/aero-profile.c`):
+
+| platform_profile | WMBD 0xED | ATPP | ACBT | AC PL1/PL2/PL3 |
+|---|---|---|---|---|
+| `low-power` | 0 | 0xA0 | 0 (kapalı) | 20/65/65 W |
+| `balanced` | 1 | 0xC8 | 0x50 | 25/65/80 W |
+| `performance` | 2 | ECPL | 0xA0 (en üst) | 30/80/80 W |
+
+PPD ise profili `/sys/firmware/acpi/platform_profile` üzerinden yazıyor ve
+çekirdek onu **tüm handler'lara** dağıtıyor. Ölçüm (12 Eyl):
+
+```
+powerprofilesctl set performance
+  → platform-profile-0 (aero_eg61h) = performance   ← 0xED 2 yazıldı
+  → platform-profile-1 (amd-pmf)    = performance
+```
+
+Bunun üç sonucu vardı ve üçü de düzeltildi:
+
+1. **Oyun profili eziliyordu.** Eski sıra `0xED 2` → `PPD balanced` idi; ikinci
+   adım handler üzerinden `0xED 1` yazıyordu. Yani 7 Eyl'den beri "oyun profili"
+   yalnız birkaç milisaniye yaşıyordu. **Sıra ters çevrildi.**
+2. **Çıkışta EC en kısıtlı profilde kilitleniyordu.** `gamePerfStop` ham
+   `0xED 0` yazıyordu ("boot varsayılanına dön" diye) — ama boot varsayılanı
+   artık 0 değil, PPD'nin yazdığı `balanced` = 1. Üstüne `power-display`'in
+   `ppd_apply balanced`'i, PPD zaten balanced olduğu için **no-op**'a düşüyordu
+   (bu davranış `power-display.nix`'te 2026-07-27'de ölçülüp belgelenmiş) →
+   handler'a hiç yazılmıyordu. Sonuç: ACBT kapalı, AC PL1 20 W, ve sysfs
+   "balanced" diyerek yalan söylüyor. **Ham yazım kaldırıldı**, yerine standart
+   `platform_profile` düğümüne yazılıyor — EC de sürücü önbelleği de senkron.
+3. **Sürücünün önbelleği oyun sırasında bayat.** 0xED'in geri okuması YOK
+   (WMBC'de karşılığı yok), o yüzden oyun boyunca sysfs "balanced" der, EC 2'dedir.
+   Kaçınılmaz ve bilinçli; çıkışta senkronlanıyor.
 
 **Referans sayacı neden var:** iki oyun aynı anda açıkken biri kapanınca
 diğerinin fanını düşürmesin diye. Her gamerun örneği
@@ -302,18 +348,48 @@ başka örnek kalmadıysa servis durdurulur (ölü kayıtlar aynı taramada sili
 Ölçüldü 2 Eyl 2026: kısa örnek biterken `fan_mode` 5'te kaldı, uzun örnek
 bitince düştü.
 
-**Turbo fan (2026-07-17):** oyun süresince (AC'de) fanlar tam güce alınır (fan_mode 5,
-~6900 RPM) → dGPU en soğuk + fan tepkisi maksimum. **CPU yine ~95°C** olur (EC/SMU
-tavanı; hiçbir fan bunu değiştirmez — bkz. `Documentation/aerox16/wmi-ec.md` preset
-karakterizasyonu) ve **seslidir** — bilinçli tercih. Pilde uygulanmaz (oyun zaten
-güç-limitli). Oyun bitince gigabyte-power-profile fan modunu AC→0'a (dengeli) döndürür.
+**Turbo fan (2026-07-17):** oyun süresince (AC'de) fanlar tam güce alınır
+(`fan_mode turbo`, ~6900 RPM) → dGPU en soğuk + fan tepkisi maksimum. **CPU yine
+~95°C** olur (EC/SMU tavanı; hiçbir fan bunu değiştirmez — bkz.
+`Documentation/aerox16/wmi-ec.md` preset karakterizasyonu) ve **seslidir** — bilinçli
+tercih. Pilde uygulanmaz (oyun zaten güç-limitli). Oyun bitince
+`aero-power-profile.service` fan modunu AC'de `responsive`, pilde `balanced` yapar.
 
-**Düzeltme (10 Ağu 2026):** `gigabyte-power-profile.service` daha önce fişi çekip
-takınca veya uykudan dönünce KOŞULSUZ `fan_mode=0` yazıyordu — oyunun ortasında
-turbo sessizce düşüyordu (SUPER+M ile elle seçilen mod da aynı şekilde eziliyordu).
-Artık `game-perf.service` aktifken (`systemctl is-active` ile sorgulanır) fan_mode'a
-hiç dokunmuyor; ACBT/boost bütçesi kolu aynen AC/BAT'a göre yeniden uygulanmaya
-devam ediyor (`system/arch/aerox16/wmi.nix`).
+**Düzeltme (10 Ağu 2026):** `aero-power-profile` (o zamanki adıyla
+`gigabyte-power-profile`) daha önce fişi çekip takınca veya uykudan dönünce KOŞULSUZ
+fan modu yazıyordu — oyunun ortasında turbo sessizce düşüyordu. Artık
+`game-perf.service` aktifken (`systemctl is-active` ile sorgulanır) fan modunu
+yazmıyor; ACBT/boost bütçesi kolu aynen AC/BAT'a göre uygulanmaya devam ediyor.
+
+**Düzeltme (12 Eyl 2026) — TURBO TAKILI KALIYORDU, iki bağımsız neden:**
+
+*Birincisi, ölü birim adı.* `gamePerfStop`, 7 Eyl'de `aero-power-profile.service`
+olarak yeniden adlandırılmış birimi hâlâ eski adıyla çağırıyordu ve hatayı
+`|| true` ile yutuyordu. Journal, üç oyun kapanışı:
+
+```
+Failed to start gigabyte-power-profile.service: Unit ... not found.
+```
+
+Yani fan modunu geri kuran **tek kol** 5 gündür hiç koşmuyordu. EC uçucu değil →
+fan reboot'a kadar turbo'da kalıyordu. Yan etkisi AERO Kontrol'de de görünüyordu:
+fan `turbo` + profil `balanced` hiçbir ön ayara uymadığı için arayüzde **hiçbiri
+seçili görünmüyordu** (GUI tarafı da düzeltildi — artık bu hâlin "Custom" diye adı var).
+
+*İkincisi, yapışkan oyun istisnası.* `game-perf` `Type=oneshot` +
+`RemainAfterExit=true`, yani gamerun SIGKILL edilirse (trap yakalanamaz) birim
+süresiz "active" kalır. Bunun bedeli yalnız "servis açık kalır" değil:
+`aero-power-profile` **ve** `power-display`, `is-active game-perf` görünce
+fan/affinity yazmayı atlıyor — fişi çekmek, kapağı kapatmak, uyanmak, hiçbiri
+turbo'dan çıkaramıyordu. İki ağ eklendi, ikisi de olay tetikli (poll YOK):
+
+| ağ | nerede | ne zaman |
+|---|---|---|
+| gamerun sıfırlaması | `lib/gamerun.nix` 4b | her oyun açılışında, kendi kaydından önce |
+| `game-perf-reap.service` | `system/kernel/sched.nix` | udev (ACAD) + uyanış |
+
+İkisi de aynı testi yapar: referans sayacı dizininde **canlı** PID kalmadıysa
+oturum bitmiştir → `systemctl stop game-perf.service`.
 
 Donanım tarafı zaten AC'ye bağlı otomatik: fiş takılıyken fan modu 2 ("oyun") +
 NPCF.ACBT 80W → nvidia-powerd dGPU'yu 75–85W bandına çıkarır
@@ -516,7 +592,7 @@ Prism Launcher (iGPU'da açılır)
             │   OpenGL oyunları tam bundan etkilenir. Artık varsayılan.)
             ├─ taskset -c 0-15 (Zen5c masaüstü maskesini del)
             └─ systemctl start game-perf.service   ← DOĞRUDAN (gamemode yok, 2 Eyl 2026)
-                 └─ scx_lavd + AC'deyse 0xED profil 2 + turbo fan + PPD balanced
+                 └─ scx_lavd + AC.deyse turbo fan + PPD balanced + 0xED profil 2 (PPD.den SONRA)
                     (Steam'dekiyle aynı; GR_CPUMAX=1 ile performance)
 ```
 
@@ -752,7 +828,7 @@ yalnız bakım sürümü — kaçırılan bir şey yok, nixpkgs güncellemesiyle
 canlıda sağlıklı (D-Bus bağlı, çökmüyor); tek yinelenen log satırı SBIOS'un "DC
 controller"ı (pil modu) kapatması — bu repo zaten tüm boost mantığını AC'ye kilitlediği
 için muhtemelen zararsız. Asıl kanıt versiyon numarası değil: ACBT WMI yazımı (0x4C,
-gigabyte-power-profile) → nvidia-powerd okuması → GPU tavanı zinciri KCD'de **38W→70-83W**
+aero-power-profile) → nvidia-powerd okuması → GPU tavanı zinciri KCD'de **38W→70-83W**
 ölçüldü (`gaming-performance-project` belleği) — bu, jenerik "Dynamic Boost AMD CPU'da
 çalışmıyor" sınırlamasından (NVIDIA/open-gpu-kernel-modules **#392**, 2022'den beri açık,
 "Feature Pending/NV-Triaged") bağımsız çalışıyor; bu makinedeki kazanç WMI yan-kanalından
@@ -831,7 +907,7 @@ systemctl is-active game-perf scx                                # active / acti
 cat /sys/devices/platform/aorus_laptop/fan_mode                  # 5 (turbo)
 nvidia-smi                                                       # yükte ≥75W
 nvtop                                                            # (2. terminal) dGPU'da oyun süreci + watt/util
-# fişi çek/tak veya uykudan dön → fan_mode 5'te KALMALI (10 Ağu düzeltmesi öncesi 0'a düşerdi)
+# fişi çek/tak veya uykudan dön → fan_mode turbo'da KALMALI (10 Ağu düzeltmesi öncesi 0'a düşerdi)
 
 # DLSS init şüphesinde:
 PROTON_LOG=1 gamerun %command%    # ~/steam-<appid>.log içinde nvapi/ngx satırları
@@ -893,7 +969,7 @@ bellek `ec-power-limit-self-revert`.
 
 **Güvenlik kartı:**
 - EC bu makinede **uçucu**: şarj limiti/fan/ACBT her boot yeniden uygulanıyor →
-  kötü değerde **reboot = temiz sayfa**; ACBT için `systemctl start gigabyte-power-profile`.
+  kötü değerde **reboot = temiz sayfa**; ACBT için `systemctl start aero-power-profile`.
 - Donma/anomali → güç tuşu 15 sn (sert kapanış), gerekirse AC çek.
 - SMU korumaları EC isteklerinden bağımsız (CPU zaten 95°C tavanında kıskaçlı) —
   donanım hasarı gerçekçi değil; en kötü bedel kaydedilmemiş iş kaybı.
@@ -908,7 +984,7 @@ bellek `ec-power-limit-self-revert`.
    0xF1 için GCC değer uzayında kal: `0xF1 25000` (SPL 25W) → RAPL tepkisi var mı?
 3. Geri-okuma: 0xED sonrası NPCF alanları (`ACBT`/`AMAT`, Faz D yöntemi); 0xF1–F3
    geri-okuması RAPL davranışından (Get metodu yok).
-4. Geri dönüş: tam temizlik = **reboot**; ACBT restorasyonu = `gigabyte-power-profile`.
+4. Geri dönüş: tam temizlik = **reboot**; ACBT restorasyonu = `aero-power-profile`.
 5. Abort: RAPL 2 denemede tepkisiz → faz kapat · sürekli >95°C / termal gariplik →
    derhal reboot · input/ekran anomalisi → güç 15 sn.
 6. Kanıtlanan kazanç `game-perf.service`'e kalıcı eklenir (oyun-anı kapsamı korunur).

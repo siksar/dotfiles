@@ -292,28 +292,33 @@ W:	gigabyte-power-profile.service (wmi.nix) game-perf.service aktifken
 	turbo'yu sessizce düşürür (10 Ağu 2026'da düzeltildi).
 
 ═══════════════════════════════════════════════════════════════════════════
-MASAÜSTÜ — COSMIC (varsayılan) + KDE Plasma (ikinci oturum)
+MASAÜSTÜ — COSMIC (varsayılan) + GNOME (ikinci oturum)
 ═══════════════════════════════════════════════════════════════════════════
 S:	Maintained — Hyprland + Caelestia + Serpantinum Eylül 2026'da ağaçtan
 	çıktı; `home/desktop/` dizini artık YOK. Öncesi git geçmişinde.
 F:	system/desktop/cosmic.nix               (varsayılan oturum)
-F:	system/desktop/plasma.nix               (ikinci oturum, karantinalı)
+F:	system/desktop/gnome.nix                (ikinci oturum, karantinalı)
 F:	system/desktop/CLAUDE.md                ← dizin-içi tuzaklar, otomatik yüklenir
-T:	Documentation/desktop.md                (güncel: greeter, süsleme, Plasma, COSMIC)
+T:	Documentation/desktop.md                (güncel: greeter, süsleme, GNOME, COSMIC)
 T:	Documentation/archive/desktop-hyprland-caelestia.md   (DONMUŞ — önceki dönem)
+T:	Documentation/archive/desktop-plasma.md               (DONMUŞ — KDE dönemi,
+	24 Ağu – 16 Eyl 2026; Plasma'nın idle/D3cold ölçümleri orada)
 N:	Oturum seçimi configuration.nix'te: desktop.cosmic.enable +
-	desktop.plasma.enable, defaultSession = "cosmic" (DÜZ atama).
-N:	Greeter ÜÇ girdi listeler: cosmic, plasma (Wayland), plasmax11 (X11) —
-	hepsi upstream oturum paketlerinden. Elle yazılmış girdi YOK (plasma.nix'in
-	"karantina" sarmalayıcısı 11 Eyl 2026'da kaldırıldı, gerekçe dosyanın başında).
-W:	defaultSession'ı mkDefault'a çevirme: plasma6 modülü mkDefault "plasma"
-	diyor, düz atama onu yeniyor. mkDefault yaparsan greeter sessizce
-	Plasma'ya döner.
+	desktop.gnome.enable, defaultSession = "cosmic" (DÜZ atama).
+N:	Greeter'da beklenen ÜÇ girdi: cosmic, gnome (Wayland), gnome-xorg (X11) —
+	hepsi upstream oturum paketlerinden. Elle yazılmış girdi YOK. 16 Eyl 2026'da
+	Plasma çıkıp GNOME girdi; liste greeter'da GÖZLE doğrulanacak.
+N:	GNOME modülü GDM'i ZORLAMIYOR (gdm.enable satırı yalnız
+	nixos-generate-config şablonunda) ve defaultSession'a hiç dokunmuyor —
+	plasma6 dönemindeki "mkDefault'a çevirirsen greeter sessizce diğerine
+	döner" tuzağı kalktı.
 W:	Her oturumun KENDİ iGPU kilidi var ve sözdizimleri BİRBİRİNİN TERSİ:
 	  COSMIC → COSMIC_DRM_ALLOW_DEVICES = "0x1002:0x1114"  (virgülle ayrılır,
 	           ':' GEREKLİ, udev symlink'ine ihtiyaç YOK)
-	  Plasma → KWIN_DRM_DEVICES = "/dev/dri/kwin-igpu"     (kendi udev rule'u,
-	           değerde ':' OLAMAZ)
+	  GNOME  → udev TAG+="mutter-device-ignore" (NVIDIA kartına) — ORTAM
+	           DEĞİŞKENİ YOK; mutter yalnız bu etiketi okur (libmutter-18'de
+	           doğrulandı). Arşivdeki Plasma üçüncü varyanttı: KWIN_DRM_DEVICES,
+	           değerde ':' OLAMAZ.
 	Oturumlar birbirinin dosyasına dayanmaz — biri kapatılınca diğeri
 	çalışsın diye. Yanlış yaparsan dGPU açık DRM fd tutar, D3cold'a inmez,
 	idle 4.28W → ~7W.
@@ -322,9 +327,14 @@ W:	~/.config/cosmic ALTINA NIX'TEN HİÇBİR ŞEY YAZMA. cosmic-config'in
 	GUI'sinin kaydetmesini SESSİZCE bozar. COSMIC ayarları kasıtlı imperatif:
 	Stylix köprüsü YOK, HM modülü YOK.
 N:	Karantina sınırı = "o oturumun DIŞINDA da koşuyor mu?". İçinde kalanlar
-	(powerdevil, baloo, kded6) varsayılanında bırakıldı. Sızanlar kapatıldı:
-	Plasma'nın fwupd'ı (kalıcı fwupd-refresh.timer → boşta-yoklama yasağı),
-	COSMIC'in avahi ve orca'sı.
+	(gsd-*, evolution-data-server, goa) varsayılanında bırakıldı. GNOME ÇOK
+	sızdırıyor, hepsi gnome.nix'te kapatıldı: localsearch+tinysparql (dosya
+	indeksleyici — kural 6 ihlali), rygel/dleyna/gnome-user-share/
+	gnome-remote-desktop (ağ servisleri), avahi, orca, i18n.inputMethod,
+	gnome-browser-connector, gnome-initial-setup.
+W:	Bir seçeneği kapatmadan önce repoda KENDİ dosyası var mı bak: geoclue2'yi
+	system/net/geoclue.nix düz true ile açıyor; gnome.nix'e false yazmak eval'i
+	çakışmayla düşürür (16 Eyl 2026'da bir build bu yüzden düştü).
 N:	Kayda geçmiş sızıntılar (kapatılmadı): xdg.portal.configPackages üç
 	modülde de mkDefault → birleşiyorlar; X11_*_RULES_XML koşulsuz yazılıyor;
 	fallbackCursorThemes yalnız fallback (Stylix kazanır); fonts.packages
@@ -354,8 +364,11 @@ W:	Per-app renk AYARLAMA. Stylix GTK/ghostty/vscodium/vesktop/starship'i
 W:	schemes/ ve wallpapers/ dosya ADLARI store yoluna girer → taşınabilir,
 	yeniden adlandırılamaz.
 N:	COSMIC'in Stylix hedefi YOK ve köprü de KURULMADI (kullanıcı kararı).
-N:	Eval uyarısı bekleniyor: stylix.targets.qt.platform = kde desteklenmiyor
-	(Plasma yüzünden). Hata değil.
+N:	Kapıda İKİ eval uyarısı bekleniyor (16 Eyl 2026, ikisi de hata DEĞİL):
+	  1. stylix.targets.qt.platform = gnome desteklenmiyor (Plasma döneminde
+	     aynı uyarı 'kde' diyordu — kaynağı Stylix'in qt hedefi, oturum değil).
+	  2. qt.platformTheme.name = "gnome" DEPRECATED, 'adwaita' isteniyor.
+	     Yazan Stylix; upstream düzeltince kendiliğinden geçer.
 
 GİRİŞ EKRANI
 S:	Maintained
@@ -393,6 +406,21 @@ W:	clang'la derlenen çekirdekte (CachyOS-lto) NVIDIA iki ayrı iş ister —
 	gcc'ye alır, passthru.open paket setinin callPackage'ıyla kurulduğu
 	için modül clang'da kalır. Düzeltince closure 28.54 GiB.
 	İkisi de upstream düzelince gereksizleşir — o gün SİL.
+
+FN TUŞLARI
+S:	Keşif aşaması — kanallar haritalandı, eşleme tablosu ÖLÇÜLMEDİ
+F:	system/arch/aerox16/fn-keys.nix + fn-bridge.pl  (0xFF02 → uinput + eylem)
+F:	scripts/fn-probe.pl  (dört kanallı ölçüm aracı)
+T:	Documentation/aerox16/fn-keys.md
+N:	Fn matrisi EC'de DEĞİL: klavye kendi USB denetleyicisinde (0414:8104)
+	çözüyor. EC imajında hiç HID descriptor yok (16 Eyl 2026 taraması) —
+	yani Fn eşlemesi firmware'den değiştirilemez, iş Linux tarafında.
+N:	EC'nin payı: PECM WEVS/WEVN → _Q45 → WMI olayı (GUID ABBC0F72, notify
+	0xD2). aero_eg61h_evt bunu ZATEN dinliyor ama yalnız dev_info basıyor.
+W:	Satıcı sayfası 0xFF02 / Report ID 4 evdev'e HİÇ ulaşmaz — "tuş çalışmıyor"
+	demeden önce hidraw'ı dinle (scripts/fn-probe.pl dört kanalı birden açar).
+W:	KBLL (WMBD 0xF6) klavye ışığını sürmüyor: ışık yanarken alan 0 okundu.
+	Renk/parlaklık yolu LampArray — keyboard-rgb.md.
 
 KLAVYE RGB
 S:	Maintained — HID LampArray, tek bölge RGB
@@ -622,8 +650,11 @@ W:	SUDO_ASKPASS tanımlamak TEK BAŞINA YETMEZ. sudo yardımcıyı yalnız `-A`
 	ile çağırır; bayraksız çağrı tty arar ve "a terminal is required" der.
 W:	environment.sessionVariables PAM oturum ortamına yazar; ZATEN AÇIK
 	süreçler görmez. İlk switch'ten sonra yeniden giriş gerekir.
-N:	Marjinal kapanış maliyeti ÖLÇÜLDÜ: 16.9 KiB (iki build + diff-closures,
-	5 Eyl 2026). Qt6/kf6 zaten desktop.plasma.enable yüzünden closure'da.
+W:	Marjinal maliyet rakamı 16 EYL 2026'DA ÇÜRÜDÜ. Eski ölçüm 16.9 KiB'ti
+	(5 Eyl 2026) ve gerekçesi "kf6 zaten Plasma yüzünden closure'da"ydı —
+	Plasma ağaçtan çıktı. ksshaskpass kf6 yığınını artık tek başına çekiyor
+	olabilir; diff-closures ile YENİDEN ÖLÇ. Alternatif aday GNOME tarafından:
+	gcr ssh-askpass (gcr-ssh-agent zaten açık) ya da seahorse.
 
 ═══════════════════════════════════════════════════════════════════════════
 

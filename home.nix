@@ -18,6 +18,8 @@
     ./home/apps/emu.nix
     ./home/apps/opencode.nix
     ./home/apps/downloads.nix
+    ./home/apps/streamrip.nix
+    ./home/apps/lollypop.nix
   ];
 
   home.username      = "zixar";

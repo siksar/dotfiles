@@ -30,7 +30,11 @@
       open = "nautilus .";
       # codium Eylül 2026'da ağaçtan çıktı; kurulu tek editör nvim.
       c = "nvim .";
-      rip = "yt-dlp -x --audio-format mp3";
+      # eskiden `rip` idi — home/apps/streamrip.nix eklendikten sonra çakıştı:
+      # fish abbr komut pozisyonundaki kelimeyi ÇALIŞTIRILMADAN ÖNCE genişletir,
+      # yani `rip <url>` yazınca streamrip'in `rip` binary'sine hiç sıra
+      # gelmeden bu abbr'a dönüşüyordu (13 Eyl 2026).
+      ytmp3 = "yt-dlp -x --audio-format mp3";
       t = "topgrade";
     };
 
@@ -61,6 +65,26 @@
           cd -- "$cwd"
         end
         rm -f -- "$tmp"
+      '';
+
+      # streamrip'in `rip` binary'sini sarmalar (fonksiyon isim çakışmasında
+      # PATH'teki binary'den önce çalışır — `command rip` en altta gerçek
+      # binary'ye düşer). GEREKÇE: Deezer'ın paylaş linki (`link.deezer.com/s/…`)
+      # streamrip'in parse_url.py regex'inde tanınmıyor — deezer.page.link/
+      # dzr.page.link'i tanıyor, link.deezer.com'u tanımıyor ("Found invalid
+      # url … skipping", 13 Eyl 2026, streamrip 2.2.0). Argümanlar arasında
+      # böyle bir link varsa gerçek deezer.com URL'sine çözüp öyle iletir;
+      # geri kalan her şey (config, search, id, …) değişmeden geçer.
+      rip = ''
+        set -l resolved
+        for a in $argv
+          if string match -q '*link.deezer.com/s/*' -- $a
+            set -a resolved (${pkgs.curl}/bin/curl -sIL -o /dev/null -w '%{url_effective}' -- $a)
+          else
+            set -a resolved $a
+          end
+        end
+        command rip $resolved
       '';
     };
   };

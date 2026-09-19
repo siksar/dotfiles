@@ -72,15 +72,17 @@ sistemdir (configuration.nix + Stylix + gömülü Home Manager);
 `lib/theme-standalone.nix` ile elle alır. İkisi de **aynı** `home.nix`'i okur —
 yalnız birinin görebileceği HM ayarı ekleme.
 
-**Masaüstü: COSMIC varsayılan, KDE Plasma ikinci oturum.** Giriş ekranı COSMIC
+**Masaüstü: COSMIC varsayılan, GNOME ikinci oturum.** Giriş ekranı COSMIC
 greeter (`system/desktop/login.nix`). Hyprland + Caelestia + Serpantinum Eylül
 2026'da ağaçtan çıktı — o dönemin defteri
 `Documentation/archive/desktop-hyprland-caelestia.md`'de donduruldu; güncel defter
 `Documentation/desktop.md`. İki karşı-sezgisel kural: **`~/.config/cosmic` altına Nix'ten hiçbir şey
 yazılmaz** (cosmic-config'in kullanıcı katmanı sistem katmanını ezer, ayar GUI'si
 sessizce kaydedemez olur — COSMIC ayarları kasıtlı olarak imperatif bırakıldı) ve
-COSMIC'in dGPU koruması `COSMIC_DRM_ALLOW_DEVICES` virgülle ayrılır, yani diğer
-oturumların "iki nokta yasak" kuralının tersidir.
+her oturumun dGPU koruması AYRI SÖZDİZİMİ: COSMIC `COSMIC_DRM_ALLOW_DEVICES`
+ortam değişkenini virgülle okur, GNOME'da ise ortam değişkeni HİÇ YOK — mutter
+bir udev etiketi (`mutter-device-ignore`) okur. Biri diğerinin desenini
+tekrarlamaz.
 
 **Renklerin tek kaynağı Stylix.** Palet, opaklık, font, imleç `lib/theme.nix`'te.
 Palet değiştirmek = `palette` satırını değiştir + rebuild; duvar kağıdı aynı

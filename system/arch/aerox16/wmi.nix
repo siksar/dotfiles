@@ -46,16 +46,33 @@
   hardware.aero-eg61h = {
     enable = true;
 
-    # AC ve pilde aynı: `balanced` (PECM+0x2C = 0x09). Mod 4 sessiz gibi geç
-    # başlıyor (54 °C) ama varsayılan gibi yükselebiliyor (%43 tavan).
-    # Bu, makinenin aorus_laptop altında zaten koştuğu moddu — değiştirmiyoruz.
-    fanMode.ac = "balanced";
+    # AC'de `responsive`, pilde `balanced` — AYRIM KASITLI (12 Eyl 2026).
+    #
+    # İki mod AYNI duty merdivenini kullanıyor (18·20·21·23·26·29·33…38·43);
+    # tek fark eşiklerin ~14 °C erkene kayması. Firmware tablosundan, fan 0
+    # (aero-sysfs/src/curves.rs, kaynak 0x05B92 vs 0x05CBE):
+    #     responsive  40→18%  46→20%  51→21%  56→23%  60→26%  64→29%  67→33%
+    #     balanced    54→18%  60→20%  66→21%  69→23%  72→26%  75→29%  78→33%
+    # Yani responsive daha GÜRÜLTÜLÜ değil, daha ERKEN: aynı havayı daha düşük
+    # sıcaklıkta veriyor, tavan ikisinde de %43. Sürekli yükte ikisi de tavana
+    # dayandığı için fark yok; kazanç kısa patlamalarda (derleme, oyun açılışı)
+    # sıcaklığın 90 °C'ye hiç tırmanmaması.
+    #
+    # PİLDE NEDEN DEĞİL: boşta ölçüm (12 Eyl, AC, masaüstü açık) CPU 54-57 °C
+    # ve fanlar 0 RPM. responsive'in 51 °C eşiği bu tabanın ALTINDA — yani
+    # pilde fan boşta dönmeye başlar ve 4.28 W boşta bütçesi (CLAUDE.md kural 6)
+    # ölçülmeden riske girer. Pil tarafı ancak `scripts/idle-baseline.sh` ile
+    # A/B ölçüldükten sonra değiştirilmeli.
+    fanMode.ac = "responsive";
     fanMode.battery = "balanced";
 
-    # Şarj limiti %60 (pil-ömrü modu; yolculuk öncesi tam kapasite gerekiyorsa
-    # 100 yap + rebuild). Sürücü yazımı GERİ OKUYUP doğruluyor; ayrıca kendi
-    # uyanış kancası var (7 Eyl'de doğrulandı: "uyanis: ... korunmus, dokunulmadi").
-    chargeLimit = 60;
+    # Şarj limiti %80 (12 Eyl 2026, kullanıcı isteği — önceki değer 60).
+    # 80 tahmin değil: `aero-set-charge@80` 8 Eyl'de köprü testinde yazılıp geri
+    # okunmuştu. Sürücü her yazımı GERİ OKUYUP doğruluyor, uyuşmazlıkta -EIO
+    # döner; ayrıca kendi uyanış kancası var (7 Eyl: "uyanis: ... korunmus").
+    # DİKKAT: EC limiti AŞAĞI doğru uygulamıyor — pil şu an bunun üstündeyse
+    # (ör. %99) boşalana kadar hiçbir şey olmaz, sonra 80'de durur.
+    chargeLimit = 80;
 
     # ACBT (0x4C, ×8W): AC'de 80W → nvidia-powerd GPU tavanını 50→75W+ yapar;
     # pilde 0 (verim). gpu_boost (0x51) yazılMIYOR: bu DSDT'de 2=no-op, 3=dGPU eject!

@@ -12,10 +12,16 @@
 # giriş gerekir. Ara çözüm, değişkeni tek seferlik önüne koymaktır:
 #   SUDO_ASKPASS=$(command -v ksshaskpass) sudo -A …
 #
-# Yardımcı seçimi: ksshaskpass Qt6/kf6 tabanlı ve `desktop.plasma.enable` zaten
-# açık olduğu için kf6 closure'da. ÖLÇÜLDÜ (5 Eyl 2026, iki build + diff-closures):
-# marjinal maliyet **16.9 KiB** — ikilinin kendisi, hepsi bu. GTK tarafındaki
-# seahorse ya da lxqt-openssh-askpass ayrı birer kütüphane yığını getirirdi.
+# Yardımcı seçimi: ksshaskpass Qt6/kf6 tabanlı.
+#
+# ⚠️ GEREKÇE 16 EYL 2026'DA ÇÜRÜDÜ, RAKAM YENİDEN ÖLÇÜLMELİ. Eski not şöyleydi:
+# "ksshaskpass ... `desktop.plasma.enable` zaten açık olduğu için kf6 closure'da,
+# marjinal maliyet 16.9 KiB (5 Eyl 2026, iki build + diff-closures)". O gün Plasma
+# ağaçtan çıktı — kf6 yığınını artık BU ikili tek başına çekiyor olabilir, yani
+# 16.9 KiB'lik rakam geçersiz. Ölçüm: `nix store diff-closures` ile bu dosyayı
+# çıkarıp/koyarak iki build karşılaştır. Alternatif aday GNOME closure'ından:
+# gcr'nin ssh-askpass'i (services.gnome.gcr-ssh-agent zaten açık) ya da seahorse.
+# Değiştirmeden ÖNCE ölç — `sudo -A` bu makinedeki tek tty'siz sudo yolu.
 # Wayland yerel çalışır (QT_QPA_PLATFORM oturumda "wayland;xcb").
 { pkgs, ... }:
 

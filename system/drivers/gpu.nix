@@ -75,7 +75,7 @@
         };
       });
     # nvidia-powerd: NPCF.ACBT bütçesini okuyup GPU tavanını 50W→75W+'a
-    # çıkarır (Dynamic Boost). ACBT'yi gigabyte-power-profile yazar (0x4C).
+    # çıkarır (Dynamic Boost). ACBT'yi aero-power-profile yazar (0x4C).
     dynamicBoost.enable = true;
     powerManagement = {
       enable      = true;

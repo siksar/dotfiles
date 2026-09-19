@@ -243,12 +243,12 @@ buraya işlenir (donma forensiği). Kurtarma: reboot → CO sıfırlanır.
   get-pbo-scalar, (2) PSMU 0xE1 get-coper-options (ikisi getter), (3) MP1 0x4B
   coper core0 −5 probe (UXTU encoding `(core<<20)|(val&0xFFFF)` = 0xFFFB),
   (4) WMBD 0xED profil 2 (GCC Windows-init, kanıtlanmış-güvenli) altında enable-oc +
-  coall tekrarı, ardından 0xED 0 + gigabyte-power-profile restore. Donma → reboot.
+  coall tekrarı, ardından platform_profile geri yazımı + aero-power-profile restore. Donma → reboot.
 - 2026-07-12 17:40 — Süpürme sonuçları: get-pbo-scalar → **REP=OK, arg0=0x3f800000
   (float 1.0, stok)**; get-coper-options → **REP=OK, arg0=0x00000000 — "CO seçeneği
   yok", kilidin firmware beyanı**; coper core0 −5 → rejected; **0xED profil 2
   altında: enable-oc yine 0xFD, coall yine rejected** (GCC init'i OC bayrağına
-  dokunmuyor). 0xED 0 + gigabyte-power-profile restore temiz. MCE yok, donma yok.
+  dokunmuyor). platform_profile geri yazımı + aero-power-profile restore temiz. MCE yok, donma yok.
 
 ### FAZ 0 KARARI (2026-07-12): CPU/iGPU Curve Optimizer bu makinede PLATFORM KİLİTLİ
 

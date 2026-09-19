@@ -5,7 +5,8 @@
 # NEDEN VAR: 2 Eyl 2026'da "ana masaüstü adayı" olarak tam kalitede kuruldu;
 # Eylül 2026'da Hyprland/Caelestia ağaçtan çıkınca ADAY DEĞİL, VARSAYILAN oldu
 # (configuration.nix: defaultSession = "cosmic"). `desktop.cosmic.enable = false;`
-# artık geri alma kolu değil — kapatırsan geriye yalnız Plasma kalır.
+# artık geri alma kolu değil — kapatırsan geriye yalnız GNOME kalır
+# (16 Eyl 2026: ikinci oturum Plasma değil GNOME).
 #
 # OYUN — 2 Eyl'de "kapsam dışı", 11 EYL 2026'DA ÖLÇÜLDÜ VE KORKU ASILSIZ ÇIKTI.
 # Eski not "COSMIC_DRM_ALLOW_DEVICES yalnız iGPU'ya izin verdiği için gamerun'ın
@@ -18,13 +19,15 @@
 # Aynı anda dGPU boştayken /sys/.../0000:64:00.0/power_state = D3cold, yani guard
 # idle tasarrufunu da bozmuyor. İkisi birden çalışıyor.
 #
-# PLASMA'DAN İKİ FARKI VAR, ikisi de bilinçli:
-#   1. Session wrapper YOK. plasma.nix'teki sarmalayıcı, HM'in
-#      QT_QPA_PLATFORMTHEME=qt6ct değeri Breeze'i çökerttiği için vardı.
+# İKİ TASARIM KARARI, ikisi de bilinçli (karşılaştırma Plasma dönemindendi —
+# o oturum 16 Eyl 2026'da çıktı, defteri Documentation/archive/desktop-plasma.md):
+#   1. Session wrapper YOK. Plasma'da bir sarmalayıcı gerekmişti çünkü HM'in
+#      QT_QPA_PLATFORMTHEME=qt6ct değeri Breeze'i çökertiyordu.
 #      COSMIC iced/GTK tabanlı, Qt değil — o çekişme burada yok, upstream'in
 #      `cosmic-session` oturum paketi doğrudan kullanılıyor.
-#   2. udev kuralı YOK — bkz. aşağıdaki DRM guard notu.
-{ config, lib, ... }:
+#   2. udev kuralı YOK — bkz. aşağıdaki DRM guard notu. (GNOME'un DRM guard'ı ise
+#      TAM TERSİ: orada iş yalnızca udev etiketiyle yapılır, env değişkeni yoktur.)
+{ config, lib, pkgs, ... }:
 
 let
   cfg = config.desktop.cosmic;
@@ -40,7 +43,8 @@ in
     # dokunmuyor; greeter seçimi system/desktop/login.nix'te verildi.
     #
     # `defaultSession` ÇAKIŞMASI YOK: COSMIC modülü onu hiç yazmıyor; configuration.nix
-    # düz (mkDefault'suz) "cosmic" veriyor ve plasma6'nın mkDefault "plasma"sını yener.
+    # düz (mkDefault'suz) "cosmic" veriyor. GNOME modülü de bu seçeneğe dokunmuyor —
+    # plasma6 `mkDefault "plasma"` yazdığı için bu satır bir zamanlar SAVUNMAYDI.
     services.desktopManager.cosmic.enable = true;
 
     # xwayland.enable (varsayılan true) BİLEREK dokunulmadan bırakıldı — kullanıcı
@@ -51,8 +55,8 @@ in
     # açılması gerekirdi. Saflık doğrulaması: COSMIC'te `xlsclients` BOŞ dönmeli.
 
     #### dGPU uykuda kalsın (4.28W idle bütçesi) ####
-    # KWIN_DRM_DEVICES (plasma.nix) ile AYNI
-    # gerekçe: bileşken NVIDIA dGPU'nun DRM node'unu açarsa o açık fd kartın
+    # gnome.nix'in `mutter-device-ignore` udev etiketiyle (ve arşivdeki Plasma'nın
+    # KWIN_DRM_DEVICES'ıyla) AYNI gerekçe: bileşken NVIDIA dGPU'nun DRM node'unu açarsa o açık fd kartın
     # RTD3/D3cold'a girmesini bloke eder ve idle taban ~4.3W'tan ~7W'a çıkar.
     #
     # ANCAK SÖZDİZİMİ FARKLI — bu dosyaya diğer üçünün notunu KOPYALAMA, aktif hata
@@ -63,7 +67,8 @@ in
     #       "major:minor"    → char cihaz numarası
     #       "pci-0000:65:00.0" → /dev/dri/by-path/<ad>-render okunur
     #       "<ad>"           → /dev/dri/<ad> yolu
-    #   Yani Plasma'nın "değer iki nokta İÇEREMEZ" kuralı burada TERSİNE döner.
+    #   Yani Plasma'nın "değer iki nokta İÇEREMEZ" kuralı burada TERSİNE dönüyordu
+    #   (o oturum arşivde; GNOME'da karşılık gelen bir değişken hiç yok).
     #
     # BU YÜZDEN udev SYMLINK'İ YOK (kwin-igpu desenini tekrarlama):
     # PCI kimliğiyle eşleşmek boot sırasından zaten bağımsız, symlink gereksiz bir
@@ -75,9 +80,9 @@ in
     #   NVIDIA RTX 5060  dGPU  64:00.0  renderD129  226:129 → 0x10de / 0x2d19
     #
     # Değişken environment.sessionVariables ile PAM üzerinden oturuma girer, yani
-    # cosmic-session compositor'ı exec etmeden ÖNCE oradadır. Plasma oturumuna da
-    # sızar; maliyeti SIFIR — bu değişkeni yalnız cosmic-comp okur (KWIN_DRM_DEVICES
-    # de bugün aynı şekilde sızıyor ve etkisiz).
+    # cosmic-session compositor'ı exec etmeden ÖNCE oradadır. Diğer oturumlara da
+    # sızar; maliyeti SIFIR — bu değişkeni yalnız cosmic-comp okur. (GNOME hiçbir
+    # DRM env değişkeni okumaz, kendi kilidi udev etiketidir: gnome.nix.)
     environment.sessionVariables.COSMIC_DRM_ALLOW_DEVICES = "0x1002:0x1114";
 
     #### Karantina sınırı — COSMIC oturumunun DIŞINDA da koşacak olanlar ####
@@ -96,8 +101,9 @@ in
     services.orca.enable = false;
 
     #### Bilinen sızıntılar — kapatılmadı, kayda geçti ####
-    # 1) xdg.portal.configPackages — plasma6 ve cosmic modüllerinin İKİSİ DE mkDefault
-    #    kullanıyor (doğrulandı), yani eşit öncelikte BİRLEŞİYORLAR;
+    # 1) xdg.portal.configPackages — cosmic ve (bugün) gnome modüllerinin İKİSİ DE
+    #    mkDefault kullanıyor, yani eşit öncelikte BİRLEŞİYORLAR (plasma6 için
+    #    doğrulanmıştı, desen aynı);
     #    xdg-desktop-portal-cosmic kendiliğinden kaydoluyor, elle eklemek gerekmiyor.
     #    Portal SEÇİMİ .portal dosyasındaki UseIn= ile masaüstü başına yapılır, yani
     #    iki oturum birbirini bozmamalı — ama ekran paylaşımı bozulursa İLK bakılacak
@@ -121,5 +127,52 @@ in
     # symlink'i koymak dosyayı salt-okunur yapar ve ayar menüsü SESSİZCE kaydedemez
     # hâle gelir. Sistem varsayılanı gerçekten gerekirse tek meşru yol
     # /share/cosmic/<ad>/v<N>/<key>'dir (modül zaten environment.pathsToLink'e ekliyor).
+
+    #### Copilot tuşu → GitHub Copilot (13 Eyl 2026) ####
+    # Yukarıdaki yasağın izin verdiği TEK deklaratif kısayol yolu burasıdır:
+    # dosya sistem katmanına (/share/cosmic) konur, kullanıcı katmanı boş kalır,
+    # ayar GUI'si serbest kalmaya devam eder.
+    #
+    # TUŞ NE GÖNDERİYOR — ÖLÇÜLDÜ (`wev`, canlı COSMIC oturumu): Copilot tuşu tek
+    # tuş değil, üç olaydan oluşan bir akor. Super_L (133) → Shift_L (50) →
+    # keycode 201 (= evdev KEY_F23). Tuş anındaki modifier durumu
+    # `depressed: 00000041: Shift Mod4`, yani xkb Shift/Super'i TÜKETMİYOR
+    # (types/pc, PC_SHIFT_SUPER_LEVEL2: preserve[Shift] + preserve[Super]).
+    #
+    # TUZAK — İSTEMCİNİN GÖRDÜĞÜ SEMBOL, BİLEŞKENİN ARADIĞI SEMBOL DEĞİL.
+    # `xkbcli compile-keymap --model pc104 --layout us` çıktısında <FK23> iki
+    # seviyeli: symbols[1] = [ F23, XF86Assistant ]. Shift+Super basılıyken Level 2
+    # seçilir ve `wev` "XF86Assistant" basar — ama cosmic-comp kısayolu raw_syms()
+    # ile eşleştiriyor (src/input/mod.rs:2148), o da smithay'de
+    # key_get_syms_by_level(keycode, layout, 0), yani LEVEL 1. Doğru anahtar "F23";
+    # "XF86Assistant" yazarsan tuş SESSİZCE hiçbir şey yapmaz.
+    # Modifier karşılaştırması tam eşitlik (src/config/key_bindings.rs:41) —
+    # [Super, Shift] eksiksiz verilmeli.
+    #
+    # İKİ SONUÇ, İKİSİ DE SESSİZ:
+    # 1) Ayarlar > Klavye > Kısayollar'dan HERHANGİ bir özel kısayol eklersen
+    #    cosmic-settings ~/.config/cosmic/<id>/v1/custom dosyasını yazar; get()
+    #    dosya bazında ezer (birleştirmez) ve buradaki satır tamamen gölgelenir.
+    # 2) ~/.local/share/cosmic/<id>/v1 dizini VAR OLURSA sistem katmanı oraya kayar:
+    #    cosmic-config yolu xdg find_data_file ile çözüyor ve o XDG_DATA_HOME'a
+    #    XDG_DATA_DIRS'ten ÖNCE bakıyor (cosmic-config/src/lib.rs:236). O dizini
+    #    oluşturma; oluşmuşsa sil.
+    #
+    # Spawn `/bin/sh -c` ile koşar ve cosmic-comp'un ortamını miras alır
+    # (src/input/actions.rs:1080), yani PATH'teki `github-copilot` yeterli — komut
+    # usr/github-copilot.nix'ten geliyor. Tuş sessiz kalırsa önce AppImage'ın
+    # yerinde olduğunu doğrula: sarmalayıcı hatayı stderr'e yazar ve orada kimse
+    # okumaz.
+    environment.systemPackages = [
+      (pkgs.writeTextFile {
+        name = "cosmic-custom-shortcuts";
+        destination = "/share/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom";
+        text = ''
+          {
+              (modifiers: [Super, Shift], key: "F23"): Spawn("github-copilot"),
+          }
+        '';
+      })
+    ];
   };
 }
