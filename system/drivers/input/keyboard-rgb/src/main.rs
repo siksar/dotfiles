@@ -192,10 +192,18 @@ fn hsv(h: f64, s: f64, v: f64) -> Rgb {
     (q(r), q(g), q(b))
 }
 
-// --- Durum: temel renk + parlaklık yüzdesi -------------------------------
+// --- Durum: temel renk + parlaklık yüzdesi + açık/kapalı ------------------
 // Parlaklık ayrı bir donanım kanalı OLMADIĞI için (IntensityLevelCount=1)
 // "temel renk"i saklayıp ölçekliyoruz; yoksa parlaklığı düşürmek rengi
 // geri döndürülemez biçimde kaybettirirdi.
+//
+// AÇIK/KAPALI ÜÇÜNCÜ ALAN OLARAK (19 Eyl 2026): `off` eskiden yalnız (0,0,0)
+// yazıyor, duruma HİÇ DOKUNMUYORDU — yani "hangi renge geri açacağız" bilgisi
+// saklanmıyordu ve `toggle` yazılamıyordu. Fn+kombinasyon ve COSMIC GUI'sinin
+// ikisi de aç/kapa istiyor, bu yüzden durum üç alanlı oldu.
+//
+// Dosya formatı: "<hex> <yüzde> <on|off>". ÜÇÜNCÜ ALAN YOKSA eski iki alanlı
+// dosyadır ve `on` varsayılır — eski state dosyaları kırılmaz.
 
 fn state_file() -> PathBuf {
     let base = std::env::var("XDG_STATE_HOME").unwrap_or_else(|_| {
@@ -207,26 +215,50 @@ fn state_file() -> PathBuf {
     PathBuf::from(base).join("kbd-rgb/state")
 }
 
-fn load_state() -> (Rgb, u32) {
+fn load_state() -> (Rgb, u32, bool) {
     let d = fs::read_to_string(state_file()).unwrap_or_default();
     let mut it = d.split_whitespace();
     let c = it.next().and_then(|s| parse_color(s).ok()).unwrap_or((255, 255, 255));
     let p = it.next().and_then(|s| s.parse().ok()).unwrap_or(100u32).clamp(0, 100);
-    (c, p)
+    // eski iki alanlı dosyada üçüncü alan yok → None gelir → "on" sayılır
+    let on = !matches!(it.next(), Some("off"));
+    (c, p, on)
 }
 
-fn save_state((r, g, b): Rgb, pct: u32) {
+/// ATOMİK yazma (tmp + rename). Bu dosyanın artık ÜÇ yazarı var — oturum
+/// açılışındaki kbd-rgb-theme.service, Fn köprüsü ve GUI — ve animasyon
+/// döngüsü onu 0.5 sn'de bir OKUYOR. Düz `fs::write` yarım yazılmış dosya
+/// okutabilirdi; `rename` POSIX'te atomiktir.
+fn save_state((r, g, b): Rgb, pct: u32, on: bool) {
     let p = state_file();
     if let Some(d) = p.parent() {
         let _ = fs::create_dir_all(d);
     }
-    let _ = fs::write(p, format!("{:02x}{:02x}{:02x} {}\n", r, g, b, pct));
+    // pid son eki: iki yazar geçici dosyada çakışmasın
+    let tmp = p.with_extension(format!("tmp.{}", std::process::id()));
+    let body = format!(
+        "{:02x}{:02x}{:02x} {} {}\n",
+        r, g, b, pct, if on { "on" } else { "off" }
+    );
+    if fs::write(&tmp, body).is_ok() && fs::rename(&tmp, &p).is_err() {
+        let _ = fs::remove_file(&tmp);
+    }
 }
 
+/// Işığı YAK: temel rengi parlaklıkla ölçekleyip yaz, durumu "on" kaydet.
 fn apply(l: &Lamp, base: Rgb, pct: u32) -> io::Result<()> {
     l.autonomous(false)?;
     l.color(scale(base, pct))?;
-    save_state(base, pct);
+    save_state(base, pct, true);
+    Ok(())
+}
+
+/// Işığı SÖNDÜR: (0,0,0) yaz ama temel rengi ve parlaklığı KORU — `on` ve
+/// `toggle` tam olarak bu değerlerle geri açar.
+fn extinguish(l: &Lamp, base: Rgb, pct: u32) -> io::Result<()> {
+    l.autonomous(false)?;
+    l.color((0, 0, 0))?;
+    save_state(base, pct, false);
     Ok(())
 }
 
@@ -234,10 +266,13 @@ fn usage() -> ! {
     eprintln!(
         "kullanım: kbd-rgb <komut>
 
-  info                     cihaz bilgisi (lamba sayısı, hidraw yolu)
+  info                     cihaz bilgisi (lamba sayısı, hidraw yolu, durum)
+  status [--json]          yalnız durum; --json makine-okunur (GUI/betik için)
   set <renk>               renk ata — hex 'ff6400' ya da ön ayar adı
-  off                      söndür (durum korunur)
-  bright <+N|-N|N>         parlaklık %% — RGB ölçekleme, kalıcı
+  on                       son renk ve parlaklıkla yak
+  off                      söndür (renk ve parlaklık KORUNUR)
+  toggle                   yanıyorsa söndür, sönükse yak
+  bright <+N|-N|N>         parlaklık %% — RGB ölçekleme, kalıcı; sönükse yakar
   auto <on|off>            firmware efektlerini aç/kapa
   anim <breathe|rainbow> [--fps N]
                            animasyon; ön planda çalışır (systemd yönetir)
@@ -253,7 +288,7 @@ fn run() -> io::Result<()> {
     if args.is_empty() {
         usage();
     }
-    let (base, pct) = load_state();
+    let (base, pct, on) = load_state();
 
     match args[0].as_str() {
         "info" => {
@@ -263,17 +298,63 @@ fn run() -> io::Result<()> {
             println!("cihaz        : {}", path.display());
             println!("lamba sayısı : {}", count);
             println!("cihaz türü   : {} (firmware'in bildirdiği; bu modelde yanıltıcı)", kind);
-            println!("durum        : #{:02x}{:02x}{:02x} @ %{}", base.0, base.1, base.2, pct);
+            println!(
+                "durum        : #{:02x}{:02x}{:02x} @ %{} — {}",
+                base.0, base.1, base.2, pct,
+                if on { "açık" } else { "kapalı" }
+            );
+        }
+        // Cihaza DOKUNMADAN da cevap verir: GUI paneli klavye takılı değilken
+        // de durumu gösterebilsin, açılışta hata kutusu atmasın.
+        "status" => {
+            let dev = Lamp::find().ok();
+            let (count, kind) = Lamp::open()
+                .ok()
+                .and_then(|l| l.attrs().ok())
+                .unwrap_or((0, 0));
+            if args.iter().any(|a| a == "--json") {
+                // Elle basılıyor: sıfır crate bağımlılığı kuralı (package.nix
+                // `rustc -O main.rs`) serde'yi dışarıda tutuyor. Alanların
+                // hiçbiri kullanıcı metni taşımıyor, kaçış gerekmiyor.
+                println!(
+                    "{{\"device\":{},\"lamps\":{},\"kind\":{},\"color\":\"{:02x}{:02x}{:02x}\",\"brightness\":{},\"on\":{}}}",
+                    dev.map(|p| format!("\"{}\"", p.display()))
+                        .unwrap_or_else(|| "null".into()),
+                    count, kind, base.0, base.1, base.2, pct, on
+                );
+            } else {
+                println!("renk      : #{:02x}{:02x}{:02x}", base.0, base.1, base.2);
+                println!("parlaklık : %{}", pct);
+                println!("durum     : {}", if on { "açık" } else { "kapalı" });
+                println!(
+                    "cihaz     : {}",
+                    dev.map(|p| p.display().to_string())
+                        .unwrap_or_else(|| "BULUNAMADI".into())
+                );
+            }
         }
         "set" => {
             let c = parse_color(args.get(1).unwrap_or(&String::new()))
                 .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
             apply(&Lamp::open()?, c, pct)?;
         }
+        "on" => {
+            apply(&Lamp::open()?, base, pct)?;
+        }
         "off" => {
+            extinguish(&Lamp::open()?, base, pct)?;
+        }
+        // Fn+kombinasyonun ve GUI düğmesinin ikisi de bunu çağırır. Durum
+        // dosyasındaki `on` alanı tek gerçek kaynak — LampArray'de yazılan
+        // renk geri OKUNAMADIĞI için donanıma sorma seçeneği yok.
+        "toggle" => {
             let l = Lamp::open()?;
-            l.autonomous(false)?;
-            l.color((0, 0, 0))?;
+            if on {
+                extinguish(&l, base, pct)?;
+            } else {
+                apply(&l, base, pct)?;
+            }
+            println!("{}", if on { "söndürüldü" } else { "yakıldı" });
         }
         "bright" => {
             let a = args.get(1).map(String::as_str).unwrap_or("");
@@ -286,6 +367,8 @@ fn run() -> io::Result<()> {
                     .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "parlaklık sayı olmalı"))?
             }
             .clamp(0, 100);
+            // Sönükken parlaklık tuşuna basmak ışığı YAKAR — donanımdaki
+            // davranış da bu, ve apply() zaten durumu "on" kaydeder.
             apply(&Lamp::open()?, base, new)?;
             println!("parlaklık: %{}", new);
         }
@@ -309,28 +392,35 @@ fn run() -> io::Result<()> {
             let t0 = Instant::now();
 
             // Durumu yarım saniyede bir tazele. Böylece animasyon DÖNERKEN
-            // `kbd-rgb set` (matugen post_hook'u) ya da `kbd-rgb bright`
-            // (SUPER+ALT+ok) çalışırsa efekt canlı uyum sağlar — iki yazarın
+            // `kbd-rgb set` (tema servisi), `kbd-rgb bright` ya da `toggle`
+            // (Fn tuşu / GUI) çalışırsa efekt canlı uyum sağlar — iki yazarın
             // aynı lambayı çekiştirip titretmesi yerine tek otorite döngü olur.
-            let (mut base, mut pct) = (base, pct);
+            let (mut base, mut pct, mut on) = (base, pct, on);
             let mut refreshed = Instant::now();
 
             // Sonsuz döngü: systemd durdurur (ExecStopPost `auto on` ile
             // firmware efektlerini iade eder). Sinyal yakalamaya gerek yok.
             loop {
                 if refreshed.elapsed() >= Duration::from_millis(500) {
-                    let (b, p) = load_state();
+                    let (b, p, o) = load_state();
                     base = b;
                     pct = p;
+                    on = o;
                     refreshed = Instant::now();
                 }
                 let t = t0.elapsed().as_secs_f64();
-                let c = match mode.as_str() {
-                    "rainbow" => hsv((t * 45.0) % 360.0, 1.0, 1.0),
-                    // nefes: 4 sn periyot, %8 taban (tamamen sönmesin)
-                    _ => {
-                        let k = (1.0 - (t * std::f64::consts::TAU / 4.0).cos()) / 2.0;
-                        scale(base, (8.0 + k * 92.0) as u32)
+                // Animasyon dönerken söndürüldüyse (Fn+Space) karanlık kal —
+                // döngüyü öldürmeye gerek yok, durum "on"a dönünce devam eder.
+                let c = if !on {
+                    (0, 0, 0)
+                } else {
+                    match mode.as_str() {
+                        "rainbow" => hsv((t * 45.0) % 360.0, 1.0, 1.0),
+                        // nefes: 4 sn periyot, %8 taban (tamamen sönmesin)
+                        _ => {
+                            let k = (1.0 - (t * std::f64::consts::TAU / 4.0).cos()) / 2.0;
+                            scale(base, (8.0 + k * 92.0) as u32)
+                        }
                     }
                 };
                 l.color(scale(c, pct))?;
