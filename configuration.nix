@@ -16,6 +16,7 @@
     # drivers/ — aygıt sürücüleri ve aygıt-başı ayar
     ./system/drivers/gpu.nix
     ./system/drivers/input/keyboard-rgb/system.nix
+    ./system/drivers/input/openrgb.nix
     ./system/drivers/usb-dac.nix
 
     # kernel/ — çekirdek davranışı: güç, zamanlayıcı, bellek
