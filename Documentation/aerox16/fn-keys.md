@@ -248,28 +248,36 @@ Görülen kodlar: **`0x00`, `0x18`, `0x20`, `0x32`** (= 0, 24, 32, 50).
    raporu yakalayıp rengi kendimiz değiştirebiliriz. Stylix rengi ile çalışan
    Fn tuşu arasında **takas yok** (`keyboard-rgb.md`, "Fn+Space ve
    AutonomousMode").
-2. **Kod sözlüğü henüz YOK.** Hangi kodun hangi tuşa/seviyeye karşılık geldiği
-   ölçülmedi; `0, 24, 32, 50` bir parlaklık kademesi gibi duruyor ama bu
-   **tahmin**. `%MAP1` bu yüzden bilinçli olarak boş.
+2. **Kod = seviyenin KENDİSİ.** Aşağıdaki ölçüm bunu çözdü: kod bir tuş
+   kimliği değil, Fn+Space ile dönen firmware aydınlatma kademesidir.
+   `%MAP1` dört kademeyi de taşıyor.
 
-### Ölçüm protokolü — sözlüğü çıkarmak için
+### ÖLÇÜM — 19 Eyl 2026, `scripts/isik-probe.pl`
 
-`fn-probe.pl` iki alt-protokolü ayırmıyor (kodu 4. bayttan basıyor). Sözlük
-ölçümü için tür ayrımını yapan ayrı bir dinleyici gerekir; adımları sırayla
-sorup gelen kodu o adıma yazar:
+| Fn+ | Kanal ve ham veri | Yorum |
+|---|---|---|
+| **Space** | tür 1 `04 01 18 00`, sonra `04 01 20 00` | ardışık iki basış **artan** kademe verdi |
+| yukarı / aşağı / sol / sağ | 0xFF02'ye **düşmüyor** | PageUp / PageDown / Home / End üretiyorlar — normal klavye kanalı, aydınlatmayla ilgisi yok |
+| **Esc** | tür 0 `04 00 01 95` | **Fn kilidi**; üçüncü bayt `0x01` (bilinen üçlüde `0x00`) muhtemelen yeni kilit durumu |
+| Tab, Backspace | 0xFF02'ye düşmüyor | — |
+| F5 (referans) | bu betikte görünmez | consumer kanalında (Report ID 3); betik yalnız ID 4'ü süzüyor. Tuş çalışıyor. |
 
-```bash
-perl scripts/isik-probe.pl   # sudo GEREKMEZ — hidraw'lar uaccess ile kullanıcıda
-```
+**Kademe tablosu** (bu ölçüm + journal kayıtları birlikte):
 
-Sırayla: Fn+Space ×2, Fn+ok tuşları (4 yön), Fn+Esc, Fn+Tab, Fn+Backspace,
-ve referans olarak Fn+F5. Her adımda ~3 sn dinler. Çıkan tabloyu `%MAP1`'e
-(`system/arch/aerox16/fn-bridge.pl`) ve aşağıya işle.
+| Kod | Kademe |
+|---|---|
+| `0x00` | kapalı |
+| `0x18` | düşük |
+| `0x20` | orta |
+| `0x32` | yüksek |
 
-| Fn+ | tür 1 kodu | Eylem | Durum |
-|---|---|---|---|
-| Space | ? | `kbd-rgb toggle` | ölçülmedi |
-| ok tuşları | ? | `kbd-rgb bright ±10` | ölçülmedi |
+Fn+Space firmware'de bu döngüyü yürütür ve **her adımda yeni kademeyi** bildirir —
+yani kod bir tuş kimliği değil, **seviyenin kendisi**. Ham değerler (0/24/32/50)
+firmware'in iç ölçeği; `%MAP1`'deki yüzde eşlemesi (0/33/66/100) bizim seçimimiz.
+
+**Parlaklık için ayrı tuş YOK.** Fn+ok tuşları aydınlatmaya dokunmuyor; aç/kapa
+ve parlaklık artışının tek yolu Fn+Space'in dört kademeli döngüsü. Kullanıcının
+istediği "aç/kapa + artır" bu tek tuşla karşılanıyor.
 
 ## Sıradaki işler (ölçüm sonrası, öncelik sırasıyla)
 

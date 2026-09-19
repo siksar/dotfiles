@@ -134,7 +134,7 @@ gitmişti ve kullanıcı yerlerine bir şey istemedi. Yerine gelen iki yol:
 
 | Yol | Ne için | Nerede yaşıyor |
 |---|---|---|
-| **Fn + kombinasyon** | hızlı işlem: aç/kapa, parlaklık ± | `system/arch/aerox16/fn-keys.nix` köprüsü (0xFF02 tür 1) |
+| **Fn+Space** | dört kademe: kapalı → düşük → orta → yüksek → başa | `system/arch/aerox16/fn-keys.nix` köprüsü (0xFF02 tür 1) |
 | **aero-control GUI** | tam ayar: renk, parlaklık, animasyon, ön ayar | `~/aero-eg61h/app/aero-control` |
 
 İkisi de aynı aracı (`kbd-rgb`) ve aynı durum dosyasını
@@ -144,6 +144,10 @@ CLI: `kbd-rgb info|status [--json]|set <renk>|on|off|toggle|bright <+N|-N|N>|aut
 
 `status --json` GUI ve betikler içindir; cihaz **takılı değilken de** çalışır
 (`device:null` döner, hata vermez).
+
+Fn+ok tuşlarında aydınlatma **yok** — onlar PageUp/PageDown/Home/End üretiyor
+(ölçüldü, `fn-keys.md`). Parlaklık için ayrı tuş olmadığından aç/kapa ve
+artırmanın tek yolu Fn+Space'in dört kademeli döngüsüdür.
 
 ### Fn+Space ve AutonomousMode — ÖLÇÜLDÜ (19 Eyl 2026)
 
@@ -192,6 +196,6 @@ oturum servisi, Fn köprüsü, GUI) ve animasyon döngüsü onu 0.5 sn'de bir ok
 - **`0xF6` KBLL ölü.** `fn-keys.md` (16 Eyl 2026) aydınlatma YANARKEN alanı 0
   okudu → bu alan aydınlatmayı sürmüyor. Bu defterin eski "belirsiz" notu
   kapandı; renk yolu LampArray'dir.
-- **Tür 1 kod sözlüğü eksik.** 0xFF02'nin aydınlatma kanalında `0x00, 0x18,
-  0x20, 0x32` kodları görüldü ama hangisinin hangi tuş/seviye olduğu
-  ölçülmedi. Protokol ve tablo: `fn-keys.md`.
+- **Fn kilidi (Fn+Esc, kod `0x95`) ile aydınlatma ilişkisi.** Kilit açıkken
+  Fn+Space hâlâ tür 1 raporu gönderiyor mu? Ölçülmedi; 19 Eyl ölçümünde
+  Fn+Esc sonrası adımlar bu yüzden boş göründü.
