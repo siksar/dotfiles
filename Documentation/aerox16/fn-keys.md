@@ -210,6 +210,67 @@ Yan gözlem: Fn+F7 klavyenin üstünde "performans + fan modu" olarak işaretli 
 `aero-fan-cycle.service` 12 Eyl'den beri **tetikleyicisiz** duruyor (`wmi-ec.md`).
 İkisi birbirinin cevabı: 0x84 → o servis.
 
+## 0xFF02'nin İKİNCİ alt-protokolü — "tür 1" kanalı (19 Eyl 2026)
+
+16 Eyl ölçümü bu kanalda tek bir rapor biçimi varsayıyordu. **Yanlış.** Klavye
+0xFF02 / Report ID 4'te iki ayrı biçim gönderiyor ve **ikinci bayt** hangisi
+olduğunu söylüyor:
+
+| Biçim | Kod nerede | Kim gönderiyor |
+|---|---|---|
+| `04 00 00 <kod>` | 4. bayt | Fn+F4 (0x92), Fn+F7 (0x84), Fn+F9 (0x81) |
+| `04 01 <kod> 00` | **3. bayt** | aydınlatma sınıfı — kodlar aşağıda |
+
+`fn-bridge.pl` kodu koşulsuz `$b[3]`'ten okuduğu için tür 1'in **bütün**
+raporları `0x00` diye loglandı, hiçbiri eşleşmedi ve kanalın varlığı iki ay
+görülmedi. Hata düzeltildi; debounce anahtarı da türü taşıyor (iki tablonun
+kod uzayları ayrı, ikisinde de 0x00 görülebiliyor).
+
+### Canlı kanıt (çalışan servisin kendi journal'ı, dokunulmadan bulundu)
+
+```
+Eyl 19 15:28:10.492  EŞLENMEMİŞ 0xFF02 kodu: 0x00  (04 01 20 00)
+Eyl 19 15:28:10.764  EŞLENMEMİŞ 0xFF02 kodu: 0x00  (04 01 32 00)
+Eyl 19 15:28:11.132  EŞLENMEMİŞ 0xFF02 kodu: 0x00  (04 01 18 00)
+Eyl 19 16:29:47.011  EŞLENMEMİŞ 0xFF02 kodu: 0x00  (04 01 20 00)
+Eyl 19 16:29:47.315  EŞLENMEMİŞ 0xFF02 kodu: 0x00  (04 01 00 00)
+Eyl 19 16:29:49.283  EŞLENMEMİŞ 0xFF02 kodu: 0x00  (04 01 18 00)
+```
+
+Basışlar kullanıcının klavye aydınlatma tuşlarını denediği anlarla örtüştü.
+Görülen kodlar: **`0x00`, `0x18`, `0x20`, `0x32`** (= 0, 24, 32, 50).
+
+**İki hüküm, biri değerli:**
+
+1. **Tür 1 raporları `AutonomousMode=0` iken DE geliyor.** 15:28 kayıtları
+   ışık bizim kontrolümüzdeyken (oturum açılışında `kbd-rgb set` koşmuştu)
+   alındı. Yani firmware tuşu görmeyi sürdürüyor, yalnız ışığa dokunamıyor —
+   raporu yakalayıp rengi kendimiz değiştirebiliriz. Stylix rengi ile çalışan
+   Fn tuşu arasında **takas yok** (`keyboard-rgb.md`, "Fn+Space ve
+   AutonomousMode").
+2. **Kod sözlüğü henüz YOK.** Hangi kodun hangi tuşa/seviyeye karşılık geldiği
+   ölçülmedi; `0, 24, 32, 50` bir parlaklık kademesi gibi duruyor ama bu
+   **tahmin**. `%MAP1` bu yüzden bilinçli olarak boş.
+
+### Ölçüm protokolü — sözlüğü çıkarmak için
+
+`fn-probe.pl` iki alt-protokolü ayırmıyor (kodu 4. bayttan basıyor). Sözlük
+ölçümü için tür ayrımını yapan ayrı bir dinleyici gerekir; adımları sırayla
+sorup gelen kodu o adıma yazar:
+
+```bash
+perl scripts/isik-probe.pl   # sudo GEREKMEZ — hidraw'lar uaccess ile kullanıcıda
+```
+
+Sırayla: Fn+Space ×2, Fn+ok tuşları (4 yön), Fn+Esc, Fn+Tab, Fn+Backspace,
+ve referans olarak Fn+F5. Her adımda ~3 sn dinler. Çıkan tabloyu `%MAP1`'e
+(`system/arch/aerox16/fn-bridge.pl`) ve aşağıya işle.
+
+| Fn+ | tür 1 kodu | Eylem | Durum |
+|---|---|---|---|
+| Space | ? | `kbd-rgb toggle` | ölçülmedi |
+| ok tuşları | ? | `kbd-rgb bright ±10` | ölçülmedi |
+
 ## Sıradaki işler (ölçüm sonrası, öncelik sırasıyla)
 
 1. ~~**0xFF02 köprüsü**~~ → **YAPILDI (16 Eyl 2026)**: `system/arch/aerox16/fn-keys.nix`

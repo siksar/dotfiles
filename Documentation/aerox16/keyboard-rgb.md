@@ -126,36 +126,72 @@ efektiyle üstüne yazar.
   tema rengi değiştirse ya da parlaklık bind'ına basılsa efekt canlı uyum
   sağlar; iki yazarın aynı lambayı çekiştirip titretmesi önlenir.
 
-## Kısayollar
+## Kontrol yolları
 
-**DURUM (11 Eyl 2026): repoda tanımlı klavye RGB kısayolu YOK.** Bind'lar
-Hyprland'ın Lua config'inde yaşıyordu; o oturum ağaçtan çıkınca kısayollar da
-gitti. COSMIC tarafında kısayol **imperatif** tanımlanır (Ayarlar → Klavye →
-Kısayollar, komut olarak `kbd-anim breathe` ya da `kbd-rgb bright +10`) —
-`~/.config/cosmic` altına Nix'ten yazmak YASAK olduğu için burada deklaratif
-bir karşılığı olamaz; bu bilinçli bir eksiktir, unutulmuş bir madde değil.
-Her durumda `kbd-rgb`/`kbd-anim` doğrudan CLI'dan çalışır.
+**Model (19 Eyl 2026): iki yol, tek durum dosyası.** Eski `SUPER+ALT+Z/X/C/V`
+bind tablosu bu defterden ÇIKARILDI — Hyprland ağaçtan çıkınca o bind'lar zaten
+gitmişti ve kullanıcı yerlerine bir şey istemedi. Yerine gelen iki yol:
 
-Aşağıdaki tablo bind'ların ne yaptığını tarif eder — komut sütunu hâlâ geçerli,
-tuş sütunu tarihîdir.
+| Yol | Ne için | Nerede yaşıyor |
+|---|---|---|
+| **Fn + kombinasyon** | hızlı işlem: aç/kapa, parlaklık ± | `system/arch/aerox16/fn-keys.nix` köprüsü (0xFF02 tür 1) |
+| **aero-control GUI** | tam ayar: renk, parlaklık, animasyon, ön ayar | `~/aero-eg61h/app/aero-control` |
 
-| Kısayol | Eylem |
-|---|---|
-| `SUPER+ALT+Z` | Nefes efekti aç/kapat |
-| `SUPER+ALT+X` | Gökkuşağı aç/kapat |
-| `SUPER+ALT+C` | Parlaklık −%10 |
-| `SUPER+ALT+V` | Parlaklık +%10 |
+İkisi de aynı aracı (`kbd-rgb`) ve aynı durum dosyasını
+(`$XDG_STATE_HOME/kbd-rgb/state`) kullanır — tek gerçek kaynak orasıdır.
 
-CLI: `kbd-rgb info|set <renk>|off|bright <+N|-N|N>|auto <on|off>|anim <mod>`.
+CLI: `kbd-rgb info|status [--json]|set <renk>|on|off|toggle|bright <+N|-N|N>|auto <on|off>|anim <mod>`
+
+`status --json` GUI ve betikler içindir; cihaz **takılı değilken de** çalışır
+(`device:null` döner, hata vermez).
+
+### Fn+Space ve AutonomousMode — ÖLÇÜLDÜ (19 Eyl 2026)
+
+Klavyenin kendi aydınlatma tuşu, ışık **firmware kontrolündeyken** çalışır ve
+**biz devraldığımızda ölür**. Ölçüm: `kbd-rgb auto on` yazıldıktan sonra tuş
+canlandı; `kbd-rgb set …` (yani `AutonomousMode=0`) yazılı durumdayken hiçbir
+görünür etki yapmıyordu.
+
+**Ama bu bir takas DEĞİL.** Firmware tuşu görmeyi ve raporlamayı sürdürüyor;
+yalnız ışığa dokunamıyor. Tuş `AutonomousMode=0` iken de 0xFF02'ye rapor
+düşürüyor (kanıt: `fn-keys.md`, tür 1 kanalı, 15:28 kayıtları bizim
+kontrolümüzdeyken alındı). Yani raporu yakalayıp rengi kendimiz değiştirerek
+**her iki dünyayı da** alabiliyoruz: Stylix rengi + çalışan Fn tuşu.
+
+### COSMIC kısayolları
+
+COSMIC tarafında kısayol **imperatif** tanımlanır (Ayarlar → Klavye →
+Kısayollar). `~/.config/cosmic` altına Nix'ten yazmak YASAK (kök `CLAUDE.md`),
+bu yüzden burada deklaratif bir karşılığı olamaz — bilinçli bir eksiktir.
+Bağlanacak komutlar: `kbd-rgb toggle`, `kbd-rgb bright +10`, `kbd-rgb bright -10`,
+`kbd-anim breathe`, `kbd-anim rainbow`.
+
+## Durum dosyası
+
+`$XDG_STATE_HOME/kbd-rgb/state` — tek satır, üç alan: `<hex> <yüzde> <on|off>`.
+
+Üçüncü alan **19 Eyl 2026'da** eklendi. Öncesinde `off` yalnız (0,0,0) yazıyor,
+duruma hiç dokunmuyordu; "hangi renge geri açacağız" bilgisi hiçbir yerde
+saklanmadığı için `toggle` yazılamıyordu. Üçüncü alan yoksa dosya eski iki
+alanlı biçimdedir ve `on` varsayılır — eski dosyalar kırılmaz.
+
+Yazma **atomik** (tmp + rename): dosyanın artık üç yazarı var (`kbd-rgb-theme`
+oturum servisi, Fn köprüsü, GUI) ve animasyon döngüsü onu 0.5 sn'de bir okuyor.
+
+⚠️ **Köprü root koşuyor.** `state_file()` `$HOME`'a bağlı olduğu için
+`fn-keys.nix` servise `XDG_STATE_HOME`'u kullanıcıya sabitler; yoksa root kendi
+`/root/.local/state`'ine yazar ve iki ayrı "gerçek" oluşur.
 
 ## Açık sorular
 
-- **Fn+Space master anahtarı** ile LampArray'in ilişkisi çözülmedi. Işık
-  kapalıyken LampArray yazmaları görünür mü, yoksa EC bunu geçersiz mi kılıyor?
-  İlk testte `AutonomousMode=0` yazılınca ışığın kendiliğinden açıldığı
-  gözlendi — muhtemelen devralma master'ı da açıyor, ama doğrulanmadı.
-- **Boot'ta renk geri yüklenmiyor.** Firmware her açılışta `AutonomousMode=1`'e
-  dönüyor. İstenirse bir oneshot kullanıcı servisi eklenebilir; idle maliyeti
-  tek yazma olurdu. Şimdilik kasten eklenmedi (istenmedi).
-- **`0xF6` KBLL** hâlâ belirsiz (yukarıya bak). Donanım parlaklık kademesini
-  yazılımdan sürmek istenirse önce ışık AÇIKKEN yeniden test edilmeli.
+- **Boot/uyanma sonrası renk geri yüklenmiyor.** Firmware her açılışta
+  `AutonomousMode=1`'e dönüyor; `kbd-rgb-theme.service` yalnız oturum açılışında
+  bir kez koşuyor. Uyandıktan sonrası için `systemd-sleep` post hook'u
+  eklenebilir — tek atışlık olduğu için idle maliyeti sıfır (CLAUDE.md kural 6'ya
+  uyar). Şimdilik kasten eklenmedi.
+- **`0xF6` KBLL ölü.** `fn-keys.md` (16 Eyl 2026) aydınlatma YANARKEN alanı 0
+  okudu → bu alan aydınlatmayı sürmüyor. Bu defterin eski "belirsiz" notu
+  kapandı; renk yolu LampArray'dir.
+- **Tür 1 kod sözlüğü eksik.** 0xFF02'nin aydınlatma kanalında `0x00, 0x18,
+  0x20, 0x32` kodları görüldü ama hangisinin hangi tuş/seviye olduğu
+  ölçülmedi. Protokol ve tablo: `fn-keys.md`.
