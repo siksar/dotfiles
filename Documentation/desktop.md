@@ -303,6 +303,19 @@ ls -l /proc/$(pgrep cosmic-comp)/fd | grep dri
 #   → power_state = D3cold, runtime_status = suspended   (6/6, hiç sapma yok)
 ```
 
+Harici ekran **takılıyken** (aynı gün, monitör görüntü veriyorken doğrulandı):
+
+```bash
+cat /sys/class/drm/card0-HDMI-A-1/{status,enabled,dpms}
+#   → connected / enabled / On        ← konektör gerçekten SÜRÜLÜYOR
+cat /sys/bus/pci/devices/0000:64:00.0/{power_state,power/runtime_status}
+#   → D0 / active                      ← dGPU uyandı, beklenen ve kaçınılmaz
+```
+
+`enabled` alanı burada `status`'tan daha güçlü kanıt: `connected` yalnız kablonun
+ve EDID'in varlığını söyler (düzeltmeden ÖNCE de `connected` okunuyordu),
+`enabled` ise compositor'ın o konektöre gerçekten mod verdiğini gösterir.
+
 Yani **compositor dGPU'nun DRM node'unu açık tutarken de kart D3cold'a iniyor.**
 Guard notlarında dört yerde tekrarlanan *"açık fd RTD3'ü bloke eder, idle
 ~4.3 W → ~7 W"* cümlesi Plasma döneminden devralınmıştı ve bu yapılandırmada

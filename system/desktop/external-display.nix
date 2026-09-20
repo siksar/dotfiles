@@ -38,6 +38,12 @@
 #     yaptığı şeyin tamamı değil. GUARD NOTLARININ "açık fd ~4.3W'ı ~7W'a çıkarır"
 #     İDDİASI BU MAKİNEDE DOĞRUDAN ÖLÇÜLMEDİ, Plasma dönemi notundan devralındı.
 #
+# ÇALIŞTIĞI DOĞRULANDI — 20 Eyl 2026, harici ekran takılı ve GÖRÜNTÜ VERİYORKEN:
+#   /sys/class/drm/card0-HDMI-A-1/{status,enabled,dpms} → connected / enabled / On
+#   0000:64:00.0/{power_state,power/runtime_status}     → D0 / active
+# `enabled` alanı `status`'tan güçlü kanıt: düzeltmeden ÖNCE de `connected`
+# okunuyordu (kablo + EDID vardı), değişen compositor'ın o konektöre MOD VERMESİ.
+#
 # ÖLÇÜLDÜ — 20 Eyl 2026, switch + oturum yenilendikten sonra, harici ekran
 # TAKILI DEĞİLKEN. SONUÇ: D3cold BOZULMUYOR, bayrak kalıcı açık kalabilir.
 #

@@ -345,7 +345,10 @@ N:	Kayda geçmiş sızıntılar (kapatılmadı): xdg.portal.configPackages üç
 	büyümesi. Ayrıntı cosmic.nix'in "Bilinen sızıntılar" bloğunda.
 
 HARİCİ EKRAN (HDMI) BAYRAĞI
-S:	Maintained — varsayılan AÇIK (20 Eyl 2026); güç ölçümü BORÇLU
+S:	Maintained — varsayılan AÇIK; CANLI MAKİNEDE ÇALIŞTIĞI DOĞRULANDI
+	(20 Eyl 2026: harici ekran görüntü veriyorken HDMI-A-1 = connected/
+	enabled/On, dGPU = D0/active). `enabled` alanı `status`'tan güçlü
+	kanıttır — düzeltmeden ÖNCE de `connected` okunuyordu.
 F:	system/desktop/external-display.nix
 T:	Documentation/desktop.md  → "Harici ekran (HDMI)" bölümü
 N:	HDMI portu bu makinede MUXSUZ, doğrudan NVIDIA dGPU'ya bağlı:
