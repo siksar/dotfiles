@@ -114,6 +114,67 @@ plasma6'nın aksine GNOME modülü ona hiç dokunmuyor, yani `"cosmic"` düz ata
 tek başına yeter (Plasma dönemindeki "mkDefault'a çevirirsen sessizce Plasma'ya
 döner" tuzağı kalktı).
 
+### Logout ile GNOME'a geçiş ÇALIŞMAZ — reboot gerekir (20 Eyl 2026)
+
+COSMIC'ten çıkıp greeter'da GNOME seçildiğinde oturum açılmıyor, ekran greeter'a
+geri düşüyor. Hata DM'de değil, bir katman aşağıda — ve **yapılandırma hatası
+değil**, `gnome-session`'ın kasıtlı bir emniyet kontrolü.
+
+```
+coredumpctl info <pid>
+#   Command Line: …/libexec/gnome-session-init-worker gnome
+#   Signal: 6 (ABRT)      Stack: main → g_log → g_log_default_handler → abort
+```
+
+`g_log` + `abort`, yani worker bir **fatal** mesaj basıp kendini öldürüyor.
+Mesajı binary'den çözmek (sembol yok, `strings` yetmez — çökme adresinin
+öncesindeki rip-relative `lea`'lar okunur):
+
+```
+0x36be  lea rsi -> 'ActiveState'     ← systemd1'e target durumu sorulur
+0x36f8  lea rsi -> 'active'          ← "active" ile karşılaştırılır
+0x3724  lea rdx -> 'A graphical session is already running!'
+0x3737  ← çökme noktası (g_log dönüş adresi)
+```
+
+Komut satırında `gnome` geçtiği için "session adı verilmedi" dalı elenir.
+
+**Neden target hâlâ `active`:** logout `cosmic-session.target`'ı gerçekten
+durdurur, ama `graphical-session.target`'ı DÜŞÜRMEZ — `BindsTo` tek yönlüdür
+(cosmic → graphical), tersi değil. Target'ın `StopWhenUnneeded=yes`'i de
+tetiklenmez, çünkü `xdg-desktop-portal.service` ona `Requisite=` ile bağlı ve
+ayakta; target durmadığı için de `PartOf=` olan portal durdurulmaz. Karşılıklı
+kilit. Ölçüm (COSMIC logout'undan **sonra**):
+
+```
+systemctl --user show graphical-session.target -p ActiveEnterTimestamp -p ActiveExitTimestamp
+#   ActiveEnterTimestamp=<önceki günün girişi>
+#   ActiveExitTimestamp=                        ← BOŞ: hiç düşmemiş
+systemctl --user show cosmic-session.target -p ActiveState
+#   inactive                                     ← logout gerçekten oldu
+```
+
+**Kilidi ayakta tutan asıl şey `user@1000.service`'in hiç durmaması.** Normalde
+son oturum kapanınca user manager de kapanır ve her şey temizlenir. Bu makinede
+kapanmıyor: arka planda koşan **Claude Code daemon'ları** `session-N.scope`
+içinde yaşıyor, oturum `State=closing`'de asılı kalıyor (`Linger=no` olsa bile
+`loginctl list-sessions` bir `background` sınıfı oturum gösterir).
+
+```
+loginctl session-status <eski oturum>   # State: closing, içinde: claude daemon / bg-pty-host
+```
+
+Sonuç: **reboot etmeden GNOME'a girilemez.** Tek seferlik kurtarma, greeter'a
+düşmeden TTY'den:
+
+```bash
+systemctl --user stop xdg-desktop-portal.service graphical-session.target
+```
+
+Kalıcı çözüm, GNOME'a geçmeden önce arka plan işlerini kapatmaktır; logout tek
+başına yetmez. COSMIC'e geri girişte sorun çıkmaz — `cosmic-session` böyle bir
+kontrol yapmıyor, bu yüzden tuzak yalnız GNOME yönünde görünür.
+
 ### Ölçülmeden yazılmayacaklar
 
 1. **idle watt** — `Documentation/aerox16/power.md` yöntemi, GNOME oturumunda.
