@@ -357,13 +357,16 @@ N:	desktop.externalDisplay.enable hibrit modu BOZMAZ — panel iGPU'da kalır,
 	PRIME offload ve RTD3 finegrained AÇIK kalır. mux.nix ile KARIŞTIRMA.
 W:	Değişken PAM'den geliyor → `switch` tek başına YETMEZ, OTURUM YENİDEN
 	BAŞLATMA (logout/login) gerekir.
-W:	ÖLÇÜM BORCU: harici ekran TAKILI DEĞİLKEN dGPU hâlâ D3cold'a iniyor mu,
-	doğrudan ölçülmedi. Guard notlarındaki "~4.3W → ~7W" iddiası Plasma
-	döneminden devralınmıştır. Oturum yenilendikten sonra:
-	  ls -l /proc/$(pgrep -x cosmic-comp)/fd | grep dri   → card0 + card1
-	  cat /sys/bus/pci/devices/0000:64:00.0/power_state   → D3cold BEKLENİYOR
-	  sonra Documentation/aerox16/power.md yöntemi (120s + 6×10s)
-	D3cold bozuluyorsa bayrağı false yap; sonucu deftere YAZ.
+N:	ÖLÇÜLDÜ 20 Eyl 2026 (switch + oturum yenilendikten sonra, HDMI TAKILI
+	DEĞİLKEN): cosmic-comp'un fd'lerinde card0 + renderD129 + card1 var,
+	yani dGPU AÇIK; buna rağmen 6/6 örnekte power_state=D3cold,
+	runtime_status=suspended. Yani guard notlarındaki "açık fd RTD3'ü
+	bloke eder, ~4.3W → ~7W" iddiası BU MAKİNEDE ÇÜRÜDÜ — rakam Plasma
+	döneminden devralınmıştı. Guard'ın idle gerekçesi zayıf.
+W:	DOĞRULAMADA `pgrep -x` KULLANMA. NixOS sarmalayıcısı yüzünden comm alanı
+	`.cosmic-comp-wr` (15 karaktere kırpılmış) → `pgrep -x cosmic-comp` HİÇBİR
+	ŞEY döndürmez, doğrulama sessizce boş çıkar ve "düzeltme işe yaramadı" diye
+	yanlış okunur (20 Eyl 2026'da tam olarak bu oldu). `-x` OLMADAN kullan.
 
 MUX / dGPU-ONLY BAYRAĞI
 S:	YAZILDI, CANLI MAKİNEDE DOĞRULANMADI (2 Eyl 2026) — varsayılan KAPALI

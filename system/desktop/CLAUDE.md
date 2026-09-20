@@ -18,8 +18,16 @@ birden çevirir). KDE Plasma 16 Eyl 2026'da ağaçtan çıktı — defteri
   yani kilidi kartı etiketleyerek kurarsın. (Arşivdeki Plasma üçüncü bir varyanttı:
   `KWIN_DRM_DEVICES`, değerinde `:` olamayan bir udev symlink'i.) Oturumlar
   birbirinin dosyasına dayanmaz — biri kapatılınca diğeri çalışmaya devam etsin
-  diye. Yanlış yaparsan dGPU açık bir DRM fd'si tutar, D3cold'a hiç inmez ve boşta
-  güç 4.28 W'tan ~7 W'a çıkar.
+  diye.
+
+  **İki düzeltme, 20 Eyl 2026.** (a) Bu kilitler artık KOŞULLU:
+  `desktop.externalDisplay.enable` açıkken COSMIC listesine dGPU **eklenir** ve
+  GNOME'un udev etiketi **hiç yazılmaz** — çünkü HDMI portu bu makinede muxsuz ve
+  doğrudan dGPU'ya bağlı, kilit harici ekranı da kapatıyordu (`external-display.nix`).
+  (b) *"Yanlış yaparsan dGPU açık bir DRM fd'si tutar, D3cold'a hiç inmez ve boşta
+  güç 4.28 W'tan ~7 W'a çıkar"* cümlesi **ölçümle çürüdü**: cosmic-comp `card0`'ı
+  açık tutarken de kart 6/6 örnekte D3cold'da kaldı. O rakam Plasma döneminden
+  devralınmıştı. Kilidin idle gerekçesi zayıf — ölçüm `Documentation/desktop.md`'de.
 
 - **`defaultSession` bu dizinde değil, `configuration.nix`'te belirlenir**
   (`= "cosmic"`, düz atama). GNOME modülü — plasma6'nın aksine — bu seçeneğe hiç

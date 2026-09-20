@@ -11,7 +11,7 @@
 # 1920x1080 modları listeleniyor); görüntüyü basacak olan compositor o kartı hiç
 # açmıyordu:
 #
-#   ls -l /proc/$(pgrep -x cosmic-comp)/fd | grep dri   →  YALNIZ card1 (×4)
+#   ls -l /proc/$(pgrep cosmic-comp)/fd | grep dri   →  YALNIZ card1 (×4)
 #
 # Yani 4.28 W idle bütçesini koruyan dGPU guard'ı (cosmic.nix'te
 # COSMIC_DRM_ALLOW_DEVICES, gnome.nix'te `mutter-device-ignore` udev etiketi)
@@ -38,16 +38,28 @@
 #     yaptığı şeyin tamamı değil. GUARD NOTLARININ "açık fd ~4.3W'ı ~7W'a çıkarır"
 #     İDDİASI BU MAKİNEDE DOĞRUDAN ÖLÇÜLMEDİ, Plasma dönemi notundan devralındı.
 #
-# BU YÜZDEN SWITCH SONRASI ÖLÇÜM ZORUNLU (harici ekran TAKILI DEĞİLKEN):
-#   cat /sys/bus/pci/devices/0000:64:00.0/power_state       → D3cold bekleniyor
-#   ls -l /proc/$(pgrep -x cosmic-comp)/fd | grep dri       → card0 + card1
-#   Documentation/aerox16/power.md yöntemi (120 s sakinleşme + 6×10 s örnek)
-# D3cold korunuyorsa bedel yalnız harici ekran takılıyken ödenir ve bayrak
-# kalıcı açık kalabilir. D3cold BOZULUYORSA bayrağı `false` yap — harici ekranı
-# yalnız gerektiğinde aç (env PAM'den geldiği için OTURUM YENİDEN BAŞLATMA ister,
-# rebuild yetmez).
+# ÖLÇÜLDÜ — 20 Eyl 2026, switch + oturum yenilendikten sonra, harici ekran
+# TAKILI DEĞİLKEN. SONUÇ: D3cold BOZULMUYOR, bayrak kalıcı açık kalabilir.
 #
-# ÖLÇÜM SONUCU BURAYA YAZILACAK — boş kaldıysa henüz ölçülmemiştir.
+#   ls -l /proc/$(pgrep cosmic-comp)/fd | grep dri
+#     → card0 (NVIDIA) + renderD129 (×2) + card1 (×4)   ← dGPU artık AÇIK
+#   6 × 10 s örnek, HDMI disconnected:
+#     → power_state = D3cold, runtime_status = suspended  (6/6, hiç sapma yok)
+#
+# YANİ GUARD NOTLARININ DEVRALDIĞI İDDİA BU MAKİNEDE ÇÜRÜDÜ: compositor dGPU'nun
+# DRM node'unu AÇIK TUTARKEN de kart D3cold'a iniyor. "Açık fd RTD3'ü bloke eder,
+# idle ~4.3W → ~7W" cümlesi Plasma döneminden gelmişti ve BU YAPILANDIRMADA
+# doğrulanmadı. Guard'ın idle gerekçesi zayıf; yine de bayrakla geri alınabilir
+# bırakıldı çünkü harici ekran TAKILIYKEN dGPU zaten uyanık kalmak zorunda
+# (kaçınılmaz bedel, bunun etrafından dolaşmanın yolu yok).
+#
+# TUZAK — DOĞRULAMA KOMUTUNDA `pgrep -x` KULLANMA. NixOS sarmalayıcısı yüzünden
+# sürecin comm alanı `.cosmic-comp-wr` (15 karaktere kırpılmış), yani `pgrep -x
+# cosmic-comp` HİÇBİR ŞEY döndürmez ve doğrulama sessizce "boş" çıkar — bu kolayca
+# "guard hâlâ kapalı" diye yanlış okunur. `-x` OLMADAN kullan.
+#
+# Bayrağı kapatmak gerekirse: env PAM'den geldiği için OTURUM YENİDEN BAŞLATMA
+# ister, `switch` tek başına yetmez.
 #
 # ───────────────────────────────────────────────────────────────────────────
 # mux.nix İLE KARIŞTIRMA

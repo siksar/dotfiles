@@ -275,7 +275,7 @@ erişimi yok. Kernel monitörü sorunsuz görüyordu; sürecek kart hiç açılm
 ```bash
 cat /sys/class/drm/card0-HDMI-A-1/status        # → connected
 head -1 /sys/class/drm/card0-HDMI-A-1/modes     # → 1920x1080  (EDID okunuyor)
-ls -l /proc/$(pgrep -x cosmic-comp)/fd | grep dri
+ls -l /proc/$(pgrep cosmic-comp)/fd | grep dri
 #   → 4 × /dev/dri/card1 ;  card0 YOK   ← görüntünün gitmemesinin tam sebebi
 ```
 
@@ -289,39 +289,51 @@ hibrit modu bozmaz: panel iGPU'da kalır, PRIME offload ve RTD3 finegrained aç�
 kalır (`build` sonrası doğrulandı: `prime.offload.enable = true`,
 `powerManagement.finegrained = true`).
 
-#### Bedeli ve ölçüm borcu
+#### Bedeli — ÖLÇÜLDÜ, devralınan iddia çürüdü (20 Eyl 2026)
 
-Kök CLAUDE.md kural 6 (*"4.28 W boşta bütçesi geri gitmez"*) ile gerilim var,
-takas bilinçli:
-
-* Harici ekran **takılıyken** dGPU zaten uyanık kalmak zorunda — kaçınılmaz.
-* Harici ekran **takılı değilken** D3cold korunuyor mu, ölçülmedi. 20 Eyl 2026'da
-  yapılan ön ölçüm yalnız `open()` testiydi: `/dev/dri/card0`'ı 20 s açık tutmak
-  kartı D3cold'dan **çıkarmadı** (`power_state` D3cold, `runtime_status`
-  suspended sabit). Ama o test DRM master almıyor ve konektör taramıyor.
-  Guard notlarındaki *"açık fd ~4.3 W'ı ~7 W'a çıkarır"* iddiası bu makinede
-  **doğrudan ölçülmedi**, Plasma dönemi notundan devralındı.
-
-**Switch + oturum yeniden başlatma sonrası yapılacak ölçüm** (harici ekran
-TAKILI DEĞİLKEN):
+Kök CLAUDE.md kural 6 (*"4.28 W boşta bütçesi geri gitmez"*) ile gerilim
+bekleniyordu. **Ölçüm o gerilimi ortadan kaldırdı.** Switch + oturum yeniden
+başlatma sonrası, harici ekran **takılı değilken**:
 
 ```bash
-ls -l /proc/$(pgrep -x cosmic-comp)/fd | grep dri   # card0 + card1 bekleniyor
-cat /sys/bus/pci/devices/0000:64:00.0/power_state   # D3cold bekleniyor
-# sonra: Documentation/aerox16/power.md yöntemi (120 s sakinleşme + 6×10 s örnek)
+ls -l /proc/$(pgrep cosmic-comp)/fd | grep dri
+#   → card0 (NVIDIA) + renderD129 (×2) + card1 (×4)   ← dGPU artık AÇIK
+
+# 6 × 10 s örnek, HDMI disconnected:
+#   → power_state = D3cold, runtime_status = suspended   (6/6, hiç sapma yok)
 ```
 
-D3cold korunuyorsa bayrak kalıcı açık kalır. Bozuluyorsa bayrağı `false` yap ve
-harici ekranı yalnız gerektiğinde aç — değişken PAM'den geldiği için **oturum
-yeniden başlatma** ister, `switch` tek başına yetmez.
+Yani **compositor dGPU'nun DRM node'unu açık tutarken de kart D3cold'a iniyor.**
+Guard notlarında dört yerde tekrarlanan *"açık fd RTD3'ü bloke eder, idle
+~4.3 W → ~7 W"* cümlesi Plasma döneminden devralınmıştı ve bu yapılandırmada
+**doğrulanmadı**. Guard'ın idle gerekçesi bu ölçümle zayıfladı.
 
-### Oyun bu oturumda çalışmaz — kasıtlı
+Geriye kalan tek kaçınılmaz bedel: harici ekran **takılıyken** dGPU uyanık kalmak
+zorunda — kabloyu o kart sürüyor, etrafından dolaşmanın yolu yok.
 
-Allow-list yalnız iGPU'ya izin verdiği için COSMIC oturumunda dGPU **hiç açılmaz**,
-yani `gamerun`'ın PRIME offload'ı burada devre dışı. Bu bir eksiklik değil, kullanıcı
-sırası: *"oyun vs. ayarlarını ilk önce sorunsuz workstation kullanımı sağlandıktan
-sonra geçilecek."* Oyun fazına gelindiğinde ilk dokunulacak yer bu değişkendir
-(`COSMIC_DRM_BLOCK_DEVICES` ve/veya `COSMIC_RENDER_DEVICE` ile yeniden tasarlanır).
+Bayrak yine de geri alınabilir bırakıldı. Kapatmak gerekirse: değişken PAM'den
+geldiği için **oturum yeniden başlatma** ister, `switch` tek başına yetmez.
+
+> **Tuzak — doğrulamada `pgrep -x` kullanma.** NixOS sarmalayıcısı yüzünden
+> sürecin `comm` alanı `.cosmic-comp-wr` (15 karaktere kırpılmış), yani
+> `pgrep -x cosmic-comp` **hiçbir şey döndürmez** ve doğrulama sessizce boş çıkar.
+> Bu kolayca "guard hâlâ kapalı, düzeltme işe yaramadı" diye yanlış okunur —
+> 20 Eyl 2026'da tam olarak bu oldu. `-x` olmadan kullan.
+
+### ~~Oyun bu oturumda çalışmaz — kasıtlı~~ → İKİ KEZ ÇÜRÜDÜ
+
+> Bu bölüm 2 Eyl 2026'da yazıldı ve **artık geçerli değil**; okuma kaydı olarak
+> duruyor. Metin şunu iddia ediyordu: *"Allow-list yalnız iGPU'ya izin verdiği
+> için COSMIC oturumunda dGPU hiç açılmaz, yani `gamerun`'ın PRIME offload'ı
+> burada devre dışı."*
+>
+> 1. **11 Eyl 2026** — korku asılsız çıktı: değişken yalnız *compositor'ın* hangi
+>    DRM node'unu açacağını söyler, oyunun kendi süreci etkilenmez. Canlı
+>    ölçümler `cosmic.nix`'in başlığında (vulkaninfo dGPU'yu görüyor,
+>    `gamerun env` → `__NV_PRIME_RENDER_OFFLOAD=1`).
+> 2. **20 Eyl 2026** — öncül de düştü: `desktop.externalDisplay.enable` ile
+>    allow-list artık dGPU'yu da içeriyor, yani "dGPU hiç açılmaz" cümlesi
+>    harfiyen yanlış (yukarıdaki fd ölçümü).
 
 ### Karantina sınırı — maliyet neden iki satır
 
