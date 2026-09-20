@@ -138,6 +138,17 @@
 
     # Rust / Nix / Kubernetes platform engineering
     rustup
+    # Tek seferlik tanılama betikleri için yorumlayıcı (20 Eyl 2026'da eklendi).
+    # Gerekçe: ELF/binary ayrıştırma, log korelasyonu gibi işler perl'e düşüyordu
+    # çünkü sistemde HİÇ python yoktu; `nix run nixpkgs#python3` yasak (kural 4:
+    # registry'nin nixpkgs'ini çözer, bu flake'in pin'ini değil).
+    # `python3` = yorumlayıcı + stdlib; daemon DEĞİL, boşta hiçbir şey koşmaz →
+    # 4.28 W bütçesine dokunmaz (kural 6). Paket seti gerekirse
+    # `python3.withPackages (ps: [ ... ])` ile burada genişletilir.
+    # ÖLÇÜLDÜ (nix store diff-closures /run/current-system ./result):
+    # python3.14 3.14.7 → +57.0 MiB, sistem kapanışı +62.0 KiB. Stdlib'in tamamı
+    # gelir; bu satır sırf bir betik için değil, aracın kalıcı yokluğu için var.
+    python3
     # Nix lint/format — ölçülen marjinal closure +10.2 MiB (deadnix 1.5 / nixfmt 5.1 /
     # statix 3.6; bağımlılıklarının geri kalanı sistemde zaten vardı).
     # `nix run nixpkgs#...` ile ölçmek yanıltır: o registry'nin nixpkgs'ini çözer,
