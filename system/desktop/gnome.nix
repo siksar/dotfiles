@@ -43,9 +43,19 @@ in
     # DOĞRULAMA (GNOME oturumunda, desktop.md'deki üç adımın karşılığı):
     #   cat /sys/bus/pci/devices/0000:64:00.0/power_state   → D3cold
     #   ls -l /proc/$(pgrep -x gnome-shell)/fd | grep dri   → yalnız card1
-    services.udev.extraRules = ''
-      SUBSYSTEM=="drm", KERNEL=="card[0-9]*", DRIVERS=="nvidia", TAG+="mutter-device-ignore"
-    '';
+    #
+    # HARİCİ EKRAN İSTİSNASI (20 Eyl 2026): HDMI-A-1 konektörü dGPU'da olduğu için
+    # bu etiket mutter'ın harici ekranı sürmesini de engeller (COSMIC'teki
+    # COSMIC_DRM_ALLOW_DEVICES ile birebir aynı yan etki, farklı sözdizimi).
+    # `desktop.externalDisplay.enable` açıkken kural HİÇ YAZILMAZ; gerekçe ve
+    # zorunlu ölçüm: system/desktop/external-display.nix.
+    #
+    # mkForce DEĞİL, optionalString: extraRules birleşen bir metindir ve mux.nix
+    # de kendi kuralını aynı seçeneğe ekliyor — mkForce onu da silerdi.
+    services.udev.extraRules =
+      lib.optionalString (!config.desktop.externalDisplay.enable) ''
+        SUBSYSTEM=="drm", KERNEL=="card[0-9]*", DRIVERS=="nvidia", TAG+="mutter-device-ignore"
+      '';
 
     #### Karantina sınırı 2 — oturum DIŞINA taşan servisler ####
     # Kural (system/desktop/CLAUDE.md): oturumun İÇİNDE yaşayan varsayılanında

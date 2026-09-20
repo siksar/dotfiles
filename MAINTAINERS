@@ -322,6 +322,10 @@ W:	Her oturumun KENDİ iGPU kilidi var ve sözdizimleri BİRBİRİNİN TERSİ:
 	Oturumlar birbirinin dosyasına dayanmaz — biri kapatılınca diğeri
 	çalışsın diye. Yanlış yaparsan dGPU açık DRM fd tutar, D3cold'a inmez,
 	idle 4.28W → ~7W.
+W:	O iki kilit 20 Eyl 2026'dan beri KOŞULLU — desktop.externalDisplay.enable
+	açıkken COSMIC listesine dGPU EKLENİR ve GNOME'un udev etiketi HİÇ
+	YAZILMAZ. Sebep: HDMI portu dGPU'da, kilit harici ekranı da kapatıyordu.
+	Aşağıdaki "HARİCİ EKRAN" bölümüne bak; guard'ı "sabit" varsayma.
 W:	~/.config/cosmic ALTINA NIX'TEN HİÇBİR ŞEY YAZMA. cosmic-config'in
 	kullanıcı katmanı sistem katmanını ezer; oraya konan store symlink'i ayar
 	GUI'sinin kaydetmesini SESSİZCE bozar. COSMIC ayarları kasıtlı imperatif:
@@ -339,6 +343,27 @@ N:	Kayda geçmiş sızıntılar (kapatılmadı): xdg.portal.configPackages üç
 	modülde de mkDefault → birleşiyorlar; X11_*_RULES_XML koşulsuz yazılıyor;
 	fallbackCursorThemes yalnız fallback (Stylix kazanır); fonts.packages
 	büyümesi. Ayrıntı cosmic.nix'in "Bilinen sızıntılar" bloğunda.
+
+HARİCİ EKRAN (HDMI) BAYRAĞI
+S:	Maintained — varsayılan AÇIK (20 Eyl 2026); güç ölçümü BORÇLU
+F:	system/desktop/external-display.nix
+T:	Documentation/desktop.md  → "Harici ekran (HDMI)" bölümü
+N:	HDMI portu bu makinede MUXSUZ, doğrudan NVIDIA dGPU'ya bağlı:
+	card0-HDMI-A-1 → 64:00.0 (dGPU), card1-eDP-1 → 65:00.0 (iGPU).
+	iGPU'nun o konektöre erişimi YOK, yani dGPU guard'ı harici ekranı da
+	kapatıyordu. Kernel monitörü görüyordu (connected + EDID + modlar);
+	açılmayan şey KARTTI: cosmic-comp'un fd'lerinde yalnız card1 vardı.
+N:	desktop.externalDisplay.enable hibrit modu BOZMAZ — panel iGPU'da kalır,
+	PRIME offload ve RTD3 finegrained AÇIK kalır. mux.nix ile KARIŞTIRMA.
+W:	Değişken PAM'den geliyor → `switch` tek başına YETMEZ, OTURUM YENİDEN
+	BAŞLATMA (logout/login) gerekir.
+W:	ÖLÇÜM BORCU: harici ekran TAKILI DEĞİLKEN dGPU hâlâ D3cold'a iniyor mu,
+	doğrudan ölçülmedi. Guard notlarındaki "~4.3W → ~7W" iddiası Plasma
+	döneminden devralınmıştır. Oturum yenilendikten sonra:
+	  ls -l /proc/$(pgrep -x cosmic-comp)/fd | grep dri   → card0 + card1
+	  cat /sys/bus/pci/devices/0000:64:00.0/power_state   → D3cold BEKLENİYOR
+	  sonra Documentation/aerox16/power.md yöntemi (120s + 6×10s)
+	D3cold bozuluyorsa bayrağı false yap; sonucu deftere YAZ.
 
 MUX / dGPU-ONLY BAYRAĞI
 S:	YAZILDI, CANLI MAKİNEDE DOĞRULANMADI (2 Eyl 2026) — varsayılan KAPALI

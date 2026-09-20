@@ -54,6 +54,8 @@
     ./system/desktop/cosmic.nix
     # MUX/dGPU-only bayragi — dort DRM koprusunu birden cevirir. VARSAYILAN KAPALI.
     ./system/desktop/mux.nix
+    # Harici ekran (HDMI) bayragi — HDMI portu dGPU'ya bagli, guard onu kapatiyordu.
+    ./system/desktop/external-display.nix
 
     # ══ usr/ — sistem geneli kurulan programlar ════════════════════════════
     ./usr/steam.nix
@@ -67,6 +69,11 @@
   # KDE Plasma 16 Eyl 2026'da ağaçtan çıktı — defteri Documentation/archive/.
   desktop.gnome.enable = true;
   desktop.cosmic.enable = true;
+
+  # HDMI portu bu makinede MUXSUZ ve dogrudan NVIDIA dGPU'ya bagli; dGPU guard'i
+  # o konektoru de kapatiyordu (20 Eyl 2026'da olculdu). Bedeli ve switch sonrasi
+  # ZORUNLU guc olcumu: system/desktop/external-display.nix
+  desktop.externalDisplay.enable = true;
   services.displayManager.defaultSession = "cosmic";
 
   # Stylix'in GTK hedefi + HM'in gtk.iconTheme/dconf.settings ayarları için gerekli

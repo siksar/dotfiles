@@ -220,7 +220,12 @@ Değer ölçüldü (1 Eyl 2026). `DeviceIdentifier::Id::matches()` **render node
 | NVIDIA RTX 5060 (dGPU) | `64:00.0` | renderD129 | 226:129 | `0x10de` / `0x2d19` |
 
 ```nix
-environment.sessionVariables.COSMIC_DRM_ALLOW_DEVICES = "0x1002:0x1114";
+# 20 Eyl 2026'dan beri KOŞULLU — bkz. "Harici ekran (HDMI)" bölümü
+environment.sessionVariables.COSMIC_DRM_ALLOW_DEVICES =
+  if config.desktop.externalDisplay.enable then
+    "0x1002:0x1114,0x10de:0x2d19"
+  else
+    "0x1002:0x1114";
 ```
 
 Gerekçe diğer üçüyle aynı: bileşken dGPU'nun DRM node'unu açarsa o açık fd kartın
@@ -251,6 +256,64 @@ bulunmaması, allow-list'in gerçekten uygulandığını doğrudan gösteriyor.
 
 Not: `AQ_DRM_DEVICES` de cosmic-comp'un ortamında görünüyor — beklenen ve etkisiz
 sızıntı (o değişkeni yalnız aquamarine okur).
+
+### Harici ekran (HDMI) — guard'ın ödenmemiş faturası (20 Eyl 2026)
+
+Guard'ın yukarıda anlatılan üç kanıtı bugün de geçerli; **yan etkisi** o gün
+yazılmamıştı: HDMI'a takılan monitöre hiç görüntü gitmiyor.
+
+Sebep compositor ayarı değil, **kablonun nereye gittiği**:
+
+| konektör | kart | PCI | GPU |
+|---|---|---|---|
+| `card0-HDMI-A-1` | card0 | `64:00.0` | **NVIDIA RTX 5060 (dGPU)** |
+| `card1-eDP-1` | card1 | `65:00.0` | AMD Radeon 860M (iGPU) |
+
+Bu makinede HDMI portu **MUXSUZ ve doğrudan dGPU'ya bağlı** — iGPU'nun o konektöre
+erişimi yok. Kernel monitörü sorunsuz görüyordu; sürecek kart hiç açılmamıştı:
+
+```bash
+cat /sys/class/drm/card0-HDMI-A-1/status        # → connected
+head -1 /sys/class/drm/card0-HDMI-A-1/modes     # → 1920x1080  (EDID okunuyor)
+ls -l /proc/$(pgrep -x cosmic-comp)/fd | grep dri
+#   → 4 × /dev/dri/card1 ;  card0 YOK   ← görüntünün gitmemesinin tam sebebi
+```
+
+Aynı yan etki GNOME'da da vardı, farklı sözdizimiyle: `mutter-device-ignore`
+udev etiketi mutter'a NVIDIA kartını hiç göstermiyordu.
+
+**Çözüm** `desktop.externalDisplay.enable` (varsayılan **açık**,
+`system/desktop/external-display.nix`): COSMIC'te dGPU allow-list'e eklenir,
+GNOME'da udev etiketi hiç yazılmaz. **`mux.nix` ile karıştırma** — bu bayrak
+hibrit modu bozmaz: panel iGPU'da kalır, PRIME offload ve RTD3 finegrained açık
+kalır (`build` sonrası doğrulandı: `prime.offload.enable = true`,
+`powerManagement.finegrained = true`).
+
+#### Bedeli ve ölçüm borcu
+
+Kök CLAUDE.md kural 6 (*"4.28 W boşta bütçesi geri gitmez"*) ile gerilim var,
+takas bilinçli:
+
+* Harici ekran **takılıyken** dGPU zaten uyanık kalmak zorunda — kaçınılmaz.
+* Harici ekran **takılı değilken** D3cold korunuyor mu, ölçülmedi. 20 Eyl 2026'da
+  yapılan ön ölçüm yalnız `open()` testiydi: `/dev/dri/card0`'ı 20 s açık tutmak
+  kartı D3cold'dan **çıkarmadı** (`power_state` D3cold, `runtime_status`
+  suspended sabit). Ama o test DRM master almıyor ve konektör taramıyor.
+  Guard notlarındaki *"açık fd ~4.3 W'ı ~7 W'a çıkarır"* iddiası bu makinede
+  **doğrudan ölçülmedi**, Plasma dönemi notundan devralındı.
+
+**Switch + oturum yeniden başlatma sonrası yapılacak ölçüm** (harici ekran
+TAKILI DEĞİLKEN):
+
+```bash
+ls -l /proc/$(pgrep -x cosmic-comp)/fd | grep dri   # card0 + card1 bekleniyor
+cat /sys/bus/pci/devices/0000:64:00.0/power_state   # D3cold bekleniyor
+# sonra: Documentation/aerox16/power.md yöntemi (120 s sakinleşme + 6×10 s örnek)
+```
+
+D3cold korunuyorsa bayrak kalıcı açık kalır. Bozuluyorsa bayrağı `false` yap ve
+harici ekranı yalnız gerektiğinde aç — değişken PAM'den geldiği için **oturum
+yeniden başlatma** ister, `switch` tek başına yetmez.
 
 ### Oyun bu oturumda çalışmaz — kasıtlı
 

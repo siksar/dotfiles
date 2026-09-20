@@ -83,7 +83,21 @@ in
     # cosmic-session compositor'ı exec etmeden ÖNCE oradadır. Diğer oturumlara da
     # sızar; maliyeti SIFIR — bu değişkeni yalnız cosmic-comp okur. (GNOME hiçbir
     # DRM env değişkeni okumaz, kendi kilidi udev etiketidir: gnome.nix.)
-    environment.sessionVariables.COSMIC_DRM_ALLOW_DEVICES = "0x1002:0x1114";
+    #
+    # HARİCİ EKRAN İSTİSNASI (20 Eyl 2026): HDMI-A-1 konektörü bu makinede iGPU'da
+    # DEĞİL, dGPU'da (card0 = 0000:64:00.0). Guard tek başına kaldığında monitör
+    # "connected" görünür, EDID okunur, ama compositor o kartı hiç açmadığı için
+    # görüntü GİTMEZ. `desktop.externalDisplay.enable` dGPU'yu listeye ekler —
+    # gerekçe, bedeli ve zorunlu ölçüm: system/desktop/external-display.nix.
+    #
+    # SIRA ANLAMLI: iGPU önce yazılıyor. Liste sırası cosmic-comp'un primary/render
+    # aygıtı seçimini etkileyebilir; panel zaten iGPU'da, render orada kalsın.
+    # DÜZ ATAMA (mkForce DEĞİL) — mux.nix bunu mkForce ile ezebilsin diye.
+    environment.sessionVariables.COSMIC_DRM_ALLOW_DEVICES =
+      if config.desktop.externalDisplay.enable then
+        "0x1002:0x1114,0x10de:0x2d19"
+      else
+        "0x1002:0x1114";
 
     #### Karantina sınırı — COSMIC oturumunun DIŞINDA da koşacak olanlar ####
     # Kural (kök CLAUDE.md): system/ altına idle'da koşan/yoklayan bir şey EKLENMEZ.
