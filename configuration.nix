@@ -75,7 +75,7 @@ in
     ./system/desktop/theme.nix
     ./system/desktop/gnome.nix
     ./system/desktop/cosmic.nix
-    # MUX/dGPU-only bayragi — dort DRM koprusunu birden cevirir. VARSAYILAN KAPALI.
+    # MUX/dGPU-only bayragi — oturumlarin DRM koprulerini birden cevirir. VARSAYILAN KAPALI.
     ./system/desktop/mux.nix
     # Harici ekran (HDMI) bayragi — HDMI portu dGPU'ya bagli, guard onu kapatiyordu.
     ./system/desktop/external-display.nix
@@ -94,8 +94,8 @@ in
   desktop.cosmic.enable = true;
 
   # HDMI portu bu makinede MUXSUZ ve dogrudan NVIDIA dGPU'ya bagli; dGPU guard'i
-  # o konektoru de kapatiyordu (20 Eyl 2026'da olculdu). Bedeli ve switch sonrasi
-  # ZORUNLU guc olcumu: system/desktop/external-display.nix
+  # o konektoru de kapatiyordu (20 Eyl 2026'da olculdu). Bedeli ve guc olcumu
+  # (D3cold korunuyor): system/desktop/external-display.nix
   desktop.externalDisplay.enable = true;
   services.displayManager.defaultSession = "cosmic";
 
@@ -167,7 +167,7 @@ in
     # flake pin'ini değil — gerçek rakam `nix store diff-closures /run/current-system
     # ./result`. Hiçbiri boşta çalışmaz, idle bütçesine dokunmaz.
     # Kullanım + statix'in bu repoda neden filtre gerektirdiği: CLAUDE.md
-    # "Lint / inspection tooling".
+    # "Sert kurallar" 4 ve statix.toml.
     deadnix           # kullanılmayan let-binding / lambda argümanı
     statix            # anti-pattern linter — statix.toml OLMADAN çalıştırma
     nixfmt            # resmi formatter (eski ad nixfmt-rfc-style artık aynı türeve

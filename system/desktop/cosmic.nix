@@ -56,8 +56,9 @@ in
 
     #### dGPU uykuda kalsın (4.28W idle bütçesi) ####
     # gnome.nix'in `mutter-device-ignore` udev etiketiyle (ve arşivdeki Plasma'nın
-    # KWIN_DRM_DEVICES'ıyla) AYNI gerekçe: bileşken NVIDIA dGPU'nun DRM node'unu açarsa o açık fd kartın
-    # RTD3/D3cold'a girmesini bloke eder ve idle taban ~4.3W'tan ~7W'a çıkar.
+    # KWIN_DRM_DEVICES'ıyla) AYNI kol. Plasma'dan devralınan "açık fd RTD3'ü bloke eder,
+    # ~4.3W → ~7W" gerekçesi 20 Eyl 2026'da ÇÜRÜDÜ: cosmic-comp card0'ı açıkken de dGPU
+    # D3cold'da kalıyor (system/desktop/CLAUDE.md). Liste ihtiyaten iGPU'da tutuluyor.
     #
     # ANCAK SÖZDİZİMİ FARKLI — bu dosyaya diğer üçünün notunu KOPYALAMA, aktif hata
     # olur. cosmic-comp/src/utils/env.rs okundu (dev_list_var + try_parse_dev_from_str):
@@ -88,7 +89,7 @@ in
     # DEĞİL, dGPU'da (card0 = 0000:64:00.0). Guard tek başına kaldığında monitör
     # "connected" görünür, EDID okunur, ama compositor o kartı hiç açmadığı için
     # görüntü GİTMEZ. `desktop.externalDisplay.enable` dGPU'yu listeye ekler —
-    # gerekçe, bedeli ve zorunlu ölçüm: system/desktop/external-display.nix.
+    # gerekçe, bedeli ve 20 Eyl ölçümü: system/desktop/external-display.nix.
     #
     # SIRA ANLAMLI: iGPU önce yazılıyor. Liste sırası cosmic-comp'un primary/render
     # aygıtı seçimini etkileyebilir; panel zaten iGPU'da, render orada kalsın.

@@ -14,7 +14,7 @@
 # Çıkış kodu: hepsi geçerse 0, herhangi biri kalırsa 1.
 #
 # Araçlar bu flake'in PİNLİ nixpkgs'inden gelir (registry'den DEĞİL — CLAUDE.md
-# "Lint / inspection tooling" kuralı). İlk çalıştırmada indirir, sonra cache'ten.
+# "Sert kurallar" 4). İlk çalıştırmada indirir, sonra cache'ten.
 set -uo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

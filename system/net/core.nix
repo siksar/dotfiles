@@ -37,8 +37,8 @@ in
     wifi.backend = "iwd";
 
     # DNS'i systemd-resolved'e devret → yerel önbellek (tekrar sorgular anında,
-    # gezinme hızlanır). NM, DHCP ve Mullvad'ın per-link DNS sunucularını resolved'e
-    # iter; şifrelemeyi VPN üstlenir (aşağıda DoT kapalı).
+    # gezinme hızlanır). NM, DHCP'nin per-link DNS sunucularını resolved'e iter;
+    # şifreli DNS censorship.nix'teki dnscrypt-proxy'de (DoH), burada DoT kapalı.
     dns = "systemd-resolved";
 
     # Kablo↔WiFi hakemi olay-temelli tetikleyici: eno1 up/down (kablo tak/çıkar)
@@ -58,11 +58,10 @@ in
     options cfg80211 ieee80211_regdom=TR
   '';
 
-  # --- systemd-resolved: yerel DNS önbelleği (Mullvad uyumlu) ---
+  # --- systemd-resolved: yerel DNS önbelleği ---
   # dnssec=false: captive portal / bazı alan adları DNSSEC katılığından kırılmasın.
-  # dnsovertls=false: kullanıcı tercihi cache-only; şifreli DNS'i VPN (Mullvad) verir.
-  # /etc/resolv.conf → 127.0.0.53 stub olur; Mullvad bağlanınca tünel arayüzünde
-  # kendi DNS'ini per-link olarak resolved'e yazar, çözümleme sürer.
+  # dnsovertls=false: şifreli DNS'i dnscrypt-proxy (DoH) veriyor — censorship.nix.
+  # /etc/resolv.conf → 127.0.0.53 stub. Mullvad kapalı (vpn.nix).
   services.resolved = {
     enable = true;
     settings.Resolve = {

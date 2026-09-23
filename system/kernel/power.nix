@@ -30,7 +30,7 @@
   #
   # pkgs.linuxPackagesFor KASITLI — flake'in legacyPackages.linuxPackages-cachyos-* seti
   # xddxdd'nin nixpkgs pin'ini taşır ve NVIDIA'yı 595.99.02'ye düşürür. Böyle sararak
-  # yalnız çekirdek oradan gelir; nvidia (610.57.04, gpu.nix), acpi_call ve aorus-laptop
+  # yalnız çekirdek oradan gelir; nvidia (610.57.04, gpu.nix), acpi_call ve aero_eg61h
   # bizim pin'imizde kalır. Bu üçü çekirdek sürümüne bağlı olduğu için her çekirdek/sürücü
   # bump'ında YEREL derlenir (~15-25 dk) — cache onları kurtarmaz, normaldir.
   boot.kernelPackages =

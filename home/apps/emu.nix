@@ -11,12 +11,11 @@
 #   • __VK_LAYER_NV_optimus artık VARSAYILAN DEĞİL (cihaz listesini filtreler,
 #     sıfır-cihaz riski). Emülatörde dGPU'yu zorlamak için: emu-run yerine
 #     `GR_GPU=nvidia emu-run rpcs3` — GR_GPU env olarak miras kalır.
-# Ayrıntı: Documentation/gaming.md "PS3/PS4 Emülatörleri" bölümü.
+# Ayrıntı: Documentation/gaming.md "2 Eyl 2026 — gamerun SIFIRDAN YAZILDI".
 #
-# Sürüm takibi (elle — bu repoyu izleyen commit'le güncellenir):
-#   • rpcs3: nixpkgs pinli (şu an 0.0.40-unstable-2026-04-25)
-#   • shadps4: nixpkgs pinli (0.16.0; upstream son 0.17.0, 30 Tem 2026)
-#     — 0.16.0 Bloodborne-uyumlu 0.15+ eşiğini geçtiği için override YAZILMADI.
+# Sürümler: ikisi de nixpkgs pinli, override YOK (shadps4 Bloodborne'un 0.15+
+# eşiğini geçiyor). Güncel sürüm yorumda TUTULMAZ, sor:
+#   nix eval --raw .#nixosConfigurations.nixos.pkgs.<rpcs3|shadps4>.version
 #       Override gerekirse: github:shadps4-emu/shadPS4/<tag> flake input + src override.
 #       Bedel: 191MB src + kaynaktan CMake derleme + nixpkgs bump'ta rebase riski.
 { pkgs, ... }:

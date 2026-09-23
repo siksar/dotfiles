@@ -37,7 +37,7 @@
 # uyuşmazlıkta -EIO dönüyor. Bu yüzden varsayılan `balanced` — makinenin
 # gerçekten koştuğu mod bu, ve `quiet` yazmak davranışı DEĞİŞTİRİRDİ.
 #
-# Geçiş planı ve tam ölçüm: ~/aero-eg61h/docs/nixos-gecis.md
+# Tam ölçüm: Documentation/aerox16/wmi-ec.md. Sürücünün kendi belgesi: ~/aero-eg61h
 { inputs, ... }:
 
 {

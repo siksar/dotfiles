@@ -33,8 +33,8 @@ in
     # `mutter-device-ignore` string'i libmutter-18.so.0'da doğrulandı
     # (mutter 50.4, flake pin'inden çekilip binary'de arandı).
     #
-    # Gerekçe aynı: compositor NVIDIA'nın DRM node'unu açarsa o açık fd kartın
-    # RTD3/D3cold'a girmesini bloke eder, idle tabanı ~4.3W'tan ~7W'a çıkar.
+    # Gerekçe cosmic.nix ile aynı; oradaki "açık fd ~4.3W → ~7W" iddiası 20 Eyl'de
+    # COSMIC'te çürüdü. mutter için ölçülmedi — etiket ihtiyaten duruyor.
     #
     # DRIVERS eşleşmesi, kart numarası DEĞİL: card0/card1 boot sırasına göre yer
     # değiştirebilir. Bu makinede ölçüldü (16 Eyl 2026): card0 = nvidia
@@ -48,7 +48,7 @@ in
     # bu etiket mutter'ın harici ekranı sürmesini de engeller (COSMIC'teki
     # COSMIC_DRM_ALLOW_DEVICES ile birebir aynı yan etki, farklı sözdizimi).
     # `desktop.externalDisplay.enable` açıkken kural HİÇ YAZILMAZ; gerekçe ve
-    # zorunlu ölçüm: system/desktop/external-display.nix.
+    # 20 Eyl ölçümü: system/desktop/external-display.nix.
     #
     # mkForce DEĞİL, optionalString: extraRules birleşen bir metindir ve mux.nix
     # de kendi kuralını aynı seçeneğe ekliyor — mkForce onu da silerdi.

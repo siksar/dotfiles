@@ -26,10 +26,10 @@ Gerçek özel-fan kanalı Linux'tan görünmüyor → keşfi Windows/GCC yakalam
 | BIOS | FB0A (American Megatrends, 2026-05-28, release 5.35) |
 | EC firmware | 3.10 (DMI `ec_firmware_release`); çip büyük olasılıkla ITE IT55xx — Windows'ta HWiNFO ile kesinleşecek |
 | EC erişimi | eSPI paylaşımlı bellek: PECM @ 0xFC7E0800 (+ ECM2/USEC); klasik port-EC neredeyse boş |
-| EC sürücüsü | [tangalbert919/gigabyte-laptop-wmi](https://github.com/tangalbert919/gigabyte-laptop-wmi) → `aorus-laptop.ko` (`system/arch/aerox16/wmi.nix`) |
+| EC sürücüsü | kendi sürücümüz `aero_eg61h` (`~/aero-eg61h`, flake input; `system/arch/aerox16/wmi.nix`). 7 Eyl 2026'ya kadar [tangalbert919/gigabyte-laptop-wmi](https://github.com/tangalbert919/gigabyte-laptop-wmi) → `aorus-laptop.ko` |
 | WMI GUID'leri | ABBC0F6F / ABBC0F72 / ABBC0F75 (WMBC/WMBD metodları) |
 | Dahili klavye | USB-HID 0414:8104 |
-| sysfs | `/sys/devices/platform/aorus_laptop/` |
+| sysfs | `/sys/bus/wmi/devices/ABBC0F75-8EA1-11D1-00A0-C90629100000-2/` (`fan_mode`, `fan_mode_choices`) + standart platform-profile ve power_supply ABI |
 
 ## Şu an Linux'ta çalışanlar
 

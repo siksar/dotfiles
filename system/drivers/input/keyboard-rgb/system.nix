@@ -62,7 +62,7 @@ in
   # NEDEN TIMER/POLL DEĞİL (4.28W bütçesi): renk eval zamanında sabitlenir,
   # çalışma zamanında değişmez → oturum başına TEK yazma yeter, sonra süreç ölür.
   #
-  # NEDEN graphical-session.target: oturuma özel değil, hem COSMIC hem Plasma'da
+  # NEDEN graphical-session.target: oturuma özel değil, hem COSMIC hem GNOME'da
   # çalışsın diye. Ayrıca /dev/hidraw'ın uaccess ACL'i ancak oturum açıkken var —
   # daha erken bir hedefte "Permission denied" alırdık.
   # (Bu hedefe asılmak DÖNGÜ yaratmaz: ölçüldü — graphical-session.target kendi

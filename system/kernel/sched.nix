@@ -247,7 +247,8 @@ in
   #
   # Wants ile scx'i başlatır,
   # stop'ta PartOf scx'i durdurur. Faz E kanıtlanan kol: 0xED profil 2 (start,
-  # AC'de) / profil 0 (stop). CPU kolu: start'ta PPD VARSAYILAN balanced (AC'de,
+  # AC'de); stop'ta ham 0xED YOK — platform_profile düğümü (AC balanced → 0xED 1,
+  # pil low-power → 0xED 0; gamePerfStop (2)). CPU kolu: start'ta PPD VARSAYILAN balanced (AC'de,
   # GPU-öncelik — dGPU'ya paylaşımlı Dynamic Boost bütçesi bırakır; GR_CPUMAX=1 ise
   # performance), stop'ta power-display.service geri hesaplar (balanced/power-saver).
   # PPD'yi kendi D-Bus API'siyle sürüyoruz — ham governor/EPP yazımı DEĞİL, o yüzden

@@ -13,7 +13,8 @@
     #  • proton-ge-bin  — VARSAYILAN: ntsync açık + güncel dxvk-nvapi (DLSS 4.5 override)
     #  • proton-cachyos — Blackwell-sertleştirilmiş: VK_EXT_descriptor_heap (Xid 109 sert
     #    çökme fix, vkd3d-proton #2914) + DX12 donma (#2793) en iyi burada test edilmiş.
-    #    İnatçı DX12/Blackwell oyunlarında bu Proton'u seç + GR_HEAP=1 (PROTON_VKD3D_HEAP=1).
+    #    İnatçı DX12/Blackwell oyunlarında bu Proton'u seç + launch options'a
+    #    PROTON_VKD3D_HEAP=1 (gamerun anahtarı DEĞİL — Documentation/gaming.md).
     extraCompatPackages = [
       pkgs.proton-ge-bin
       inputs.chaotic.packages.${pkgs.stdenv.hostPlatform.system}.proton-cachyos
@@ -28,7 +29,7 @@
   };
 
   # Proton-CachyOS binary cache (chaotic-nyx, kendi nixConfig'inden doğrulanan değerler) —
-  # kaynaktan derlemeyi önler — nix-amd-ai cachix deseniyle aynı
+  # kaynaktan derlemeyi önler
   # (nix.settings.substituters/trusted-public-keys listeleri NixOS'ta birleşir).
   nix.settings = {
     substituters = [ "https://nyx-cache.chaotic.cx/" ];
