@@ -1,5 +1,28 @@
 { pkgs, ... }:
 
+let
+  # claude-code 2.1.280 — nixpkgs bu pakette 2.1.278'de takılı (23 Eyl 2026) ama
+  # Opus 5.5 modeli CLI'dan 2.1.280+ istiyor; eski ikilide `/model` satırı
+  # "(disabled) Update to 2.1.280+" diye çıkıyor, model kimliği (claude-opus-5-5)
+  # ikilinin İÇİNDE gömülü — sunucu tarafı yetmiyor, paketi taşımak gerekiyor.
+  #
+  # Paket `manifest`i override EDİLEBİLİR bir argüman olarak alıyor, bu yüzden
+  # overrideAttrs'a gerek yok. Manifestten yalnız üç alan okunuyor (version,
+  # platforms.<key>.binary, .checksum) → tam manifest yerine linux-x64 kaydı yeter.
+  # Kaynak: https://downloads.claude.ai/claude-code-releases/2.1.280/manifest.zst.json
+  #
+  # ⚠️ GEÇİCİ: nixpkgs 2.1.280+ taşıyınca bu blok ve aşağıdaki kullanımı SİLİNİR.
+  # kontrol: nix eval --raw github:nixos/nixpkgs/nixos-unstable#claude-code.version
+  claude-code-280 = pkgs.claude-code.override {
+    manifest = {
+      version = "2.1.280";
+      platforms.linux-x64 = {
+        binary = "claude.zst";
+        checksum = "27910e2ae704d8f2e8024897d8fdf1e7710807baf4f6982c0e3797c058315384";
+      };
+    };
+  };
+in
 {
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
@@ -158,7 +181,7 @@
                       # olmamasından kötü — script artık ön kontrolle sert düşüyor.
 
     # LLM-assisted development
-    claude-code
+    claude-code-280
     codex
     opencode
 
