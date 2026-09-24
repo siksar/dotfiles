@@ -100,6 +100,16 @@ in
     };
   };
 
+  # iwd ↔ rtw89 açılış yarışı: iwd phy0'ı wlan0 netdev'i kaydolmadan görürse
+  # arayüzü kendisi yaratmaya çalışıyor → "NEW_INTERFACE failed: Too many open
+  # files in system" (ENFILE = ad çakışması, gerçek fd tükenmesi değil) → NM wlan0'ı
+  # "unavailable" tutar. udev device unit'ine sıralamak tek seferlik; poll/yeniden
+  # deneme yok. wants (requires değil): kart yoksa iwd yine açılır.
+  systemd.services.iwd = {
+    after = [ "sys-subsystem-net-devices-wlan0.device" ];
+    wants = [ "sys-subsystem-net-devices-wlan0.device" ];
+  };
+
   # NetworkManager-wait-online kapalı (2026-07-18). Bu servis boot'ta ~49s bekliyordu
   # (eth+wifi ikisi bağlıyken biri geç DHCP/carrier alıyor) ve network-online.target →
   # graphical.target zincirini kilitliyordu. Oturum başlatıcısı bileşkeni sistem
