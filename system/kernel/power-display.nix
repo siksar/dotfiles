@@ -33,6 +33,14 @@ let
     MAX=$(cat "$BL/max_brightness")
     PPCTL=${pkgs.power-profiles-daemon}/bin/powerprofilesctl
 
+    # Oyun oturumu açık mı — TEK sorgu. Eskiden aşağıdaki üç karar noktası
+    # (PPD profili, frekans tavanı, affinity) her biri kendi `systemctl is-active`
+    # çağrısını yapıyordu: fişte her olayda 3 D-Bus gidiş-dönüşü, ve arada durum
+    # değişirse üç kararın birbirini tutmama ihtimali. Oyun bitişi zaten bu
+    # servisi yeniden başlatıyor (sched.nix gamePerfStop), yani anlık görüntü yeter.
+    GAME=0
+    ${pkgs.systemd}/bin/systemctl is-active --quiet game-perf.service && GAME=1
+
     # PPD profilini uygula + DOĞRULA (2026-07-27). PPD 0.30, istenen profil kendi
     # mevcut profiline EŞİTSE donanıma hiç yazmıyor — "set" sessizce no-op oluyor.
     # Boot'ta PPD kendini zaten "balanced" sanarak açılıyor, EPP ise çekirdeğin boot
@@ -74,8 +82,7 @@ let
       # onurlandır — böylece oyun-ortası bir ACAD olayı (fişle oynama) profili balanced'a
       # zıplatıp GR_CPUMAX'i ezmez. Aksi her koşulda balanced.
       UID_ZIXAR=$(${pkgs.coreutils}/bin/id -u zixar 2>/dev/null || echo 1000)
-      if ${pkgs.systemd}/bin/systemctl is-active --quiet game-perf.service \
-         && [ -f "/run/user/$UID_ZIXAR/gamerun-cpumax" ]; then
+      if [ "$GAME" = "1" ] && [ -f "/run/user/$UID_ZIXAR/gamerun-cpumax" ]; then
         ppd_apply performance
       else
         ppd_apply balanced
@@ -104,7 +111,7 @@ let
       # OYUNDA TAVAN YOK: game-perf aktifken tam boost. Oyun bitince game-perf'in
       # ExecStopPost'u power-display.service'i yeniden başlatıyor (sched.nix), yani
       # tavan kendiliğinden geri geliyor — ayrı bir geri-alma koluna gerek yok.
-      if ${pkgs.systemd}/bin/systemctl is-active --quiet game-perf.service; then
+      if [ "$GAME" = "1" ]; then
         CAP=99999999   # oyun: kapama yok, her çekirdek kendi tavanına
       else
         CAP=4500000
@@ -145,7 +152,7 @@ let
     # power katmanının kuralına uygun. taskset kullanılıyor çünkü cores.nix'in maskesi
     # sched_setaffinity (yumuşak), cgroup AllowedCPUs değil.
     TASKSET=${pkgs.util-linux}/bin/taskset
-    if ${pkgs.systemd}/bin/systemctl is-active --quiet game-perf.service; then
+    if [ "$GAME" = "1" ]; then
       : # Oyun sırasında DOKUNMA: affinity'yi gamerun yönetiyor (taskset -c 0-15 /
         # GR_PIN). Oyun-ortası bir ACAD olayı oyunu Zen5c'ye çekerse kare süresi çöker.
     else
@@ -178,7 +185,7 @@ let
     IW=${pkgs.iw}/bin/iw
     for W in /sys/class/net/*/wireless; do
       [ -e "$W" ] || continue
-      DEV=$(${pkgs.coreutils}/bin/basename "$(${pkgs.coreutils}/bin/dirname "$W")")
+      D=''${W%/wireless}; DEV=''${D##*/}   # basename(dirname) — fork'suz
       if [ "$AC" = "0" ]; then
         "$IW" dev "$DEV" set power_save on  2>/dev/null || true
       else

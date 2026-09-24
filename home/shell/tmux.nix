@@ -31,10 +31,7 @@
     '';
   };
 
-  programs.yazi = {
-    enable = true;
-    enableFishIntegration = true;
-  };
+  programs.yazi.enable = true;
 
   # Renkler Stylix'ten (stylix.targets.zathura devre dışı bırakılmadı).
   programs.zathura.enable = true;

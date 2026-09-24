@@ -39,7 +39,6 @@ in
     })
   ];
 
-  # COSMIC launcher system profilindeki XDG uygulama dizinini tarar; /etc/xdg
-  # yapılandırma dizini uygulama kataloğu değildir.
-  environment.pathsToLink = [ "/share/applications" ];
+  # /share/applications'ı pathsToLink'e EKLEMİYORUZ: nixpkgs'in xdg.menus
+  # modülü (varsayılan açık) zaten ekliyor; COSMIC launcher oradan görür.
 }
