@@ -6,14 +6,21 @@
 { lib, pkgs, ... }:
 
 let
+  # Beş betikte tekrar eden iki parça. Metin birebir aynı kalsın diye
+  # interpolasyonla gömülüyor (drvPath değişmedi, 24 Eyl 2026 ölçüldü).
+  # /nix/store değil: KOŞAN sistemin systemd'siyle konuşmalı (lib/gamerun.nix
+  # aynı gerekçeyle aynı yolu kullanır).
+  systemctl = "/run/current-system/sw/bin/systemctl";
+  uidZixar = "UID_ZIXAR=$(${pkgs.coreutils}/bin/id -u zixar 2>/dev/null || echo 1000)";
+
   # GameMode kancaları: gamemoded KULLANICI servisi olarak koşar ve NixOS
   # modülü servis PATH'ini pkexec-only linkfarm'a mkForce'lar → mutlak store
   # yolları zorunlu. systemctl izni aşağıdaki polkit kuralından gelir.
   gameStart = pkgs.writeShellScript "gamemode-start" ''
-    /run/current-system/sw/bin/systemctl start game-perf.service
+    ${systemctl} start game-perf.service
   '';
   gameEnd = pkgs.writeShellScript "gamemode-end" ''
-    /run/current-system/sw/bin/systemctl stop game-perf.service
+    ${systemctl} stop game-perf.service
   '';
 
   # GCC performans profili 2 (WMBD 0xED): ACBT 80→160 + agresif fan eğrisi.
@@ -48,7 +55,7 @@ let
       # dosyası bırakır, burada okunur (root tek PPD otoritesi; polkit gerekmez).
       # PPD'yi kendi API'siyle set → amd-pstate=active ile çatışmaz (ham governor yazımı
       # değil; TLP'nin kaldırılma sebebi tam da o çatışmaydı).
-      UID_ZIXAR=$(${pkgs.coreutils}/bin/id -u zixar 2>/dev/null || echo 1000)
+      ${uidZixar}
       if [ -f "/run/user/$UID_ZIXAR/gamerun-cpumax" ]; then PROF=performance; else PROF=balanced; fi
       ${pkgs.power-profiles-daemon}/bin/powerprofilesctl set "$PROF" 2>/dev/null || true
 
@@ -120,7 +127,7 @@ let
   gamePerfStop = pkgs.writeShellScript "game-perf-stop" ''
     # GR_CPUMAX işaret dosyasını ÖNCE temizle: aşağıdaki power-display onu okuyor,
     # kalırsa oyun bitmişken performance'ta bırakır.
-    UID_ZIXAR=$(${pkgs.coreutils}/bin/id -u zixar 2>/dev/null || echo 1000)
+    ${uidZixar}
     rm -f "/run/user/$UID_ZIXAR/gamerun-cpumax" 2>/dev/null || true
 
     # Fan modu + dGPU ACBT bütçesi: AC/BAT'a göre aero-eg61h modülü hesaplar.
@@ -128,7 +135,7 @@ let
     # ExecStopPost sırasında birim "deactivating" durumda olduğu için `is-active`
     # BAŞARISIZ döner ve fan yazımı gerçekten koşar (systemctl yalnız active/reloading
     # için 0 döndürür).
-    /run/current-system/sw/bin/systemctl start aero-power-profile.service || true
+    ${systemctl} start aero-power-profile.service || true
 
     # 0xED'i gerçekten geri getir. Ham acpi_call YAZMIYORUZ (yukarıdaki 2+3):
     # standart platform_profile düğümüne yazmak hem EC'yi doğru profile alır hem
@@ -145,7 +152,7 @@ let
 
     # CPU tarafı: power-display.service AC/BAT'a göre PPD profilini, 4.5 GHz tavanını
     # ve affinity maskesini geri hesaplar. Sabit yazmıyoruz → tek otorite orası.
-    /run/current-system/sw/bin/systemctl start power-display.service || true
+    ${systemctl} start power-display.service || true
   '';
 
   # SIZINTI AĞI (12 Eyl 2026). game-perf `Type=oneshot` + `RemainAfterExit=true`,
@@ -160,9 +167,9 @@ let
   # yalnız olay anında koşar (udev ACAD, uyanış) ve gamerun'ın kendisi de
   # başlamadan önce çağırır.
   gamePerfReap = pkgs.writeShellScript "game-perf-reap" ''
-    /run/current-system/sw/bin/systemctl is-active --quiet game-perf.service || exit 0
+    ${systemctl} is-active --quiet game-perf.service || exit 0
 
-    UID_ZIXAR=$(${pkgs.coreutils}/bin/id -u zixar 2>/dev/null || echo 1000)
+    ${uidZixar}
     STATE="/run/user/$UID_ZIXAR/gamerun.d"
 
     if [ -d "$STATE" ]; then
@@ -176,7 +183,7 @@ let
     fi
 
     echo "game-perf sizintisi toplandi (canli gamerun yok)" >&2
-    /run/current-system/sw/bin/systemctl stop game-perf.service || true
+    ${systemctl} stop game-perf.service || true
   '';
 in
 {

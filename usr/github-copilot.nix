@@ -46,6 +46,4 @@ in {
       };
     })
   ];
-
-  environment.pathsToLink = [ "/share/applications" ];
 }

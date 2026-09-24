@@ -89,15 +89,11 @@
     };
   };
 
-  programs.starship.enableFishIntegration = true;
-  programs.zoxide = {
-    enable = true;
-    enableFishIntegration = true;
-  };
-  programs.fzf = {
-    enable = true;
-    enableFishIntegration = true;
-  };
+  # starship/zoxide/fzf'nin fish entegrasyonu AYRICA açılmıyor: HM'de her
+  # enable*Integration seçeneğinin varsayılanı home.shell.enable*Integration
+  # (= true). Açıkça yazmak drvPath'i değiştirmiyordu (24 Eyl 2026, ölçüldü).
+  programs.zoxide.enable = true;
+  programs.fzf.enable = true;
 
   home.packages = with pkgs; [ eza fd ripgrep bat duf ];
 }

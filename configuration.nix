@@ -79,8 +79,8 @@
   # Stylix'in GTK hedefi + HM'in gtk.iconTheme/dconf.settings ayarları için gerekli
   programs.dconf.enable = true;
 
-  # JetBrainsMono Nerd Font (terminal/starship glif ikonları)
-  fonts.packages = with pkgs; [ nerd-fonts.jetbrains-mono ];
+  # JetBrainsMono Nerd Font burada YOK: lib/theme.nix'in fonts.monospace.package'ı,
+  # Stylix onu kendisi fonts.packages'a koyuyor.
 
   programs.nh = {
     enable = true;
@@ -93,8 +93,6 @@
     enable = true;
     nix-direnv.enable = true;
   };
-
-  nixpkgs.config.allowUnfree = true;
 
   # Electron/Chromium uygulamaları native Wayland'de çalışsın (kullanıcı isteği 30 Tem).
   # nixpkgs'in Electron sarmalayıcıları şu kalıbı taşır:

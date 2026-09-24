@@ -4,7 +4,6 @@
 {
   programs.starship = {
     enable = true;
-    enableBashIntegration = true;
     settings = {
       add_newline = true;
       format = "$directory$git_branch$git_status$nix_shell$cmd_duration$line_break$character";
