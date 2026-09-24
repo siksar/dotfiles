@@ -96,8 +96,11 @@
     "rcutree.enable_rcu_lazy=1"
 
     # --- Enerji Verimliliği ---
-    "nowatchdog"                   # NMI watchdog kapalı → wakeup azalır
-    "nmi_watchdog=0"               # aynı şeyin kernel param karşılığı
+    "nowatchdog"                   # soft-lockup + NMI (hard-lockup) watchdog İKİSİ de
+                                   # kapalı → wakeup azalır. Eskiden yanında
+                                   # "nmi_watchdog=0" ve kernel.nmi_watchdog sysctl'i
+                                   # de vardı; ikisi de bunun alt kümesiydi (24 Eyl 2026).
+                                   # Doğrula: cat /proc/sys/kernel/{nmi_,soft_}watchdog → 0 0
     "pcie_aspm=force"              # PCIe Active State PM → dGPU/WiFi/NVMe uykuya girebilir
     "pcie_aspm.policy=powersupersave" # en agresif ASPM politikası
     "pcie_port_pm=force"           # PM'i reddeden PCIe köprülerde de runtime PM zorla
@@ -107,8 +110,8 @@
                                    # "HİBERNATE NEDEN KAPALI" bloğunda (24 Ağu 2026)
     # NOT: nvidia_drm.fbdev=1 kaldırıldı → dGPU fbcon tutmaz, D3cold'da kalıcı kalır.
     # Konsol fbdev'i zaten amdgpu'da (/proc/fb = amdgpudrmfb). dGPU idle'da uyur.
-    "snd_hda_intel.power_save=1"   # HDA ses kartı boşta power save
-    "snd_hda_intel.power_save_controller=Y"
+    # snd_hda_intel power_save burada DEĞİL: aşağıdaki extraModprobeConfig'te
+    # (modül; cmdline'daki kopyası aynı değeri ikinci kez veriyordu).
 
     # --- Sessiz Boot (Plymouth olmadan) ---
     "quiet"
@@ -118,7 +121,9 @@
     "boot.shell_on_fail"           # hata olursa shell düşsün, debug kolaylığı
   ];
 
-  # Realtek rtw89 WiFi + HDA ses kartı modprobe parametreleri
+  # Realtek rtw89 WiFi + HDA ses kartı modprobe parametreleri.
+  # HDA power_save'in TEK tanımı burası. Doğrula:
+  #   cat /sys/module/snd_hda_intel/parameters/power_save{,_controller} → 1 Y
   boot.extraModprobeConfig = ''
     options rtw89_pci disable_clkreq=0 disable_aspm_l1=0 disable_aspm_l1ss=0
     options rtw89_core disable_ps_mode=n
@@ -139,7 +144,6 @@
   boot.kernel.sysctl = {
     "vm.dirty_writeback_centisecs" = 6000; # 60s writeback → disk uykuda kalır
     "vm.dirty_expire_centisecs"   = 6000;
-    "kernel.nmi_watchdog"         = 0;    # runtime'da da watchdog kapalı
   };
 
   # Powertop auto-tune (boot sonrası tüm cihazları power save moduna al)

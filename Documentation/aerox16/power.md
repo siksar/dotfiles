@@ -106,6 +106,9 @@ ilk o dokunuyor.
 dosyadaki idle bütçesi ayarları) softlockup ve hardlockup dedektörlerini
 kapatıyor → panik yok, otomatik reboot yok, crash dump yok. Kanıt yalnızca
 journald ilk oops satırlarını diske yetiştirdiği için hayatta kaldı.
+(24 Eyl 2026: cmdline artık yalnız `nowatchdog` taşıyor — `nmi_watchdog=0` ve
+`kernel.nmi_watchdog` sysctl'i onun alt kümesiydi, kaldırıldı. Sonuç aynı: iki
+dedektör de kapalı, `cat /proc/sys/kernel/{nmi_,soft_}watchdog` → `0 0`.)
 
 **Bağıntı (25 boot, 29 Tem – 24 Ağu).**
 

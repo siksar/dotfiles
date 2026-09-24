@@ -9,7 +9,8 @@
     shellAbbrs = {
       # NixOS iş akışı (vyrx'in pacman/paru'sunun karşılığı)
       nb = "nh os switch";
-      hms = "nh home switch -b hm-backup";
+      # hms burada YOK: home.nix'teki home.shellAliases.hms HM tarafından fish'e
+      # de alias olarak iniyor; abbr kopyası aynı komutun ikinci eviydi.
       ngc = "nh clean all";
       nsh = "nix shell nixpkgs#";
       nfu = "nix flake update";
@@ -57,15 +58,11 @@
     '';
 
     functions = {
-      y = ''
-        # yazi: çıkarken en son bulunduğun dizine cd'le
-        set tmp (mktemp -t "yazi-cwd.XXXXXX")
-        yazi $argv --cwd-file="$tmp"
-        if set cwd (cat -- "$tmp"); and [ -n "$cwd" ]; and [ "$cwd" != "$PWD" ]
-          cd -- "$cwd"
-        end
-        rm -f -- "$tmp"
-      '';
+      # `y` (yazi: çıkınca son dizine cd) burada YAZILMIYOR — HM'in yazi modülü
+      # onu kendisi tanımlıyor (shellWrapperName = "y", stateVersion 26.05).
+      # functions.<ad> `lines` tipinde olduğundan elle yazılan ikinci gövde HATA
+      # VERMEDEN birleşiyordu: `y` yazinca yazi arka arkaya İKİ KEZ açılıyordu
+      # (24 Eyl 2026, programs.fish.functions.y eval'iyle görüldü).
 
       # streamrip'in `rip` binary'sini sarmalar (fonksiyon isim çakışmasında
       # PATH'teki binary'den önce çalışır — `command rip` en altta gerçek
