@@ -1,36 +1,31 @@
 # CPU — hibrit Zen5/Zen5c çekirdek politikası
 
 **Bulgu (16 Ağu 2026): çekirdek zamanlayıcı bu CPU'nun hibrit olduğunu BİLİYOR.**
-`amd_hfi` sürücüsü bağlı, ITMT açık (`sched_itmt_enabled = Y`), çekirdek öncelikleri
-HFI'nin sıralama tablosundan dolmuş, workload classification aktif. Zamanlayıcı
-tek-thread'lik işi **bilerek** Zen5'e yolluyor — yazı-tura değil, tasarım.
+`amd_hfi` bağlı, ITMT açık, çekirdek öncelikleri HFI'den dolmuş, workload
+classification aktif — tek-thread'lik iş **bilerek** Zen5'e gidiyor.
 `system/kernel/cores.nix`'in Zen5c maskesi bu yüzden "kör kernel'e protez" değil,
-**çalışan bir ITMT'yi güç bütçesi adına bilinçli olarak ezmek**tir. Karar geçerli;
-gerekçesi değişti.
+**çalışan bir ITMT'yi güç bütçesi adına bilinçli olarak ezmek**tir.
 
-> **10 Ağu 2026 tarihli önceki bulgu ("zamanlayıcı hibrit farkında değil") YANLIŞTI.**
-> Silinmedi, aşağıda "Neden üç tur yanlış ölçtük" başlığında duruyor — çünkü hatanın
-> kendisi tekrarlanabilir cinsten: kaldırılmış/taşınmış sysfs yollarına bakıp
-> "yok" sonucunu "kapalı" diye okuduk. Dördüncü kez düşmemek için kayıtta.
+> 10 Ağu 2026 tarihli önceki bulgu ("zamanlayıcı hibrit farkında değil") YANLIŞTI —
+> bkz. "Neden üç tur yanlış ölçtük".
 
 ---
 
 ## Donanım: AMD Ryzen AI 7 350 "Krackan Point"
 
-`lscpu` + `model name`: family 26 (0x1A), 8 çekirdek / 16 thread, hibrit Zen5 + Zen5c.
+family 26 (0x1A), 8 çekirdek / 16 thread, hibrit Zen5 + Zen5c.
 
 | Sınıf | CPU listesi (mantıksal) | `cpuinfo_max_freq` |
 |---|---|---|
 | Zen5 ("büyük") | `0,2,4,6` + SMT `8,10,12,14` | **5090910 kHz** (~5.09 GHz) |
 | Zen5c ("verimlilik") | `1,3,5,7` + SMT `9,11,13,15` | **3506494 kHz** (~3.51 GHz) |
 
-`amd_pstate_prefcore_ranking` (firmware'in kendi sıralaması, yüksek=hızlı):
-Zen5 çekirdekleri 196/202/208, Zen5c çekirdekleri hepsi 135. `4,6,12,14` (Zen5'in
-en yüksek rütbeli 4'ü) `gamerun`'ın `GR_PIN=fast` listesiyle birebir örtüşüyor.
+`amd_pstate_prefcore_ranking`: Zen5 196/202/208, Zen5c hepsi 135. `4,6,12,14`
+(en yüksek rütbeli 4'ü) `gamerun`'ın `GR_PIN=fast` listesiyle birebir örtüşüyor.
 
 ## Kanıt: zamanlayıcı hibrit-farkında (ölçüm 16 Ağu 2026, kernel 7.1.7)
 
-ITMT arayüzü **`/proc/sys/` altında değil, debugfs'te** — okumak için root gerekir:
+ITMT arayüzü **`/proc/sys/` altında değil, debugfs'te** (root gerekir):
 
 ```
 sudo ls   /sys/kernel/debug/x86/
@@ -41,13 +36,13 @@ sudo cat  /sys/kernel/debug/x86/amd_hfi/class_capabilities
 
 | Kontrol | Değer | Anlamı |
 |---|---|---|
-| `/sys/kernel/debug/x86/sched_itmt_enabled` | **`Y`** | ITMT AÇIK — zamanlayıcı çekirdek önceliğini kullanıyor |
+| `/sys/kernel/debug/x86/sched_itmt_enabled` | **`Y`** | ITMT AÇIK |
 | `/sys/kernel/debug/x86/sched_core_priority` | Zen5 196/203, Zen5c 135 | öncelik tablosu DOLU |
 | `/sys/kernel/debug/x86/amd_hfi/class_capabilities` | 3 sınıf × 16 CPU | workload classification AKTİF |
-| `/sys/bus/platform/drivers/amd_hfi/AMDI0104:00` | **symlink var** | sürücü cihaza BAĞLI (`probe()` 0 döndü) |
+| `/sys/bus/platform/drivers/amd_hfi/AMDI0104:00` | **symlink var** | sürücü cihaza BAĞLI |
 | `ACPI` tabloları | `SSDT ... AMD Hetero` mevcut | firmware hibrit topolojiyi beyan ediyor |
 | `amd_pstate/prefcore` | `disabled` | **kasıtlı** — HFI'li tasarımlarda upstream böyle yapar (aşağıda) |
-| `cpuN/cpu_capacity` | 16 CPU'da `1024` | **ilgisiz** — ITMT capacity üzerinden çalışmaz (aşağıda) |
+| `cpuN/cpu_capacity` | 16 CPU'da `1024` | **ilgisiz** — ITMT capacity üzerinden çalışmaz |
 
 ### ITMT öncelik tablosu (`sched_core_priority`)
 
@@ -57,18 +52,14 @@ sudo cat  /sys/kernel/debug/x86/amd_hfi/class_capabilities
 | Zen5 (düşük rütbe) | `0,2` + SMT `8,10` | **196** |
 | Zen5c | `1,3,5,7` + SMT `9,11,13,15` | **135** |
 
-`4,6,12,14`'ün en yüksek çıkması `gamerun`'ın `GR_PIN=fast` listesini bağımsız olarak
-doğruluyor — hem CPPC hem HFI aynı dörtlüyü işaret ediyor.
+`4,6,12,14` hem CPPC'de hem HFI'de en üstte — `GR_PIN=fast` bağımsız doğrulandı.
 
-**Dikkat: iki ayrı firmware sıralaması var ve birbirini tutmuyor.**
-`amd_pstate_prefcore_ranking` (CPPC kaynaklı) Zen5'te `196/202/208` derken,
-ITMT önceliği (HFI kaynaklı) `196/203` diyor. Sıralamanın *yönü* ikisinde de aynı
-(Zen5 > Zen5c), ama mutlak değerler farklı — bir sayı gördüğünde hangi kaynaktan
-geldiğine bak. ITMT'yi besleyen HFI'dir (`ipcc_scores[0]` = WLC 0'ın Perf sütunu).
+**Dikkat: iki firmware sıralaması birbirini tutmuyor.** CPPC
+(`amd_pstate_prefcore_ranking`) Zen5'te `196/202/208`, HFI (ITMT) `196/203` diyor;
+yön aynı, mutlak değerler farklı. ITMT'yi besleyen HFI'dir (`ipcc_scores[0]` = WLC 0
+Perf sütunu).
 
-### Workload classification (`class_capabilities`) — asıl sürpriz
-
-Donanım her CPU için **3 iş sınıfı** (WLC 0/1/2) başına ayrı Perf ve Eff puanı veriyor:
+### Workload classification (`class_capabilities`)
 
 | CPU sınıfı | WLC | Perf | Eff |
 |---|---|---|---|
@@ -79,86 +70,63 @@ Donanım her CPU için **3 iş sınıfı** (WLC 0/1/2) başına ayrı Perf ve Ef
 | Zen5c | 1 | **135** | **255** |
 | Zen5c | 2 | **135** | **255** |
 
-WLC 0'da (genel iş) Zen5 açık ara önde. Ama **WLC 1 ve 2'de tablo tersine dönüyor**:
-Zen5'in performans puanı 58'e çöküyor, Zen5c 135'te kalıyor — yani bu iki sınıf için
-donanımın kendisi *"bu işi Zen5c'de yap"* diyor, üstelik verimlilik puanı da orada
-tavan (255 vs 141). Bu, `cores.nix`'in Zen5c tercihinin en azından bazı iş tipleri
-için donanım tarafından da onaylandığı anlamına geliyor — maske kaba, HFI ince, ama
-yönleri belirli sınıflarda örtüşüyor.
+WLC 0'da Zen5 önde; **WLC 1 ve 2'de tablo tersine dönüyor** (Zen5 Perf 58, Zen5c 135,
+Eff 255 vs 141) — o sınıflar için donanımın kendisi Zen5c'yi öneriyor, yani maskenin
+yönü bazı iş tiplerinde HFI ile örtüşüyor.
 
 ## Sonuç zinciri (neden "bazen 5GHz'e zıplıyor" hissi doğru)
 
-Semptom gerçek, ama mekanizma 10 Ağu'da yazıldığı gibi değil:
-
-1. ITMT açık ve Zen5'in önceliği 203'e karşı Zen5c'nin 135'i — zamanlayıcı
-   tek-thread'lik işi **yazı-tura değil, tercihen** Zen5'e koyuyor. Maske olmasa
-   bir tarayıcı sekmesi ya da compositor repaint'i sistematik olarak hızlı çekirdeğe
-   giderdi.
-2. `system/kernel/power-display.nix` AC'de her `ACAD` olayında tüm CPU'ların
-   `scaling_max_freq`'ini `cpuinfo_max_freq`'e (Zen5'te 5090910) geri açıyor + boost'u
-   açıyor (power-saver'ın 2GHz kilidini geri almak için — bkz. o dosyadaki yorum).
+1. ITMT açık, Zen5 203'e karşı Zen5c 135 — tek-thread iş tercihen Zen5'e gidiyor.
+2. `power-display.nix` AC'de her `ACAD` olayında `scaling_max_freq`'i yeniden açıyor
+   + boost'u açıyor (power-saver'ın 2GHz kilidini geri almak için).
 3. EPP `balance_performance` (PPD `balanced`) — talep gelince klok hızla yükseliyor.
-4. Sonuç: iş Zen5'e düştüğünde, kısa bir tek-thread patlaması bile o çekirdeği
-   5GHz tavanına götürüyor. **Zorlayan bir "işlem" yok — zamanlayıcı hızlı çekirdeği
-   bilerek seçiyor, donanım izin veriyor.** Tasarım gereği böyle, arıza değil.
+4. Sonuç: kısa bir tek-thread patlaması bile Zen5'i tavana götürüyor. Tasarım gereği,
+   arıza değil.
 
 ## Neden üç tur yanlış ölçtük (16 Ağu 2026)
 
-Üç ayrı "kanıt" satırı da var olmayan yollara bakıyordu; "dosya yok" sonucu
-"özellik kapalı" diye okundu. Gerçekte:
+Üç "kanıt" satırı var olmayan yollara bakıyordu; "dosya yok" "özellik kapalı" diye
+okundu:
 
 | Yanlış kontrol | Neden yanlış |
 |---|---|
-| `/proc/sys/kernel/sched_itmt_enabled` yok → "ITMT hiç oluşmamış" | Bu yol **kaldırıldı**. `arch/x86/kernel/itmt.c`'de `sched_set_itmt_support()` artık `register_sysctl()` çağırmıyor; `debugfs_create_file_unsafe("sched_itmt_enabled", …, arch_debugfs_dir, …)` ile `/sys/kernel/debug/x86/` altına yazıyor |
-| `/sys/bus/platform/devices/amd_hfi/driver` yok → "sürücü bağlanmamış" | **Yanlış düğüm.** `amd_hfi_init()` önce `platform_device_register_simple("amd_hfi", …)` ile bir stub cihaz yaratır; sürücü ona değil, ACPI'nin numaralandırdığı `AMDI0104:00`'e bağlanır (`.acpi_match_table`). Stub'ın sürücüsüz olması normal ve beklenen |
-| `cpuN/cpu_capacity` = 1024 → "EEVDF hepsini eşit sanıyor" | **İlgisiz ölçü.** ITMT `cpu_capacity` üzerinden değil, per-CPU `sched_core_priority` + `SD_ASYM_PACKING` üzerinden çalışır. `cpu_capacity` asimetrik-kapasite/EAS mekanizmasına ait, x86'da zaten 1024 sabit |
-| `prefcore = disabled` → "global anahtar kapalı" | **Kasıtlı.** Upstream yaması: *"cpufreq/amd-pstate: Disable preferred cores on designs with workload classification"* — HFI olan tasarımlarda sıralamayı HFI'nin vermesi tercih edildiği için amd-pstate prefcore'u bilerek kapatır. `disabled` + `amd_hfi` bağlı = beklenen durum |
+| `/proc/sys/kernel/sched_itmt_enabled` yok → "ITMT hiç oluşmamış" | Bu yol **kaldırıldı**; `itmt.c` artık `register_sysctl()` değil `debugfs_create_file_unsafe(…, arch_debugfs_dir, …)` ile `/sys/kernel/debug/x86/` altına yazıyor |
+| `/sys/bus/platform/devices/amd_hfi/driver` yok → "sürücü bağlanmamış" | **Yanlış düğüm.** `amd_hfi_init()` bir stub `amd_hfi` platform cihazı yaratır; sürücü ACPI'nin `AMDI0104:00`'ine bağlanır. Stub'ın sürücüsüz olması beklenen |
+| `cpuN/cpu_capacity` = 1024 → "EEVDF hepsini eşit sanıyor" | **İlgisiz ölçü.** ITMT `sched_core_priority` + `SD_ASYM_PACKING` ile çalışır; `cpu_capacity` x86'da sabit 1024 |
+| `prefcore = disabled` → "global anahtar kapalı" | **Kasıtlı.** Upstream: *"cpufreq/amd-pstate: Disable preferred cores on designs with workload classification"*. `disabled` + `amd_hfi` bağlı = beklenen |
 
-Ayrıca `amd_hfi` başarı yolunda **hiçbir log satırı basmıyor** (yalnız `pr_debug`),
-üstelik bu makinede `quiet loglevel=0` var — `dmesg`'de iz aramak da boşa çıkar.
-
-**Ders:** bir sysfs/procfs yolunun yokluğu, özelliğin kapalı olduğunun kanıtı değildir.
-Yol taşınmış, yeniden adlandırılmış veya hiç var olmamış olabilir. Bir arayüzün
-gerçekten yok olduğunu iddia etmeden önce **o sürümün kaynağından** doğrula.
+`amd_hfi` başarı yolunda log basmıyor (yalnız `pr_debug`) ve bu makinede
+`quiet loglevel=0` var — `dmesg`'de iz aramak boşa.
 
 ## Politika: `system/kernel/cores.nix` (10 Ağu 2026, gerekçe 16 Ağu'da düzeltildi)
 
-Kernel kararını **veriyor** — ama verdiği karar (hızlı çekirdeği tercih et) idle güç
-bütçesiyle çelişiyor. Maske o kararı ezmek için:
+Kernel hızlı çekirdeği tercih ediyor; bu idle güç bütçesiyle çelişiyor. Maske:
 
 ```
 systemd.settings.Manager.CPUAffinity = "1,3,5,7,9,11,13,15";   # yalnız Zen5c
 systemd.services.nix-daemon.serviceConfig.CPUAffinity = "0-15"; # derleme muaf
 ```
 
-- **Mekanizma:** systemd PID1'in `CPUAffinity`'si `sched_setaffinity` ile ayarlanır ve
-  fork/exec zinciriyle tüm alt süreçlere miras kalır — masaüstü, tarayıcı, compositor
-  dahil her şey fiziksel olarak Zen5c'de kalır. Zen5'ler talep gelmeyince C-state'e
-  düşer, 5GHz o çekirdeklerde yapısal olarak imkânsız hale gelir.
-- **YUMUŞAK maske:** bu `sched_setaffinity`, cgroup `AllowedCPUs` DEĞİL — `taskset`
-  ile her zaman geri açılabilir. `AllowedCPUs` bilinçli seçilmedi: cgroup düzeyinde
-  kısıtlama çocuk süreçlerin `taskset` ile bile kaçmasını engeller, `gamerun`'ın oyunu
-  16 CPU'ya açması imkânsız olurdu.
+- **Mekanizma:** PID1'in `CPUAffinity`'si fork/exec ile tüm alt süreçlere miras
+  kalır — masaüstü Zen5c'de kalır, Zen5'ler talep gelmeyince C-state'e düşer.
+- **YUMUŞAK maske:** `sched_setaffinity`, cgroup `AllowedCPUs` DEĞİL — `taskset` ile
+  delinebilir. `AllowedCPUs` bilinçli seçilmedi: `gamerun`'ın oyunu 16 CPU'ya açmasını
+  imkânsız kılardı.
 - **Delme yolları:**
-  - Oyun: `gamerun` varsayılan olarak `taskset -c 0-15` ile başlatır (`lib/gamerun.nix`);
-    `GR_PIN=big`/`fast`/özel liste ile Zen5'e daha dar pinleme de yapılabilir.
+  - Oyun: `gamerun` varsayılan `taskset -c 0-15` (`lib/gamerun.nix`);
+    `GR_PIN=big`/`fast`/özel liste ile daha dar pinleme.
   - Kaçış alias'ı: fish `aia` (`home/shell/fish.nix`) → `taskset -c 0-15` öneki.
-  - Derleme: `nix-daemon.service` muaf (`cores.nix`'in kendisinde).
-- **Kapatma:** `CPUAffinity` satırını yorum satırı yap + rebuild.
+  - Derleme: `nix-daemon.service` muaf.
+- **Kapatma:** `CPUAffinity` satırını yorum yap + rebuild. Yetmez:
+  `power-display.nix`'in pil kolu ACAD olayında PID1 + mevcut süreçleri yine Zen5c'ye
+  süpürüyor (AC kolu 0-15'e açıyor) — orayı da düzenle.
 
 ## Enerji ölçümü: maskenin gerekçesi ilk kez ölçüldü (16 Ağu 2026)
 
-Bu dosya bugüne kadar maskenin faydasını **iddia** ediyordu ("4.28 W idle tabanı
-5 GHz'lik kısa patlamaları kaldırmıyor") ama watt cinsinden bir ölçüm taşımıyordu;
-`power.md` de `CPUAffinity`'den hiç söz etmiyor. Ölçüldü.
-
-**Yöntem.** Sabit tek-thread iş (60M iterasyonluk tamsayı LCG döngüsü, python3),
-`taskset` ile bir Zen5 (cpu0) ve bir Zen5c (cpu1) çekirdeğine ayrı ayrı koşturuldu.
-Güç: `amdgpu` hwmon'daki `power1_input` = **APU paket PPT'si**, µW, 20 Hz örneklendi
-(RAPL `energy_uj` root-only olduğu için kullanılamadı). Her koşunun **öncesinde ve
-sonrasında** ayrı bir idle tabanı alındı ve ikisinin ortalaması çıkarıldı —
-marjinal güç budur. Kollar alternatiflendi (Zen5, Zen5c, Zen5, …) ki termal ve arka
-plan sürüklenmesi iki kola eşit dağılsın. 5 tur, medyan.
+**Yöntem.** Sabit tek-thread iş (60M iterasyonluk tamsayı LCG, python3), `taskset`
+ile cpu0 (Zen5) ve cpu1 (Zen5c). Güç: `amdgpu` hwmon `power1_input` = **APU paket
+PPT'si**, µW, 20 Hz (RAPL `energy_uj` root-only). Her koşunun öncesi ve sonrası idle
+tabanı ortalaması çıkarıldı → marjinal güç. Kollar alternatiflendi, 5 tur, medyan.
 
 | | Zen5 (cpu0) | Zen5c (cpu1) | Fark |
 |---|---|---|---|
@@ -167,52 +135,35 @@ plan sürüklenmesi iki kola eşit dağılsın. 5 tur, medyan.
 | Marjinal güç | ~12.3 W | ~4.9 W | Zen5 **2.5× çeker** |
 | **Enerji (medyan)** | **69.1 J** | **39.5 J** | **Zen5c %43 az** |
 
-**Sonuç: race-to-idle bu silikonda kazanmıyor.** 1.49× hızlı bitirmek için 2.5× güç
-çekiliyor → aynı iş için net **1.75× enerji**. Maskenin gerekçesi doğruymuş.
+**Sonuç (AC):** race-to-idle bu silikonda kazanmıyor — 1.49× hız için 1.75× enerji.
 
-**Ama ölçüm maskeyi yalnız PİLDE haklı çıkarıyor.** Fişte 30 J'lük fark bir maliyet
-değil; orada ödenen tek şey 1.49× gecikme, karşılığı yok. Bu yüzden maske 16 Ağu
-2026'da sabit olmaktan çıkarılıp fişe bağlandı — uygulama `power-display.nix`'in
-mevcut udev-ACAD oneshot'ında (AC → `0-15`, BAT → Zen5c). PID1'in `CPUAffinity`'si
-çalışırken değiştirilemediği için mevcut süreçler `taskset -a -p` ile süpürülür;
-kernel thread'ler (`cmdline` boş) ve `nix-daemon` atlanır, `game-perf.service`
-aktifken süpürme hiç yapılmaz (affinity'yi o sırada `gamerun` yönetiyor).
+Fişte 30 J fark maliyet değil, ödenen tek şey 1.49× gecikme. Bu yüzden maske 16 Ağu
+2026'da fişe bağlandı — `power-display.nix`'in udev-ACAD oneshot'ı (AC → `0-15`,
+BAT → Zen5c). PID1'in `CPUAffinity`'si çalışırken değiştirilemediği için mevcut
+süreçler `taskset -a -p` ile süpürülür; kernel thread'ler (`cmdline` boş) ve
+`nix-daemon` atlanır, `game-perf.service` aktifken süpürme yapılmaz.
 
-> **KAPSAM UYARISI KAPANDI — %43 PİLDE GEÇERLİ DEĞİL (16 Ağu 2026, aynı gün ölçüldü).**
-> Yukarıdaki tablo AC saatlerinde alındı: Zen5 4.92 GHz'e karşı Zen5c 3.47 GHz. **Pilde
-> PPD power-saver HER İKİ çekirdek tipini de 2.0 GHz'e kapıyor** (`cpu0`/`cpu1`
-> `scaling_max_freq` = 2000000), yani orada o frekans farkı yok. Aynı sabit iş
-> iso-frekansta ölçüldü (aşağıdaki bölüm): **Zen5c'nin ölçülebilir bir enerji avantajı
-> YOK** — 14 eşleştirilmiş turun **14'ünde de Zen5c daha fazla** harcadı, medyan
-> **×1.10**. %43'ün tamamı V/f etkisiymiş, çekirdek tipi etkisi değil; bir üstteki
-> "ölçüm maskeyi yalnız PİLDE haklı çıkarıyor" cümlesinin enerji gerekçesi buraya kadar.
->
-> Karar yine de değişmiyor: PPD tavanı frekansı zaten eşitlediği için maske pilde
-> **performansa mal olmuyor** — ama artık "enerji kazandırdığı için" değil, "hiçbir şeye
-> mal olmadığı ve fişte kalkan aynı mekanizmanın pil kolu olduğu için" duruyor. Pilde
-> enerjiyi kazandıran şey maske değil, PPD'nin 2.0 GHz tavanı.
+> **%43 PİLDE GEÇERLİ DEĞİL (16 Ağu 2026, aynı gün ölçüldü).** Pilde PPD power-saver
+> iki çekirdek tipini de 2.0 GHz'e kapıyor; iso-frekansta **Zen5c'nin enerji avantajı
+> YOK** — 14 eşleştirilmiş turun 14'ünde Zen5c daha fazla harcadı, medyan **×1.10**.
+> %43'ün tamamı V/f etkisi. Maske pilde yine duruyor çünkü **bedava** (frekans zaten
+> eşit) ve fişte kalkan mekanizmanın pil kolu; pilde enerjiyi kazandıran PPD'nin
+> 2.0 GHz tavanı.
 
 ### Pilde iso-frekans ölçümü: Zen5 vs Zen5c, ikisi de 2.0 GHz (16 Ağu 2026)
 
-**Koşullar.** `ACAD/online` = 0, `cpu0`/`cpu1` `scaling_max_freq` = 2000000 (PPD
-`power-saver`), PID1 maskesi Zen5c'de, `fan_mode` = 1 ve dört fan da 0 RPM (dönen fan
-güç tabanını kaydırırdı), başlangıç Tctl 35 °C, `loadavg` ~0.8. Fiş `power-display.service`
-üzerinden hem maskeyi hem tavanı değiştireceği için `ACAD/online` **koşu boyunca da**
-örneklendi; takılsa betik veriyi geçersiz sayıp duracaktı (takılmadı).
+**Koşullar.** `ACAD/online` = 0 (koşu boyunca da örneklendi), `cpu0`/`cpu1`
+`scaling_max_freq` = 2000000, PID1 maskesi Zen5c'de, `fan_mode` = 1 ve dört fan 0 RPM,
+başlangıç Tctl 35 °C, `loadavg` ~0.8.
 
-**Yöntem.** AC ölçümüyle aynı sabit iş (60M iterasyonluk tamsayı LCG, python3),
-`taskset -c 0` (Zen5) / `taskset -c 1` (Zen5c). Güç: `amdgpu` hwmon'un `power1_input`'u =
-APU paket PPT'si, µW, 20 Hz — **hwmon numarası boot'lar arası sabit değil, ADLA bulunur**
-(RAPL `energy_uj` root-only). Her koşunun öncesinde ve sonrasında 5 s taban alınıp
-ortalaması çıkarıldı → marjinal güç; enerji = marjinal güç × süre. Kollar alternatiflendi,
-5'er tur, medyan. Örnekleyici süreç `cpu3`'e sabitlendi ki iki kola eşit düşsün.
+**Yöntem.** AC ölçümüyle aynı iş ve güç kaynağı (**hwmon numarası boot'lar arası sabit
+değil, ADLA bul**). Öncesi/sonrası 5 s taban; kollar alternatifli, 5'er tur, medyan;
+örnekleyici `cpu3`'e sabit.
 
-**İlk iki parti çöpe gitti ve nedeni yöntemin kendisiydi.** 2 s beklemeyle alınan
-koşu-*sonrası* taban Zen5c kolunda sistematik olarak **+0.251 W** yüksek çıkıyordu (Zen5'te
-+0.007 W): masaüstü Zen5c'ye maskeli olduğundan cpu1'i 14 s işgal etmek arkada iş biriktirir,
-biriken iş koşu biter bitmez boşalır ve "taban" diye ölçülür. Bu, Zen5c'nin marjinalini
-yapay olarak düşürüp iki partide sahte bir Zen5c üstünlüğü üretti. Bekleme 6 s'ye çıkınca
-asimetri kayboldu (+0.009 W) ve **işaret ters döndü**:
+**İlk iki parti artefakt.** 2 s beklemeyle alınan koşu-sonrası taban Zen5c kolunda
+**+0.251 W** yüksekti (Zen5'te +0.007 W): maskeli masaüstünün cpu1'de biriken işi koşu
+biter bitmez boşalıp "taban" sayılıyordu ve sahte bir Zen5c üstünlüğü üretti. 6 s
+beklemede asimetri kayboldu (+0.009 W) ve **işaret ters döndü**:
 
 | Parti | Bekleme | Kol sırası | Zen5c/Zen5 enerji (kol medyanlarının oranı) |
 |---|---|---|---|
@@ -222,9 +173,7 @@ asimetri kayboldu (+0.009 W) ve **işaret ters döndü**:
 | 4 | 6 s | **Zen5c önce** (sıra kontrolü) | ×1.07 |
 | 5 | 6 s | cpu0'a yapay yük (yarışma kontrolü) | ×1.09 |
 
-Parti 4 sırayı ters çevirerek "ilk koşan avantajlı" ihtimalini eledi; sonuç aynı yönde kaldı.
-
-**Ana tablo** — doğal koşullar, 6 s bekleme, parti 3+4, 10 eşleştirilmiş tur, medyan:
+**Ana tablo** — 6 s bekleme, parti 3+4, 10 eşleştirilmiş tur, medyan:
 
 | | Zen5 (cpu0) | Zen5c (cpu1) | Fark |
 |---|---|---|---|
@@ -235,70 +184,48 @@ Parti 4 sırayı ters çevirerek "ilk koşan avantajlı" ihtimalini eledi; sonu�
 | Marjinal güç | 0.896 W | 0.974 W | Zen5c %12 fazla |
 | **Enerji** | **12.1 J** | **13.4 J** | eşleştirilmiş medyan **×1.141**, 10/10 tur |
 
-**Yarışma kontrolü (parti 5).** Boştayken çekirdek başına meşguliyet: cpu0 **%0.47**,
-cpu1 **%6.2** (tüm Zen5c'ler %4.9–10.4) — masaüstü orada koştuğu için Zen5c kolu yarışma
-yükü taşıyor, Zen5 kolu taşımıyor. Eşitlemek için cpu0'a ölçülmüş %6.4'lük duty-cycle yükü
-kondu; her iki taban penceresinde de açık olduğundan marjinalde sadeleşir, yalnız yarışmayı
-taşır. Zen5'in süresi 13.50 → **13.95 s**'ye çıktı ve **süre farkı sıfırlandı** (×1.00) —
-yani %2'lik süre farkı silikon değil yarışmaymış. Marjinal güç farkı ise **kaldı**:
-0.939 W'a karşı **1.037 W**, enerji ×1.07 (eşleştirilmiş medyan, 4/4 tur).
+**Yarışma kontrolü (parti 5).** Boşta meşguliyet: cpu0 **%0.47**, cpu1 **%6.2** (tüm
+Zen5c'ler %4.9–10.4). cpu0'a %6.4 duty-cycle yük konunca Zen5 süresi 13.50 → **13.95 s**,
+süre farkı sıfırlandı (×1.00) — %2 silikon değil yarışmaymış. Marjinal güç farkı
+**kaldı**: 0.939 W'a karşı **1.037 W**, enerji ×1.07 (4/4 tur).
 
-**Sonuç.** İso-frekansta Zen5c daha verimli değil; üç temiz partinin 14 turunun 14'ünde de
-daha fazla enerji harcadı (medyan ×1.10, en iyi turu bile ×1.046). Yani "Zen5c'nin tasarım
-verimliliği %43'ten küçük bir fayda bırakır" beklentisi de doğrulanmadı: fayda **sıfırın
-yanlış tarafında**. Mutlak farkın küçüklüğüne dikkat — paket gücü 5.01 W'a karşı 5.04 W;
-%10'luk oran, 4.08 W'lık tabanın çıkarılmasıyla küçük bir farkın büyütülmesinden geliyor.
+**Sonuç.** İso-frekansta Zen5c daha verimli değil: 14/14 tur, medyan ×1.10, en iyi tur
+×1.046. Mutlak fark küçük (5.01 vs 5.04 W paket); %10, 4.08 W tabanın çıkarılmasından
+büyüyor.
 
 **Ölçümün sınırları:**
 
-- Marjinal ~0.9 W, ~4.08 W tabandan çıkarılarak elde ediliyor; sensör/arka plan gürültüsü
-  ±0.02–0.05 W, bu da yüzde farkını birkaç puan oynatıyor (partiler arası ×1.07–×1.14).
-  İşaret 14/14 tutarlı, ama **büyüklüğü ±3 puandan hassas okuma**.
-- Tek iş yükü: tamsayı, L1'e sığan, SIMD yok, bellek baskısı yok. Zen5c'nin farklı L3
-  ilişkisi bellek/AVX ağırlıklı bir işte sonucu değiştirebilir — **ölçülmedi**.
-- `power1_input` APU paket PPT'sidir, sistem gücü değil: buradaki 4.08 W taban ile
-  `power.md`'deki 4.28 W sistem idle rakamı **aynı şeyi ölçmüyor**, karşılaştırma.
-- Yalnız 2.0 GHz için geçerli. PPD power-saver tavanı değişirse ölçüm tekrarlanmalı.
-- SMT kardeşleri (cpu8/cpu9) boş; iki kolda da tek thread. Çok-threadli işte Zen5c'nin
-  çekirdek başına düşük gücü toplamda farklı sonuç verebilir — o da ölçülmedi.
+- Sensör/arka plan gürültüsü ±0.02–0.05 W → partiler arası ×1.07–×1.14; işaret 14/14
+  tutarlı ama **büyüklüğü ±3 puandan hassas okuma**.
+- Tek iş yükü: tamsayı, L1'e sığan, SIMD/bellek baskısı yok — bellek/AVX ağırlıklı iş
+  **ölçülmedi**.
+- `power1_input` APU paket PPT'sidir: 4.08 W taban ile `power.md`'deki 4.28 W sistem
+  idle rakamı **aynı şeyi ölçmüyor**.
+- Yalnız 2.0 GHz için geçerli; PPD power-saver tavanı değişirse tekrarla.
+- Tek thread, SMT kardeşleri boş; çok-threadli iş ölçülmedi.
 
-**Ölçülen semptom (aynı gün):** Electron/Deezer fişte 3.47 GHz'de kalıyordu, bir oyun
-açıkken 2.44 GHz'e düşüyordu — Zen5c kendi tavanına bile çıkamıyor, çünkü CPU paketi
-(32 W PPT) ile dGPU (44 W) ~80 W'lık paylaşımlı ACBT bütçesini bölüşüyor ve Zen5'ler
-oyunla birlikte payı yiyor. Deezer'ın kendisi de ağır: 7 süreç, 1140 MB, %33 CPU —
-tam bir tarayıcının (zen-beta: %4.7 / 551 MB) 7 katı.
+**Ölçülen semptom (aynı gün):** Electron/Deezer fişte 3.47 GHz'de kalıyor, oyun
+açıkken 2.44 GHz'e düşüyordu — CPU paketi (32 W PPT) ile dGPU (44 W) ~80 W'lık
+paylaşımlı ACBT bütçesini bölüşüyor. Deezer: 7 süreç, 1140 MB, %33 CPU (zen-beta:
+%4.7 / 551 MB).
 
 ### Denenip elenen alternatif: `scx_lavd --cpu-pref-order`
-
-sched_ext tarafında "yasak yerine tercih" denendi ve **çalışmadı**:
 
 ```
 scx_lavd --autopower --cpu-pref-order "1,3,5,7,9,11,13,15,0,2,4,6,8,10,12,14"
 ```
 
-Maskesiz (`taskset -c 0-15`) görevlerin yerleşimi ölçüldü — 1 hafif görev **%100
-Zen5**'e gitti, yani tercih listesinin tam tersi. Sebep aracın kendi sözleşmesinde:
-tercih sırası yalnız **core compaction açıkken** kullanılıyor, o da yalnız
-`balanced`/`powersave` modunda açık. `--autopower` fişte `performance` seçiyor
-(okuduğu değerler PPD profil adları değil **EPP** değerleri; AC'de
-`balance_performance`), dolayısıyla compaction kapalı ve liste yok sayılıyor.
-`--balanced`/`--powersave` sabitlemek listeyi çalıştırırdı ama `--autopower`'ın tek
-avantajını — AC/BAT'ı kendiliğinden takip etmesini — öldürürdü.
-
-Ayrıca not: enerji modeli bu ayrımı **yapamaz** — `cpu_capacity` her iki çekirdek
-tipinde de 1024 (x86'da sabit), yani `--cpu-pref-order` verilmese sıralama zaten
-türetilemezdi.
+Maskesiz görevlerde 1 hafif görev **%100 Zen5**'e gitti. Sebep: tercih sırası yalnız
+core compaction açıkken (`balanced`/`powersave`) kullanılıyor; `--autopower` fişte EPP
+`balance_performance`'ı okuyup `performance` seçiyor → liste yok sayılıyor.
+`--balanced`/`--powersave` sabitlemek `--autopower`'ın AC/BAT takibini öldürürdü.
 
 ## Frekans tavanı taraması: V/f eğrisinin dizi nerede (16 Ağu 2026)
 
-Maske AC'de kalkınca Zen5 5.09 GHz'e çıkabiliyor ve bu, kullanıcının şikâyet ettiği
-"kısa patlamada 80-90°C" sıçramasının kaynağı. Soru: tepeyi kırpmak kazancın ne
-kadarını kaybettirir? Ölçüldü.
+Maske AC'de kalkınca Zen5 5.09 GHz'e çıkıp "kısa patlamada 80-90°C" sıçraması yapıyor.
 
-**Yöntem.** Sabit tek-thread iş (60M iterasyon, yukarıdaki enerji ölçümüyle aynı),
-`taskset -c 0` (Zen5). Her tavan tüm `cpufreq` policy'lerine yazıldı; kollar arası
-Tctl ≤ 50°C'ye kadar soğutma; koşu boyunca 10 Hz Tctl + PPT örneklemesi, taban güç
-koşu öncesi 2 sn'den. Betik `scaling_max_freq`'i çıkışta geri yüklüyor.
+**Yöntem.** Aynı 60M iterasyon işi, `taskset -c 0`. Tavan tüm policy'lere yazıldı;
+kollar arası Tctl ≤ 50°C'ye soğutma; 10 Hz Tctl + PPT, taban koşu öncesi 2 sn.
 
 | Tavan | Süre | Tepe Tctl | Marjinal güç | Enerji | Hızın % | Watt'ın % |
 |---|---|---|---|---|---|---|
@@ -310,61 +237,55 @@ koşu öncesi 2 sn'den. Betik `scaling_max_freq`'i çıkışta geri yüklüyor.
 
 Son iki sütun: 3.51 → 5.09 arasındaki toplam kazancın/maliyetin yakalanan oranı.
 
-**Diz 4.5 GHz'den sonra.** MHz başına marjinal güç:
-
 | Aralık | mW / MHz |
 |---|---|
 | 3.51 → 4.00 | 1.9 |
 | 4.20 → 4.50 | 3.3 |
 | **4.50 → 5.09** | **15.6** |
 
-Son 590 MHz, %9 hız için gücü %96 artırıyor (7.5 → 14.7 W), enerjiyi %77, tepe
-sıcaklığı **+15.9 °C**. Beş kat pahalı bir bölge.
+Son 590 MHz: %9 hız için güç %96, enerji %77, tepe sıcaklık **+15.9 °C** artıyor.
 
-**Karar:** AC'de `scaling_max_freq` 4.5 GHz'e kapandı (`power-display.nix`, oyun
-hariç — `game-perf` aktifken tavan yok, oyun bitince aynı servis yeniden koşup
-tavanı geri koyuyor). Böylece maske AC'de kalkabiliyor (masaüstü 3.51 → 4.50 GHz,
-%29 hızlanma) ama 80°C sıçraması 64.2°C'ye iniyor. Zen5c çekirdekleri etkilenmiyor:
-kendi tavanları (3506494) zaten CAP'in altında.
+**Karar:** AC'de `scaling_max_freq` 4.5 GHz'e kapandı (`power-display.nix`; `game-perf`
+aktifken tavan yok, oyun bitince geri konuyor). Masaüstü 3.51 → 4.50 GHz (%29 hızlı),
+80°C sıçraması 64.2°C'ye iniyor. Zen5c'nin tavanı (3506494) zaten CAP'in altında.
+
+## 2026-08-27 — power-saver'da scaling_max_freq SMT asimetrisi
+
+PPD `power-saver`'da `cpu0-7` = 623377 (= `cpuinfo_min_freq`), `cpu8-15` = 2000000.
+Bir kez "regresyon" diye raporlandı — **değil**: SMT eşleri, çekirdek iki thread'in
+tavanının yükseğinde koşuyor (`cpu6`'da max=623377 iken `scaling_cur_freq`=1997798).
+Efektif tavan 2.0 GHz; asimetri kozmetik.
 
 ## İzlenecek riskler (switch sonrası)
 
-- **PipeWire xrun / ses çıtırtısı** — pipewire `user@.service` altında, o da maskeli;
-  RT thread'ler 8 mantıksal Zen5c'de yarışıyor. Şüpheli buysa çözüm
-  `pipewire.service`'e `CPUAffinity=0-15` muafiyeti eklemek.
-- **Compositor tepkiselliği** — Hyprland/Caelestia 165Hz'de Zen5c'de koşuyor
-  (bilinçli — compositor'a muafiyet verilmedi). Takılma gözlenirse ilk gözden
-  geçirilecek nokta burası.
-- **Boot/login süresi** — systemd de maskeli; birkaç yüz ms yavaşlama olası, ölçülmedi.
+- **PipeWire xrun / ses çıtırtısı** — pipewire `user@.service` altında maskeli; RT
+  thread'ler 8 mantıksal Zen5c'de yarışıyor. Çözüm: `pipewire.service`'e
+  `CPUAffinity=0-15` muafiyeti.
+- **Compositor tepkiselliği** — compositor 165Hz'de Zen5c'de koşuyor (bilinçli,
+  muafiyet yok). Takılma gözlenirse ilk bakılacak yer.
+- **Boot/login süresi** — systemd de maskeli; birkaç yüz ms olası, ölçülmedi.
 
 ## Yeniden değerlendirme koşulu
 
-Önceki sürümdeki koşul ("kernel bir gün `amd_hfi`'yi bağlarsa maskeyi gözden geçir")
-**zaten gerçekleşmiş durumda** — bağlı, ITMT açık. Yani maske "kernel eksiğini kapatan
-geçici protez" değil, bir politika tercihi. Ama artık **koşullu** bir tercih (16 Ağu
-2026): *fişte hızlı çekirdeği kullan* (1.49× gecikmenin karşılığı yok), *pilde kullanma*.
-Pil kolunun gerekçesi ölçümden sonra değişti: **%43 bir AC rakamıdır**, pilde PPD tavanı
-frekansı eşitlediği için maskenin enerji faydası yok — iso-frekans ölçümü Zen5c'yi ×1.10
-ile yanlış tarafta buldu. Maske orada *bedava olduğu için* duruyor, *kazandırdığı için*
-değil. Bu tercihi ancak güç bütçesi değişirse gözden geçir, kernel sürümü değişirse değil.
+Maske bir politika tercihi, kernel eksiği protezi değil: *fişte hızlı çekirdeği
+kullan*, *pilde kullanma* (pilde bedava olduğu için duruyor, kazandırdığı için değil).
+Ancak güç bütçesi değişirse gözden geçir, kernel sürümü değişirse değil.
 
 Kernel yükseltmesi sonrası yine de bakılacaklar:
 
 - `sudo cat /sys/kernel/debug/x86/sched_itmt_enabled` — `Y` kalıyor mu
-- `sudo cat /sys/kernel/debug/x86/sched_core_priority` — sıralama bozulduysa
-  `gamerun`'ın `GR_PIN=fast` listesi (`4,6,12,14`) hâlâ doğru mu
+- `sudo cat /sys/kernel/debug/x86/sched_core_priority` — `GR_PIN=fast` (`4,6,12,14`)
+  hâlâ doğru mu
 - `sudo cat /sys/kernel/debug/x86/amd_hfi/class_capabilities` — WLC 1/2'de Zen5c
-  üstünlüğü sürüyor mu (sürüyorsa maskenin donanım onayı da devam ediyor demektir)
+  üstünlüğü sürüyor mu
 
-**ITMT'yi kapatmak bir seçenek değil:** `sched_itmt_enabled`'a `0` yazmak yalnız
-öncelik sıralamasını devre dışı bırakır, işin Zen5'e düşmesini engellemez (yerleşim
-keyfîleşir, "Zen5c'yi tercih et" diye bir mod yok). Üstelik debugfs olduğu için
-kalıcı değil. İstenen davranışı veren tek araç maskenin kendisi.
+**ITMT'yi kapatmak seçenek değil:** `sched_itmt_enabled=0` yalnız sıralamayı kapatır,
+işin Zen5'e düşmesini engellemez ("Zen5c'yi tercih et" modu yok); debugfs olduğu için
+kalıcı da değil.
 
 ## İlgili
 
-- Idle güç bütçesi (4.28W) ve gaming kısıtları: `CLAUDE.md` güç yönetimi bölümü,
-  `Documentation/aerox16/power.md`.
+- Idle güç bütçesi (4.28W): `Documentation/aerox16/power.md`.
 - Oyun sırasında maskeyi delme + fan turbo zinciri: `Documentation/gaming.md`.
-- CPU undervolt/Curve Optimizer (ayrı, ilgisiz alt sistem — platform kilidi):
+- CPU undervolt/Curve Optimizer (ayrı alt sistem — platform kilidi):
   `Documentation/aerox16/undervolt.md`.
