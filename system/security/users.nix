@@ -10,7 +10,6 @@
     shell        = pkgs.fish;
     packages = with pkgs; [
       bitwarden-desktop
-      btop
       nautilus
     ];
 

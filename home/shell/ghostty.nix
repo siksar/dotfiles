@@ -4,7 +4,6 @@
 {
   programs.ghostty = {
     enable = true;
-    enableBashIntegration = true;
     settings = {
       font-family = config.stylix.fonts.monospace.name;
       font-size = 13;

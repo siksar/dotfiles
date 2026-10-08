@@ -139,9 +139,13 @@ spinlock'unu **tutarken** ölüyor (`exited with preempt_count 1`); kilit bir da
 bırakılmıyor, amdgpu'ya dokunan her şey sonsuza kadar dönüyor. `.swayosd-server`
 kurban, suçlu değil — zehirli listeye ilk dokunan sık GEM çağıranı.
 
-**Neden logda "çökme" görünmedi.** `nowatchdog nmi_watchdog=0` (idle bütçesi
-ayarları) lockup dedektörlerini kapatıyor → panik, reboot, crash dump yok. Kanıt
-yalnız journald ilk oops satırlarını diske yetiştirdiği için kaldı.
+**Neden loga hiç "çökme" gibi görünmedi.** `nowatchdog nmi_watchdog=0` (bu
+dosyadaki idle bütçesi ayarları) softlockup ve hardlockup dedektörlerini
+kapatıyor → panik yok, otomatik reboot yok, crash dump yok. Kanıt yalnızca
+journald ilk oops satırlarını diske yetiştirdiği için hayatta kaldı.
+(24 Eyl 2026: cmdline artık yalnız `nowatchdog` taşıyor — `nmi_watchdog=0` ve
+`kernel.nmi_watchdog` sysctl'i onun alt kümesiydi, kaldırıldı. Sonuç aynı: iki
+dedektör de kapalı, `cat /proc/sys/kernel/{nmi_,soft_}watchdog` → `0 0`.)
 
 **Bağıntı (25 boot, 29 Tem – 24 Ağu).**
 

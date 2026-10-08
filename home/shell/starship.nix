@@ -4,7 +4,6 @@
 {
   programs.starship = {
     enable = true;
-    enableBashIntegration = true;
     settings = {
       add_newline = true;
       format = "$nix_shell$cmd_duration$character";

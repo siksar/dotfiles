@@ -80,7 +80,7 @@ in
 
   programs.dconf.enable = true;
 
-  fonts.packages = with pkgs; [ nerd-fonts.jetbrains-mono ];
+  # JetBrainsMono Nerd Font: Stylix fonts.monospace.package'ı kendisi ekliyor.
 
   # Electron/Chromium native Wayland. ibus Türkçe girişi / ekran paylaşımı bozulursa sil.
   environment.sessionVariables.NIXOS_OZONE_WL = "1";

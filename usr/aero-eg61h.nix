@@ -33,5 +33,5 @@ in
     })
   ];
 
-  environment.pathsToLink = [ "/share/applications" ];
+  # /share/applications pathsToLink'te: xdg.menus (varsayılan açık) zaten ekliyor.
 }

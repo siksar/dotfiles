@@ -7,6 +7,10 @@ let
     AC=$(cat /sys/class/power_supply/ACAD/online 2>/dev/null || echo 1)
     PPCTL=${pkgs.power-profiles-daemon}/bin/powerprofilesctl
 
+    # Oyun oturumu açık mı — tek sorgu (üç karar noktası aynı anlık görüntüyü kullanır).
+    GAME=0
+    ${pkgs.systemd}/bin/systemctl is-active --quiet game-perf.service && GAME=1
+
     # PPD set, istenen profil kendi sandığına eşitse no-op; boot'ta 'balanced' sanıp EPP performance'ta kalıyor
     # → EPP'yi geri oku, uyuşmuyorsa başka profile uğrayıp dön. Ham EPP yazma (TLP kavgası).
     ppd_apply() {
@@ -39,8 +43,7 @@ let
       "$SYSTEMCTL" start --no-block nvidia-powerd.service 2>/dev/null || true
       # AC: balanced (oyunda da: CPU+dGPU Dynamic Boost bütçesini paylaşır). GR_CPUMAX işareti varsa performance.
       UID_ZIXAR=$(${pkgs.coreutils}/bin/id -u zixar 2>/dev/null || echo 1000)
-      if ${pkgs.systemd}/bin/systemctl is-active --quiet game-perf.service \
-         && [ -f "/run/user/$UID_ZIXAR/gamerun-cpumax" ]; then
+      if [ "$GAME" = "1" ] && [ -f "/run/user/$UID_ZIXAR/gamerun-cpumax" ]; then
         ppd_apply performance
       else
         ppd_apply balanced
@@ -49,7 +52,7 @@ let
       # power-saver scaling_max_freq'i ~2 GHz'e yazar ve geri açmaz → AC'de elle aç.
       # AC tavanı 4.5 GHz (ölçüldü: son 590 MHz %9 hız için %96 güç, +16 °C). Oyunda (game-perf) tavan yok;
       # game-perf durunca power-display yeniden koşar.
-      if ${pkgs.systemd}/bin/systemctl is-active --quiet game-perf.service; then
+      if [ "$GAME" = "1" ]; then
         CAP=99999999   # oyun: kapama yok, her çekirdek kendi tavanına
       else
         CAP=4500000
@@ -70,7 +73,7 @@ let
     # Affinity maskesi fişe bağlı: pilde Zen5c (cores.nix), fişte 0-15. PID1 + mevcut süreçler
     # taskset ile süpürülür (PID1 CPUAffinity'si çalışırken değişmez).
     TASKSET=${pkgs.util-linux}/bin/taskset
-    if ${pkgs.systemd}/bin/systemctl is-active --quiet game-perf.service; then
+    if [ "$GAME" = "1" ]; then
       : # Oyun sırasında DOKUNMA: affinity'yi gamerun yönetiyor (taskset -c 0-15 /
         # GR_PIN). Oyun-ortası bir ACAD olayı oyunu Zen5c'ye çekerse kare süresi çöker.
     else
@@ -92,7 +95,7 @@ let
     IW=${pkgs.iw}/bin/iw
     for W in /sys/class/net/*/wireless; do
       [ -e "$W" ] || continue
-      DEV=$(${pkgs.coreutils}/bin/basename "$(${pkgs.coreutils}/bin/dirname "$W")")
+      D=''${W%/wireless}; DEV=''${D##*/}   # basename(dirname) — fork'suz
       if [ "$AC" = "0" ]; then
         "$IW" dev "$DEV" set power_save on  2>/dev/null || true
       else

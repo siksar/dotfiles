@@ -37,16 +37,13 @@
     # lazy RCU: CachyOS kapalı getiriyor (+0.88 W boşta); yalnız boot parametresi.
     "rcutree.enable_rcu_lazy=1"
 
-    "nowatchdog"
-    "nmi_watchdog=0"
+    "nowatchdog"  # soft + NMI watchdog ikisi de kapalı (nmi_watchdog=0 alt kümesiydi)
     "pcie_aspm=force"
     "pcie_aspm.policy=powersupersave"
     "pcie_port_pm=force"
     "workqueue.power_efficient=1"
     "mem_sleep_default=s2idle"
     "nohibernate"  # hibernate kapalı: aşağıdaki not
-    "snd_hda_intel.power_save=1"
-    "snd_hda_intel.power_save_controller=Y"
 
     "quiet"
     "rd.systemd.show_status=false"
@@ -55,6 +52,7 @@
     "boot.shell_on_fail"
   ];
 
+  # HDA power_save'in tek tanımı burası (cmdline'da kopyası yok).
   boot.extraModprobeConfig = ''
     options rtw89_pci disable_clkreq=0 disable_aspm_l1=0 disable_aspm_l1ss=0
     options rtw89_core disable_ps_mode=n
@@ -66,7 +64,6 @@
   boot.kernel.sysctl = {
     "vm.dirty_writeback_centisecs" = 6000;
     "vm.dirty_expire_centisecs"   = 6000;
-    "kernel.nmi_watchdog"         = 0;
   };
 
   # commit=60: jbd2 her 5 s NVMe'yi uyandırıyordu. lazytime + noatime.
