@@ -1,9 +1,4 @@
-# GitHub Copilot desktop uygulaması — kullanıcı tarafından indirilen resmî AppImage.
-#
-# Uygulamanın kendi güncelleyicisi AppImage dosyasını YERİNDE değiştirir. Bu yüzden
-# dosyayı wrapType2 ile Nix store'a kopyalamıyoruz: store salt-okunur olduğundan o
-# yol güncelleyiciyi engeller. Başlatıcı her açılışta Downloads'taki aynı dosyayı
-# appimage-run ile çalıştırır; GitHub güncelledikten sonra rebuild gerekmez.
+# GitHub Copilot AppImage'ı Downloads'tan çalışır: kendini yerinde günceller, store'a kopyalanamaz.
 { pkgs, ... }:
 
 let

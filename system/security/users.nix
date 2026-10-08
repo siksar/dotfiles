@@ -1,10 +1,6 @@
-# Kullanıcı hesapları ve sistem geneli kabuk kaydı (fish).
 { pkgs, ... }:
 
 {
-  # fish — eskiden sway rice'ın parçasıydı (30 Tem'de silindi), tek oturum
-  # kalınca sistem katmanına taşındı. HM tarafındaki abbr/alias/function seti
-  # home/shell/fish.nix'te (artık koşulsuz).
   programs.fish.enable = true;
 
   users.users.zixar = {

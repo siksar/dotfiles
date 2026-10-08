@@ -1,6 +1,3 @@
-# Vesktop — Vencord gömülü Discord istemcisi
-# Tema Stylix'ten otomatik gelir (stylix targets.vesktop: stylix.css'i
-# üretir ve enabledThemes'e kendisi ekler) — burada tema AYARLAMA.
 { lib, ... }:
 
 {
@@ -15,9 +12,7 @@
     };
   };
 
-  # Vesktop settings.json'larını runtime'da kendisi de yazar → HM symlink'i
-  # yerine mutable-copy (nixy deseni), bayat backup'lar checkLinkTargets'tan
-  # önce silinir.
+  # Vesktop settings'i runtime'da yazar → mutable-copy.
   home.activation.vesktopCleanBackups = lib.hm.dag.entryBefore [ "checkLinkTargets" ] ''
     run rm -f "$HOME/.config/vesktop/settings.json.hm-backup" \
               "$HOME/.config/vesktop/settings/settings.json.hm-backup"

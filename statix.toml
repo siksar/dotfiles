@@ -1,4 +1,4 @@
-# statix kural filtresi — gerekçe: CLAUDE.md "Lint / inspection tooling".
+# statix kural filtresi.
 #
 # repeated_keys: her dosyadaki boot/services/programs bloklarını tek attrset'te
 #   birleştirmemizi ister. Bu config konu başlıklı Türkçe yorumlarla gruplanmış

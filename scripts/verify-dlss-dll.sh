@@ -13,8 +13,8 @@
 # Kullanım:  bash scripts/verify-dlss-dll.sh <yol/nvngx_dlss.dll> [...]
 # Çıkış kodu: hepsi geçerse 0, herhangi biri kalırsa 1.
 #
-# Araçlar bu flake'in PİNLİ nixpkgs'inden gelir (registry'den DEĞİL — CLAUDE.md
-# "Sert kurallar" 4). İlk çalıştırmada indirir, sonra cache'ten.
+# Araçlar bu flake'in PİNLİ nixpkgs'inden gelir (registry'den DEĞİL).
+# İlk çalıştırmada indirir, sonra cache'ten.
 set -uo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

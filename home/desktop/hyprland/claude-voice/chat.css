@@ -1,0 +1,101 @@
+/* claude-voice sohbet penceresi (session.js popup'a enjekte eder). claude.ai'nin
+   stil sayfaları zaten kopyalanmış durumda; burası yalnız çerçeve ve mesajları
+   bu küçük pencereye uydurma. Renk dili hapla aynı: koyu kutu rgb(32,32,31),
+   vurgu Claude turuncusu #D97757. */
+
+html, body {
+  margin: 0; height: 100%; overflow: hidden;
+  background: rgb(32, 32, 31) !important;
+  color-scheme: dark;
+}
+body {
+  display: flex; flex-direction: column;
+  font-size: 14px;
+  animation: cv-fade 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes cv-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---- başlık: durum noktası + yazı + küçült -------------------------------- */
+#cv-head {
+  display: flex; align-items: center; gap: 9px;
+  padding: 11px 10px 7px 16px;
+  font: 500 12.5px/1 ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0.01em;
+  color: rgba(255, 255, 255, 0.6);
+  user-select: none;
+}
+#cv-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  transition: background-color 500ms ease;
+}
+html[data-cv-state=listening] #cv-dot { background: #fff; animation: cv-breathe 2.4s ease-in-out infinite; }
+html[data-cv-state=hearing] #cv-dot { background: #fff; animation: cv-beat 0.9s ease-in-out infinite; }
+html[data-cv-state=processing] #cv-dot { background: #D97757; animation: cv-blink 0.9s ease-in-out infinite; }
+html[data-cv-state=speaking] #cv-dot { background: #D97757; animation: cv-beat 1.1s ease-in-out infinite; }
+html[data-cv-state=connecting] #cv-dot,
+html[data-cv-state=reconnecting] #cv-dot { animation: cv-blink 1.4s ease-in-out infinite; }
+@keyframes cv-breathe { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+@keyframes cv-blink { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+@keyframes cv-beat { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.45); } }
+
+#cv-close {
+  margin-left: auto; display: grid; place-items: center;
+  width: 26px; height: 26px; padding: 0; border: 0; border-radius: 8px;
+  background: transparent; color: rgba(255, 255, 255, 0.55); cursor: pointer;
+  transition: background-color 200ms ease, color 200ms ease;
+}
+#cv-close:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+
+/* ---- mesaj listesi -------------------------------------------------------- */
+#cv-list {
+  position: relative; /* son satırın offsetTop'u listeye göre (session.js bottomOf) */
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  padding: 2px 16px 18px;
+  scroll-behavior: smooth;
+  /* üst kenarda yumuşak solma: kaydırılan metin başlığın altına kesik girmesin */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 16px);
+          mask-image: linear-gradient(to bottom, transparent 0, #000 16px);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+#cv-empty {
+  height: 100%; display: grid; place-items: center;
+  color: rgba(255, 255, 255, 0.35);
+  font: 13px/1.4 ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Kopyalanan satırlarda claude.ai'nin bütün animasyon ve geçişleri kapalı. Claude
+   konuşurken söylenen kelime text-muted → text-primary olur (karaoke); her renk
+   değişiminde satır yeniden kopyalanıyor ve "aşağıdan belir" (.message-fade-up),
+   "kelime belir" (.fade-in-text__word) animasyonları hep opaklık 0'dan baştan
+   başlayıp metni konuşma boyunca hiç göstermiyordu (4 Eki 2026 denemesi).
+   Karaoke renkleri sınıflarla geldiği için korunuyor. */
+#cv-list [data-testid=transcript-row] * { animation: none !important; transition: none !important; }
+#cv-list .fade-in-text__word,
+#cv-list .message-fade-up,
+#cv-list [class*="wordAnimating"],
+#cv-list [class*="_animating_"] { opacity: 1 !important; transform: none !important; }
+
+/* claude.ai cevap yazılırken son mesaja satır içi dev bir min-height veriyor
+   (sayfa kaydırması için yer ayırma; 4 Eki 2026: 3420px). Kopyada metin bu
+   boşluğun tepesinde kalıyor, liste en alta kayınca hiçbir şey görünmüyordu. */
+#cv-list [data-testid=assistant-message],
+#cv-list [data-testid=transcript-row] [style*="min-height"] { min-height: 0 !important; }
+
+/* Yazarken dönen yıldız (mutlak konumlu 256px SVG): kopyada yerinden kayıp listeyi
+   uzatıyor. Sesli modda ilerlemeyi karaoke renkleri zaten gösteriyor. */
+#cv-list .font-claude-response > span.absolute { display: none !important; }
+
+/* claude.ai satırları geniş bir sütun için ayarlı; burada dar ve sıkı */
+#cv-list [data-testid=transcript-row] { width: 100% !important; max-width: none !important; }
+#cv-list [data-testid=transcript-row] * { --msg-gap: 0.85rem; }
+#cv-list [data-testid=user-message] { font-size: 0.93em; }
+#cv-list [data-testid=assistant-message] { font-size: 0.95em; line-height: 1.55; }
+#cv-list pre { font-size: 0.85em; max-width: 100%; overflow-x: auto; }
+#cv-list table { font-size: 0.88em; display: block; max-width: 100%; overflow-x: auto; }
+#cv-list img { max-width: 100%; height: auto; border-radius: 8px; }
+
+/* yeni gelen satır hafifçe yukarı süzülsün (session.js yalnız yeni satıra verir) */
+#cv-list .cv-new { animation: cv-rise 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes cv-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }

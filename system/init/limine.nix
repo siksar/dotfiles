@@ -1,17 +1,14 @@
-# Limine önyükleyici (systemd-boot yerine) + Miasma teması.
-# Stylix'in limine hedefi bilerek kapalı: system/desktop/theme.nix
 { ... }:
 
 {
-  boot.loader.systemd-boot.enable = false; # Limine aktif olduğunda devre dışı
+  boot.loader.systemd-boot.enable = false;
   boot.loader.efi.canTouchEfiVariables = true;
 
   boot.loader.limine = {
     enable         = true;
     maxGenerations = 10;
 
-    # Ayrı UEFI boot entry oluştur — systemd-boot ESP'de kalır, fallback olarak kullanılabilir.
-    # Sorun olursa: F12 (boot menu) → "Linux Boot Manager" (systemd-boot) → eski generation
+    # Ayrı UEFI entry; systemd-boot ESP'de yedek olarak kalır (F12 → Linux Boot Manager).
     efiInstallAsRemovable = false;
 
     extraConfig = ''
@@ -23,17 +20,15 @@
     '';
 
     style = {
-      # Miasma arka plan rengi (wallpaper yok → terminal UI)
       backdrop = "1a1a1a";
 
       interface = {
         branding         = "Zixar";
-        brandingColor    = "5faf5f"; # Miasma green
+        brandingColor    = "5faf5f";
         helpColor        = "5faf5f";
-        helpColorBright  = "d7af5f"; # Miasma amber
+        helpColorBright  = "d7af5f";
       };
 
-      # Miasma renk paleti
       graphicalTerminal = {
         palette       = "080808;d75f5f;5faf5f;d7af5f;5f87af;af5faf;5fafaf;d3d0c8";
         brightPalette = "1c1c1c;d75f5f;5faf5f;d7af5f;5f87af;af5faf;5fafaf;ffffff";

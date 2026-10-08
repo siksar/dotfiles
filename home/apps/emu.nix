@@ -1,46 +1,7 @@
-# PS3/PS4 emülatörleri (HM katmanı): RPCS3 + shadPS4 + emu-run sarmalayıcısı
-# Offload + game-perf zinciri Steam/Minecraft ile AYNI gamerun'a bağlanır:
-# emu-run bir emülatörü gamerun'a delegate eder; gamerun dGPU PRIME env'lerini set
-# eder ve (AC'de) game-perf.service (scx_lavd + 0xED perf profili) zincirini tetikler.
-# GÜNCELLEME 2 Eyl 2026 — gamerun sıfırdan yazıldı (lib/gamerun.nix başlığı):
-#   • gamemode zincirden ÇIKTI (LD_PRELOAD'ı pressure-vessel'ı geçemiyordu; burada
-#     çalışıyordu ama tek otorite olsun diye kaldırıldı) → renice -20 artık yok,
-#     gecikme kolu scx_lavd. game-perf'i gamerun DOĞRUDAN systemctl ile sürüyor.
-#   • DLSS/Reflex/ntsync env'leri gamerun'dan çıkarıldı — zaten native Vulkan
-#     emülatörlerinde no-op'tular, artık hiç set edilmiyorlar.
-#   • __VK_LAYER_NV_optimus artık VARSAYILAN DEĞİL (cihaz listesini filtreler,
-#     sıfır-cihaz riski). Emülatörde dGPU'yu zorlamak için: emu-run yerine
-#     `GR_GPU=nvidia emu-run rpcs3` — GR_GPU env olarak miras kalır.
-# Ayrıntı: Documentation/gaming.md "2 Eyl 2026 — gamerun SIFIRDAN YAZILDI".
-#
-# Sürümler: ikisi de nixpkgs pinli, override YOK (shadps4 Bloodborne'un 0.15+
-# eşiğini geçiyor). Güncel sürüm yorumda TUTULMAZ, sor:
-#   nix eval --raw .#nixosConfigurations.nixos.pkgs.<rpcs3|shadps4>.version
-#       Override gerekirse: github:shadps4-emu/shadPS4/<tag> flake input + src override.
-#       Bedel: 191MB src + kaynaktan CMake derleme + nixpkgs bump'ta rebase riski.
+# RPCS3 + shadPS4; emu-run → gamerun. dGPU: GR_GPU=nvidia emu-run rpcs3.
 { pkgs, ... }:
 
 let
-  # emu-run — PRIME offload + gamemode zincirine emülatör delegesi.
-  # Kullanım:
-  #   emu-run rpcs3 [...]      (RPCS3 native Vulkan, Wayland/X11)
-  #   emu-run shadps4 [...]    (shadPS4 native Vulkan + SDL3)
-  #
-  # Neden gamerun'a bağladık:
-  #  (1) PRIME offload env üçlüsü (__NV_PRIME_RENDER_OFFLOAD + _PROVIDER +
-  #      __GLX_VENDOR_LIBRARY_NAME) gamerun'da tek yerde ve tutarlı.
-  #  (2) game-perf.service (scx_lavd + AC'de 0xED perf profili + turbo fan) gamerun
-  #      tarafından DOĞRUDAN sürülüyor (2 Eyl 2026); CPU pinleme (GR_PIN=big) ve
-  #      GR_CPUMAX de aynı yerden gelir.
-  #  (3) Native Vulkan emülatörleri Proton'a ihtiyaç duymaz — gamerun da artık hiçbir
-  #      Proton/DLSS env'i set etmiyor, yani burada set edilecek gereksiz bir şey yok.
-  #
-  # Controller (DualSense/DualShock4/XInput):
-  #  • hidapi + libevdev her iki emülatör derivation'ında zaten var (nix eval ile doğrulandı).
-  #  • RPCS3: Ayarlarda "Handlers → SDL" seçilir; DualSense'i SDL3 tanır (evdev fallback).
-  #  • shadPS4: SDL3 pad desteği yerleşik (derivation buildInputs'ta sdl3 + libxi).
-  #  • dualsensectl (system tarafında, configuration.nix): LED/şarj okuma, USB pairing.
-  #    Yeni daemon DEĞİL — CLI on-demand; idle'da 0 W katkısı (4.28W bütçesine dokunmaz).
   emu-run = pkgs.writeShellScriptBin "emu-run" ''
     # emu-run — dGPU PRIME offload + gamemode zincirine emülatör delegesi
     # Kullanım: emu-run {rpcs3|shadps4} [argümanlar...]
@@ -58,17 +19,11 @@ let
   '';
 in
 {
-  # Paketler: emülatörler + sarmalayıcı. dualsensectl system tarafında
-  # (configuration.nix environment.systemPackages) — tek kurulum, kullanıcı-başısı değil.
   home.packages = [
     pkgs.rpcs3
     pkgs.shadps4
     emu-run
   ];
 
-  # KULLANIM UYARISI: masaüstünün uygulama başlatıcısı .desktop dosyalarını
-  # çalıştırırken PRIME env'lerini set ETMEZ. rpcs3/shadps4 paketleri kendi .desktop'larını kurar
-  # (iGPU'ya düşer). dGPU'ya yönlendirmenin tek güvenli yolu terminalden
-  # `emu-run rpcs3` / `emu-run shadps4`. İleride .desktop override edip PRIME
-  # env'leri baked-in yapılabilir; şu an gerekmedi — kullanıcı terminali tercih ediyor.
+  # .desktop başlatıcıları PRIME env'i vermez (iGPU); dGPU için terminalden emu-run.
 }

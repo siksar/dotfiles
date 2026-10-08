@@ -1,18 +1,9 @@
 { pkgs, ... }:
 
 let
-  # claude-code 2.1.280 — nixpkgs bu pakette 2.1.278'de takılı (23 Eyl 2026) ama
-  # Opus 5.5 modeli CLI'dan 2.1.280+ istiyor; eski ikilide `/model` satırı
-  # "(disabled) Update to 2.1.280+" diye çıkıyor, model kimliği (claude-opus-5-5)
-  # ikilinin İÇİNDE gömülü — sunucu tarafı yetmiyor, paketi taşımak gerekiyor.
-  #
-  # Paket `manifest`i override EDİLEBİLİR bir argüman olarak alıyor, bu yüzden
-  # overrideAttrs'a gerek yok. Manifestten yalnız üç alan okunuyor (version,
-  # platforms.<key>.binary, .checksum) → tam manifest yerine linux-x64 kaydı yeter.
-  # Kaynak: https://downloads.claude.ai/claude-code-releases/2.1.280/manifest.zst.json
-  #
-  # ⚠️ GEÇİCİ: nixpkgs 2.1.280+ taşıyınca bu blok ve aşağıdaki kullanımı SİLİNİR.
-  # kontrol: nix eval --raw github:nixos/nixpkgs/nixos-unstable#claude-code.version
+  # claude-code pini: Opus 5.5 için 2.1.280+ gerekli, nixpkgs geride. Manifestten yalnız
+  # version + linux-x64 binary/checksum okunur. GEÇİCİ: nixpkgs yetişince sil
+  # (nix eval --raw github:nixos/nixpkgs/nixos-unstable#claude-code.version).
   claude-code-280 = pkgs.claude-code.override {
     manifest = {
       version = "2.1.280";
@@ -24,120 +15,74 @@ let
   };
 in
 {
-  nix.settings.experimental-features = [ "nix-command" "flakes" ];
-
   imports = [
     ./hardware-configuration.nix
+    ./system/nix.nix
 
-    # ══ system/ — makinenin tesisatı ═══════════════════════════════════════
-    # arch/ — YALNIZ bu donanımda anlamlı, taşınamaz (EC/WMI, DSDT override).
-    # Başka bir makineye geçilirse ilk silinecek dizin burasıdır.
     ./system/arch/aerox16/wmi.nix
     ./system/arch/aerox16/acpi.nix
     ./system/arch/aerox16/fn-keys.nix
 
-    # drivers/ — aygıt sürücüleri ve aygıt-başı ayar
     ./system/drivers/gpu.nix
     ./system/drivers/input/keyboard-rgb/system.nix
     ./system/drivers/input/openrgb.nix
     ./system/drivers/usb-dac.nix
+    ./system/drivers/firmware.nix
 
-    # kernel/ — çekirdek davranışı: güç, zamanlayıcı, bellek
     ./system/kernel/power.nix
     ./system/kernel/power-display.nix
     ./system/kernel/sched.nix
     ./system/kernel/cores.nix
     ./system/kernel/ryzen-smu.nix
+    ./system/kernel/memory.nix
 
-    # init/ — önyükleyici ve yerel ayar
     ./system/init/limine.nix
     ./system/init/locale.nix
 
-    # net/ — ağ yığını, VPN (devre dışı), sansür aşma (DPI bypass + DoH),
-    #        yerel paylaşım
     ./system/net/core.nix
     ./system/net/vpn.nix
     ./system/net/censorship.nix
     ./system/net/localsend.nix
+    ./system/net/syncthing.nix
     ./system/net/geoclue.nix
 
     ./system/sound.nix
     ./system/virt.nix
 
-    # security/ — hesaplar, anahtarlık, parola yöneticisi
     ./system/security/users.nix
     ./system/security/keyring.nix
     ./system/security/askpass.nix
     ./system/security/onepassword.nix
 
-    # desktop/ — COSMIC + GNOME oturumları ve Stylix
     ./system/desktop/login.nix
     ./system/desktop/theme.nix
     ./system/desktop/gnome.nix
     ./system/desktop/cosmic.nix
-    # MUX/dGPU-only bayragi — oturumlarin DRM koprulerini birden cevirir. VARSAYILAN KAPALI.
+    ./system/desktop/hyprland.nix
     ./system/desktop/mux.nix
-    # Harici ekran (HDMI) bayragi — HDMI portu dGPU'ya bagli, guard onu kapatiyordu.
     ./system/desktop/external-display.nix
 
-    # ══ usr/ — sistem geneli kurulan programlar ════════════════════════════
     ./usr/steam.nix
     ./usr/netflix.nix
     ./usr/github-copilot.nix
+    ./usr/claude-desktop.nix
     ./usr/aero-eg61h.nix
   ];
 
 
-  # COSMIC (varsayılan) ve GNOME kullanılacak masaüstü oturumlarıdır.
-  # KDE Plasma 16 Eyl 2026'da ağaçtan çıktı — defteri Documentation/archive/.
   desktop.gnome.enable = true;
   desktop.cosmic.enable = true;
+  desktop.hyprland.enable = true;
 
-  # HDMI portu bu makinede MUXSUZ ve dogrudan NVIDIA dGPU'ya bagli; dGPU guard'i
-  # o konektoru de kapatiyordu (20 Eyl 2026'da olculdu). Bedeli ve guc olcumu
-  # (D3cold korunuyor): system/desktop/external-display.nix
+  # HDMI portu muxsuz, doğrudan dGPU'ya bağlı.
   desktop.externalDisplay.enable = true;
-  services.displayManager.defaultSession = "cosmic";
+  services.displayManager.defaultSession = "gnome";
 
-  # Stylix'in GTK hedefi + HM'in gtk.iconTheme/dconf.settings ayarları için gerekli
   programs.dconf.enable = true;
 
-  # JetBrainsMono Nerd Font (terminal/starship glif ikonları)
   fonts.packages = with pkgs; [ nerd-fonts.jetbrains-mono ];
 
-  programs.nh = {
-    enable = true;
-    clean.enable = true;
-    clean.extraArgs = "--keep-since 4d --keep 3";
-    flake = "/home/zixar/nixos-zixar";
-  };
-
-  programs.direnv = {
-    enable = true;
-    nix-direnv.enable = true;
-  };
-
-  nixpkgs.config.allowUnfree = true;
-
-  # Electron/Chromium uygulamaları native Wayland'de çalışsın (kullanıcı isteği 30 Tem).
-  # nixpkgs'in Electron sarmalayıcıları şu kalıbı taşır:
-  #   ${NIXOS_OZONE_WL:+ --ozone-platform-hint=auto --enable-features=WaylandWindowDecorations}
-  # Değişken boşken flag hiç eklenmiyordu → VSCodium/Vesktop/1Password/claude-desktop
-  # XWayland'de koşuyordu. İki kazanç: (1) HiDPI'de net render + kesirli ölçekleme,
-  # (2) WaylandWindowDecorations sayesinde xdg-decoration konuşuluyor; bileşken
-  # sunucu-taraflı süsleme cevabı verirse uygulama kendi başlık çubuğunu çizmez ve
-  # pencerenin tek çerçevesi oturumun kendi süslemesi olur. (COSMIC kendi başlık
-  # çubuğunu çiziyor — Ayarlar'dan kapatılabilir; gözle doğrula.)
-  #
-  # KAPSAM UYARISI: sessionVariables sistem geneli. Uygulamanın KENDİ tasarladığı
-  # chrome (VSCodium'un sekme çubuğu, Vesktop'un başlığı) bu flag'le GİTMEZ; o
-  # uygulama başına ayardır ve o uygulamanın kendi modülünde yaşar.
-  # GTK/libadwaita başlıkları (nautilus vb.) hiçbir şekilde kaldırılamaz: GtkHeaderBar
-  # bir süsleme değil, içinde yol çubuğu/arama/menü taşıyan uygulama arayüzüdür.
-  #
-  # Regresyon izle: ibus (GTK_IM_MODULE=ibus) Wayland'de text-input-v3'e geçer —
-  # Electron uygulamalarında Türkçe/emoji girişini bir teyit et. Ekran paylaşımı
-  # portal'a (xdg-desktop-portal) düşer. Bozarsa bu satırı sil, rebuild yeter.
+  # Electron/Chromium native Wayland. ibus Türkçe girişi / ekran paylaşımı bozulursa sil.
   environment.sessionVariables.NIXOS_OZONE_WL = "1";
 
   environment.systemPackages = with pkgs; [
@@ -145,49 +90,26 @@ in
     git
     gh
 
-    # Masaüstü araçları
-    brightnessctl     # CLI parlaklık (script/servisler)
-    wl-clipboard      # wl-copy / wl-paste
-    pavucontrol       # PulseAudio / PipeWire GUI
+    brightnessctl
+    wl-clipboard
+    pavucontrol
 
-    # TUI sistem ayarları (GUI olmadan terminalden bluetooth/wifi/ses)
-    bluetuith         # Bluetooth TUI — eşleştirme/bağlan/güven/ses profili (bluez üstünde)
-    wiremix           # PipeWire native ses mikseri TUI — pulse uyumluluk katmanı gerekmez
-    # WiFi TUI zaten var: nmtui — networking.networkmanager.enable paketi otomatik ekliyor
+    bluetuith
+    wiremix
 
-    # Ağ araçları (power-display WiFi PS servisi iw'yi kullanır + tanılama)
-    iw                # regdomain/power_save sorgu-set (iw reg get, iw dev ... get power_save)
-    ethtool           # Ethernet tanılama (link/ring/WoL)
+    iw
+    ethtool
 
-    # Rust / Nix / Kubernetes platform engineering
     rustup
-    # Nix lint/format — ölçülen marjinal closure +10.2 MiB (deadnix 1.5 / nixfmt 5.1 /
-    # statix 3.6; bağımlılıklarının geri kalanı sistemde zaten vardı).
-    # `nix run nixpkgs#...` ile ölçmek yanıltır: o registry'nin nixpkgs'ini çözer,
-    # flake pin'ini değil — gerçek rakam `nix store diff-closures /run/current-system
-    # ./result`. Hiçbiri boşta çalışmaz, idle bütçesine dokunmaz.
-    # Kullanım + statix'in bu repoda neden filtre gerektirdiği: CLAUDE.md
-    # "Sert kurallar" 4 ve statix.toml.
-    deadnix           # kullanılmayan let-binding / lambda argümanı
-    statix            # anti-pattern linter — statix.toml OLMADAN çalıştırma
-    nixfmt            # resmi formatter (eski ad nixfmt-rfc-style artık aynı türeve
-                      # çözülüyor ve uyarı veriyor) — ağaç geneli ÇALIŞTIRMA,
-                      # elle hizalanmış yorum sütunlarını bozar
-    jq                # scripts/verify-context.sh'in SERT bağımlılığı (deadnix -o json
-                      # ayrıştırması + flake metadata rev'i). 25 Ağu 2026'da sistemde
-                      # HİÇ kurulu olmadığı fark edildi: script `|| echo 0` ile hatayı
-                      # yutup deadnix'i "0 hit" sanıyor ve temel çizgi kontrolü YANLIŞ
-                      # gerekçeyle düşüyordu. Gate'in sessizce yalan söylemesi, gate'in
-                      # olmamasından kötü — script artık ön kontrolle sert düşüyor.
+    deadnix
+    statix
+    nixfmt  # ağaç geneli çalıştırma: hizalı yorumları bozar
+    jq
 
-    # LLM-assisted development
     claude-code-280
     codex
     opencode
 
-    # DualSense (PS5) / DualShock4 (PS4) controller CLI — LED/şarj/trigger okuma,
-    # USB pairing modu. On-demand CLI; daemon DEĞİL → idle 4.28W bütçesine dokunmaz.
-    # Emülatör controller desteği (hidapi/evdev/SDL3) home/apps/emu.nix'te.
     dualsensectl
   ];
 

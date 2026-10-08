@@ -1,0 +1,154 @@
+/* hypr-launcher görünümü (GTK4). Renk tanımları (@baseXX, @island) Nix'te bu
+   dosyanın BAŞINA eklenir (session.nix) — Stylix paleti.
+
+   Pencerenin kendi zemini yok: arkasındaki waybar adası aynı boyuta büyümüş
+   durumda (launcher.py başlığı). Yalnız tam ekranda (.solo) zemin çizilir. */
+
+* {
+  font-family: "Geist", "JetBrainsMono Nerd Font";
+  font-feature-settings: "tnum";
+}
+
+window.launcher {
+  background: none;
+}
+
+.root {
+  background: none;
+}
+/* Tam ekranda ada yok (waybar alttaki katmanda): zemini başlatıcı çizer, saat
+   satırı + içerikle birlikte büyüyen kap. */
+.root.solo .head {
+  background: @island;
+}
+.root.solo .clip {
+  background: @island;
+  border-radius: 0 0 18px 18px;
+}
+.clock {
+  font-size: 14px;
+  font-weight: 600;
+  color: @base06;
+}
+
+/* ───── giriş/çıkış ─────
+   CSS geçişi YOK: içeriği taşıyan kabın (.clip) boyutu ve saydamlığı
+   launcher.py'de adayla aynı yayla kare kare sürülür. */
+.content {
+  padding: 4px 14px 14px 14px;
+}
+
+/* ───── arama ───── */
+.search {
+  min-height: 44px;
+  padding: 0 8px 0 14px;
+  border-radius: 14px;
+  background: @tile;
+}
+.search image.glass {
+  color: @base04;
+  -gtk-icon-size: 16px;
+}
+.search text {
+  font-size: 16px;
+  font-weight: 500;
+  color: @base06;
+  caret-color: @base0D;
+}
+.search text placeholder {
+  color: alpha(@base04, 0.75);
+  font-weight: 400;
+}
+.search text selection {
+  background: alpha(@base0D, 0.35);
+}
+.chip {
+  font-size: 11px;
+  font-weight: 600;
+  color: @base04;
+  background: alpha(@base03, 0.35);
+  border-radius: 9px;
+  padding: 3px 10px;
+}
+
+.caption {
+  font-size: 11px;
+  font-weight: 600;
+  color: alpha(@base04, 0.85);
+  margin: 12px 10px 6px 10px;
+}
+
+/* ───── satırlar ───── */
+.row {
+  padding: 0 10px;
+  border-radius: 13px;
+  transition: background 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.row.selected {
+  background: @tile-hover;
+}
+.row.inert .title {
+  color: @base04;
+}
+
+.icon {
+  min-width: 32px;
+  min-height: 32px;
+}
+/* Sistem komutları, hesap, pano: simge renkli bir rozetin içinde. */
+.icon.badge {
+  border-radius: 10px;
+  background: alpha(@base0D, 0.16);
+  color: @base0D;
+}
+.icon.badge.green  { background: alpha(@base0B, 0.16); color: @base0B; }
+.icon.badge.yellow { background: alpha(@base0A, 0.16); color: @base0A; }
+.icon.badge.orange { background: alpha(@base09, 0.16); color: @base09; }
+.icon.badge.red    { background: alpha(@base08, 0.16); color: @base08; }
+.icon.badge.blue   { background: alpha(@base0C, 0.16); color: @base0C; }
+
+.title {
+  font-size: 14px;
+  font-weight: 500;
+  color: @base05;
+}
+.row.selected .title {
+  color: @base07;
+}
+.sub {
+  font-size: 11.5px;
+  color: @base04;
+  margin-top: 1px;
+}
+
+.hint {
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+.row.selected .hint {
+  opacity: 1;
+}
+
+/* ───── alt satır: kısayol ipuçları ───── */
+.footer {
+  margin-top: 8px;
+  padding: 10px 6px 0 6px;
+  border-top: 1px solid alpha(@base03, 0.45);
+}
+.key {
+  font-size: 10px;
+  font-weight: 600;
+  color: @base05;
+  background: alpha(@base03, 0.45);
+  border-radius: 5px;
+  padding: 1px 6px;
+  min-width: 8px;
+}
+.desc {
+  font-size: 11px;
+  color: @base04;
+  margin: 0 14px 0 6px;
+}
+.hint .desc {
+  margin: 0;
+}

@@ -1,0 +1,26 @@
+system: "base16"
+name: "Clouds Dusk"
+author: "zixar — wallpapers/clouds-dusk.jpg'den örneklendi (4 Eki 2026)"
+variant: "dark"
+# Kaynak tonlar (imagemagick, 12 renge indirgeme + bölge ortalamaları):
+#   gökyüzü #5D666C–#646A70 · gölgeli bulut #3D444C / #373D45
+#   ışık alan bulut #D5AB81 / #C9A27B · ılık gri #8E7768
+# Zeminler gölgeli bulutun mavi-arduvaz tonunun koyulaştırılmışı; ön plan
+# serin bulut beyazı, vurgular gün batımı şeftalisi ve gök mavisi.
+palette:
+  base00: "#1a1d22"
+  base01: "#22262c"
+  base02: "#2e333a"
+  base03: "#4a525b"
+  base04: "#7d8790"
+  base05: "#cfd3d6"
+  base06: "#e6d2bd"
+  base07: "#f2e8de"
+  base08: "#c97d6e"
+  base09: "#d39a72"
+  base0A: "#d8b483"
+  base0B: "#9aab8a"
+  base0C: "#8fb0b6"
+  base0D: "#8aa3bd"
+  base0E: "#b29bb8"
+  base0F: "#a5826c"

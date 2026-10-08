@@ -1,5 +1,4 @@
-# Ghostty terminali
-# Renkler ve font Stylix'ten gelir (targets.ghostty otomatik) — tema AYARLAMA.
+# Renk/font Stylix'ten; font-size Stylix'inkinden sonra yazıldığı için kazanır.
 { config, ... }:
 
 {
@@ -12,8 +11,10 @@
       window-padding-x = 8;
       window-padding-y = 8;
       confirm-close-surface = false;
-      # Yeni pencere/sekme varsayılan olarak flake köküyle açılsın (claude/opencode
-      # de dolayısıyla oradan başlar) — yeni sekmeler yine önceki cwd'yi devralır.
+      resize-overlay = "never";
+      # Shell entegrasyonunun "cursor" özelliği imleci yanıp söndürüyor → kapalı.
+      cursor-style-blink = false;
+      shell-integration-features = "no-cursor";
       working-directory = "/home/zixar/nixos-zixar";
     };
   };

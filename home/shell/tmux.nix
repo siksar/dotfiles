@@ -1,6 +1,3 @@
-# TUI/CLI ortamı (vyrx-dev/dotfiles portu, eskiden sway rice'a bağlıydı).
-# Neovim config'i PORTLANMADI (mason NixOS'ta ayrı bir iş) — sadece paket
-# kurulu, varsayılan config.
 { pkgs, ... }:
 
 {
@@ -36,7 +33,6 @@
     enableFishIntegration = true;
   };
 
-  # Renkler Stylix'ten (stylix.targets.zathura devre dışı bırakılmadı).
   programs.zathura.enable = true;
 
   programs.btop.enable = true;

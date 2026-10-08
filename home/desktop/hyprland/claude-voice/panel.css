@@ -1,0 +1,163 @@
+/* claude-voice paneli — claude.ai sayfasını tek bir haba indirir:
+   yalnız sesli mod düğmesi — kapalıyken ses simgesi (hap 48px), bağlanırken
+   "Cancel" (110px), açıkken "Stop" (95px). Pencere = hap + 68px.
+
+   Pencerenin KENDİSİ koyu kutu: sayfa zemini kutu rengiyle boyanır, kutu tüm
+   pencereyi kaplar, köşeleri Hyprland yuvarlar (rules.lua rounding). Hap
+   genişlik değiştirince pencere de onunla birlikte büyüyüp küçülür: panel.js
+   hedef genişliği <html data-cv-width>'e yazar, session.js servise iletir,
+   lua/voice.lua pencereyi kare kare boyutlandırır — hapın CSS geçişiyle aynı
+   süre ve eğri (700 ms easeInOutCubic).
+
+   Chromium'da saydam pencere YOK (Wayland'de de): sayfa saydam bırakılınca
+   altında koyu #121212 ve çerçeve rengi görünüyordu — kutunun iki yanında
+   siyah şeritler (4 Eki 2026). Önceden sabit 180px pencere içinde kutu CSS ile
+   büyütülüyordu; o yüzden bırakıldı. Pencere boyutlandırılırken Chromium'un
+   geç kalan kareleri de aynı renkte olduğundan bozulma görünmüyor (60 fps
+   kayıtta düğme merkezden en çok 1–2 px kayıyor).
+
+   Kurallar yalnız sayfada sohbet kutusu varken (`chat-input`) eşleşir: giriş
+   ekranı ve hata sayfaları olduğu gibi kalır. Seçiciler claude.ai'nin DOM'una
+   dayanıyor (data-testid / aria-label / Tailwind sınıfları); site değişirse
+   bozulacak yer burası. Ekim 2026 itibarıyla doğrulandı. */
+
+/* Zemin kutu rengi (yukarıya bak: saydamlık yok). Kök öğenin zemini tuvale
+   yayılır; body görünmez olduğundan kendi zemini çizilmez. */
+:root:has([data-testid=chat-input]) { background: rgb(32, 32, 31) !important; }
+:root:has([data-testid=chat-input]) body { background: transparent !important; }
+
+/* Kutu ve açılır menüler dışında her şey görünmez. visibility kalıtsal: kutunun
+   İÇİNE görünürlük kuralı yazılmaz ki uygulamanın kendi gizli öğeleri gizli kalsın. */
+:root:has([data-testid=chat-input]) body { visibility: hidden !important; }
+:root:has([data-testid=chat-input]) fieldset:has([data-testid=chat-input]),
+:root:has([data-testid=chat-input]) [role=menu],
+:root:has([data-testid=chat-input]) [role=dialog] { visibility: visible !important; }
+:root:has([data-testid=chat-input]) aside[aria-label="Sidebar"] { display: none !important; }
+:root:has([data-testid=chat-input]) [data-testid=voice-audio-visualizer] { visibility: hidden !important; }
+
+/* fixed'i kendine hapseden ataları nötrle (transform / container query) */
+:root:has([data-testid=chat-input]) body *:has(fieldset [data-testid=chat-input]) {
+  transform: none !important; filter: none !important; contain: none !important;
+  container-type: normal !important; will-change: auto !important; backdrop-filter: none !important;
+}
+
+/* Kutu alanı pencereyi kaplar, kutu altta ortada */
+:root:has([data-testid=chat-input]) fieldset:has([data-testid=chat-input]) {
+  position: fixed !important; inset: 0 !important; width: auto !important; margin: 0 !important;
+  z-index: 50 !important; display: flex !important; align-items: flex-end !important;
+  justify-content: center !important; background: transparent !important;
+}
+:root:has([data-testid=chat-input]) fieldset:has([data-testid=chat-input]) > div,
+:root:has([data-testid=chat-input]) fieldset:has([data-testid=chat-input]) > div > div,
+:root:has([data-testid=chat-input]) fieldset:has([data-testid=chat-input]) > div > div > div,
+:root:has([data-testid=chat-input]) fieldset .bg-surface-3,
+:root:has([data-testid=chat-input]) fieldset .bg-surface-3 > div,
+:root:has([data-testid=chat-input]) fieldset .bg-surface-3 > div > div {
+  width: max-content !important; min-width: 0 !important; min-height: 0 !important;
+}
+
+/* Koyu kutu: hapın hemen üstündeki sarmalayıcı, pencerenin tamamı. claude.ai'nin
+   sarmalayıcıları sağa yaslı; sabitlenmezse hap ortada durmazdı. :root:root —
+   yukarıdaki max-content kuralı bu öğeyi de yakalıyor, onu yenmesi için. */
+:root:root:has([data-testid=chat-input]) fieldset div:has(> .bg-surface-3) {
+  position: fixed !important; inset: 0 !important; transform: none !important;
+  width: 100vw !important; height: 100vh !important; padding: 0 !important;
+  display: flex !important; align-items: center !important; justify-content: center !important;
+  background: rgb(32, 32, 31) !important; border-radius: 14px !important; box-sizing: border-box !important;
+}
+
+/* Hap genişliğini uzantının panel.js'i satır içi verir (içerik + 16px); burada
+   pencereyle aynı süre ve eğriyle yumuşakça kayar. Büyürken içerik ortada kalır,
+   taşan kenarlar kırpılır. */
+:root:has([data-testid=chat-input]) fieldset .bg-surface-3 {
+  display: flex !important; align-items: center !important;
+  padding: 6px 8px !important; box-sizing: border-box !important;
+  overflow: hidden !important; justify-content: center !important;
+  transition: width 700ms cubic-bezier(0.65, 0, 0.35, 1) !important;
+}
+:root:has([data-testid=chat-input]) fieldset .bg-surface-3 > div > div { padding: 0 !important; }
+
+/* Metin alanı, sol grup (+, Chat/Cowork) ve boş ara öğeler yok; sağ grup akışa döner */
+:root:has([data-testid=chat-input]) fieldset .relative.min-w-0.break-words,
+:root:has([data-testid=chat-input]) fieldset .absolute.bottom-0.left-0,
+:root:has([data-testid=chat-input]) fieldset .absolute.bottom-0.right-0 .grow,
+:root:has([data-testid=chat-input]) fieldset .absolute.bottom-0.right-0 .empty\:hidden:empty { display: none !important; }
+:root:has([data-testid=chat-input]) fieldset .absolute.bottom-0.right-0 { position: static !important; padding: 0 !important; }
+
+/* Yalnız sesli mod düğmesi kalır. Model seçici de yok: claude.ai dar kutuda onu
+   hapın altındaki "Claude is AI" satırına taşıyor, hap 256px'e çıkıp pencereden
+   taşıyordu. Mikrofon sesli mod başlarken açık gelir; gizli olması onu kapatmaz. */
+:root:has([data-testid=chat-input]) fieldset .absolute.bottom-0.right-0 > .gap-2,
+:root:has([data-testid=chat-input]) fieldset .relative.z-0.overflow-clip,
+:root:has([data-testid=chat-input]) fieldset .gap-1.shrink-0:has(> button.h-8) > div:first-child,
+:root:has([data-testid=chat-input]) fieldset button[aria-label="Dictate"],
+:root:has([data-testid=chat-input]) fieldset button[aria-label="Microphone"],
+:root:has([data-testid=chat-input]) fieldset div[aria-label="Use voice mode"] .w-px { display: none !important; }
+
+/* Düğme: Claude turuncusu (#D97757) zemin, beyaz yazı ve simge — iki hâlde de.
+   Ses simgesi ↔ Stop yer değiştirmesi bir DOM değişimi (geçiş yok): yeni düğme
+   solarak ve hafif büyüyerek belirir. Stop'un kendi iç geçişleri (Cancel → Stop
+   yazısı, genişlik, renk) kutuyla aynı süre ve eğriye çekildi; claude.ai'ninki
+   bu küçük panelde fazla hızlı görünüyordu. */
+@keyframes cv-in { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: none; } }
+:root:has([data-testid=chat-input]) fieldset .gap-1.shrink-0 > button.h-8,
+:root:has([data-testid=chat-input]) fieldset button[aria-label="Use voice mode"] {
+  background: #D97757 !important; color: #fff !important;
+  animation: cv-in 700ms cubic-bezier(0.65, 0, 0.35, 1) both !important;
+}
+:root:has([data-testid=chat-input]) fieldset .gap-1.shrink-0 > button.h-8 *,
+:root:has([data-testid=chat-input]) fieldset button[aria-label="Use voice mode"] * { color: #fff !important; fill: currentColor; }
+/* Ses simgesi düğmesinin kendi zemin katmanı (hover/press) turuncuyu örtmesin */
+:root:has([data-testid=chat-input]) fieldset button[aria-label="Use voice mode"] > span.absolute { background: transparent !important; }
+:root:has([data-testid=chat-input]) fieldset .gap-1.shrink-0 > button.h-8,
+:root:has([data-testid=chat-input]) fieldset .gap-1.shrink-0 > button.h-8 * {
+  transition-duration: 700ms !important; transition-timing-function: cubic-bezier(0.65, 0, 0.35, 1) !important;
+}
+
+/* ---- Durum ışıması (session.js <html data-cv-state> yazar) -------------------
+   Kutu pencerenin kendisi: dışa taşan ışıma görünmezdi, o yüzden içe (inset).
+   dinliyor: beyaz nefes · duyuyor (sen konuşurken): hızlı beyaz nabız ·
+   düşünüyor: kenarda dönen turuncu parıltı ·
+   konuşuyor: turuncu nabız · bağlanıyor: soluk yanıp sönme.
+   Kutuya tıklamak sohbet penceresini aç/kapa yapar (session.js). */
+@property --cv-angle { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+:root:has([data-testid=chat-input]) fieldset div:has(> .bg-surface-3) { cursor: pointer; }
+:root[data-cv-state=listening] fieldset div:has(> .bg-surface-3) {
+  animation: cv-breathe 2.6s ease-in-out infinite !important;
+}
+:root[data-cv-state=speaking] fieldset div:has(> .bg-surface-3) {
+  animation: cv-beat 1.2s ease-in-out infinite !important;
+}
+:root[data-cv-state=hearing] fieldset div:has(> .bg-surface-3) {
+  animation: cv-hear 0.9s ease-in-out infinite !important;
+}
+:root[data-cv-state=connecting] fieldset div:has(> .bg-surface-3),
+:root[data-cv-state=reconnecting] fieldset div:has(> .bg-surface-3) {
+  animation: cv-blink 1.4s ease-in-out infinite !important;
+}
+:root[data-cv-state=processing] fieldset div:has(> .bg-surface-3)::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1.5px;
+  pointer-events: none;
+  background: conic-gradient(from var(--cv-angle), transparent 0deg 210deg,
+              rgba(217, 119, 87, 0.95) 300deg, transparent 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  animation: cv-spin 1.5s linear infinite;
+}
+@keyframes cv-breathe {
+  0%, 100% { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07); }
+  50%      { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.30), inset 0 0 16px rgba(255, 255, 255, 0.06); }
+}
+@keyframes cv-beat {
+  0%, 100% { box-shadow: inset 0 0 0 1px rgba(217, 119, 87, 0.40); }
+  50%      { box-shadow: inset 0 0 0 1.5px rgba(217, 119, 87, 0.95), inset 0 0 20px rgba(217, 119, 87, 0.22); }
+}
+@keyframes cv-hear {
+  0%, 100% { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25); }
+  50%      { box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.6), inset 0 0 18px rgba(255, 255, 255, 0.1); }
+}
+@keyframes cv-blink {
+  0%, 100% { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04); }
+  50%      { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22); }
+}
+@keyframes cv-spin { to { --cv-angle: 360deg; } }

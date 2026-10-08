@@ -1,4 +1,3 @@
-# Yerel ayar: saat dilimi, dil, konsol klavyesi.
 { ... }:
 
 {

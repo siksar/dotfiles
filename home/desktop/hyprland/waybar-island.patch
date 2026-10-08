@@ -1,0 +1,406 @@
+diff -ru a/include/group.hpp b/include/group.hpp
+--- a/include/group.hpp	2026-10-07 23:38:54.701507712 +0300
++++ b/include/group.hpp	2026-10-08 00:18:02.878844898 +0300
+@@ -6,6 +6,8 @@
+ 
+ #include "AModule.hpp"
+ #include "gtkmm/revealer.h"
++#include "gtkmm/label.h"
++#include "gtkmm/scrolledwindow.h"
+ 
+ namespace waybar {
+ 
+@@ -17,12 +19,38 @@
+   operator Gtk::Widget&() override;
+ 
+   virtual Gtk::Box& getBox();
+-  void addWidget(Gtk::Widget& widget);
++  void addWidget(Gtk::Widget& widget, bool expand = false);
+ 
+  protected:
+   Gtk::Box box;
+   Gtk::Box revealer_box;
+   Gtk::Revealer revealer;
++  // Ada kipi (bara dik drawer): revealer yerine kırpan bir kap; boyutu kare
++  // kare yay fiziğiyle sürülür (retarget/onTick). Pencere sabit boyutta, ada
++  // onun içinde büyür; fare yalnız adayı görür (updateInputShape).
++  Gtk::ScrolledWindow clip;
++  Gtk::Widget* leader = nullptr;
++  Gtk::Label* morph_label = nullptr;
++  bool two_axis = false;
++  bool hovered = false;
++  bool suppress_panel = false;
++  std::string morph_mode;
++  Json::Value morph_sizes;
++  double open_response = 0.5, open_damping = 0.6;
++  double close_response = 0.4, close_damping = 1.0;
++  double k = 0, c = 0;
++  guint tick_id = 0;
++  gint64 last_time = -1;
++  double cur_w = 0, cur_h = 0, cur_o = 0;
++  double vel_w = 0, vel_h = 0;
++  double to_w = 0, to_h = 0, to_o = 0;
++  double start_h = 0;
++  void retarget();
++  bool onTick(const Glib::RefPtr<Gdk::FrameClock>& clock);
++  void applySize();
++  void findMorphLabel(Gtk::Widget& w);
++  void onMorphStyle();
++  void updateInputShape();
+   bool is_first_widget = true;
+   bool is_drawer = false;
+   bool click_to_reveal = false;
+diff -ru a/src/bar.cpp b/src/bar.cpp
+--- a/src/bar.cpp	2026-10-07 23:38:54.704011112 +0300
++++ b/src/bar.cpp	2026-10-07 23:38:54.719861353 +0300
+@@ -555,7 +555,7 @@
+         std::shared_ptr<AModule> module_sp(module);
+         modules_all_.emplace_back(module_sp);
+         if (group != nullptr) {
+-          group->addWidget(*module);
++          group->addWidget(*module, module->expandEnabled());
+         } else {
+           if (pos == "modules-left") {
+             modules_left_.emplace_back(module_sp);
+@@ -637,12 +637,16 @@
+    * gtk-layer-shell.
+    */
+   if (orientation == Gtk::ORIENTATION_VERTICAL) {
+-    if (width_ > 1 && ev->width > static_cast<int>(width_)) {
+-      spdlog::warn(MIN_WIDTH_MSG, width_, ev->width);
++    // Yapılandırılan boyuta göre: width_ her configure'da güncellenir, büyüyen
++    // pencerede her animasyon karesi uyarı basardı.
++    const auto cfg_width = config["width"].isUInt() ? config["width"].asUInt() : 0;
++    if (cfg_width > 1 && ev->width > static_cast<int>(cfg_width)) {
++      spdlog::warn(MIN_WIDTH_MSG, cfg_width, ev->width);
+     }
+   } else {
+-    if (height_ > 1 && ev->height > static_cast<int>(height_)) {
+-      spdlog::warn(MIN_HEIGHT_MSG, height_, ev->height);
++    const auto cfg_height = config["height"].isUInt() ? config["height"].asUInt() : 0;
++    if (cfg_height > 1 && ev->height > static_cast<int>(cfg_height)) {
++      spdlog::warn(MIN_HEIGHT_MSG, cfg_height, ev->height);
+     }
+   }
+   width_ = ev->width;
+diff -ru a/src/group.cpp b/src/group.cpp
+--- a/src/group.cpp	2026-10-07 23:38:54.704061287 +0300
++++ b/src/group.cpp	2026-10-08 00:22:46.971948573 +0300
+@@ -2,9 +2,16 @@
+ 
+ #include <fmt/format.h>
+ 
++#include <algorithm>
++#include <cmath>
++
+ #include <util/command.hpp>
+ 
++#include "cairomm/region.h"
++#include "gtkmm/container.h"
+ #include "gtkmm/enums.h"
++#include "gtkmm/label.h"
++#include "gtkmm/viewport.h"
+ #include "gtkmm/widget.h"
+ 
+ namespace waybar {
+@@ -64,20 +71,81 @@
+                                     : true);
+     click_to_reveal = drawer_config["click-to-reveal"].asBool();
+ 
+-    auto transition_type = getPreferredTransitionType(vertical);
++    // Ada kipi: drawer bara DİK açılıyor (yatay barda dikey grup). GtkRevealer
++    // yalnız kendi kayma ekseninde küçülür ve içeriği bir kenara yaslı kaydırır;
++    // iki revealer iç içe de olsa genişlik ancak içerik öndeki satırı aşınca
++    // büyümeye başlar → iki aşamalı, sekiyormuş gibi hareket. Bunun yerine
++    // kırpan bir kabın boyutu iki eksende BİRLİKTE, öndeki satırın
++    // genişliğinden tam boyuta canlandırılır; içerik ortadan açılır ve belirir.
++    if (box.get_orientation() != (vertical ? Gtk::ORIENTATION_VERTICAL
++                                           : Gtk::ORIENTATION_HORIZONTAL)) {
++      two_axis = true;
++      // Yay: [tepki süresi (s), sönüm oranı]. Sönüm < 1 hedefi aşıp geri esner.
++      auto spring = [&](const char* key, double& response, double& damping) {
++        const auto& v = drawer_config["spring"][key];
++        if (v.isArray() && v.size() == 2) {
++          response = std::max(0.05, v[0].asDouble());
++          damping = std::clamp(v[1].asDouble(), 0.1, 2.0);
++        }
++      };
++      spring("open", open_response, open_damping);
++      spring("close", close_response, close_damping);
++      // Başlatıcı kipleri: { "apps": [genişlik, toplam yükseklik], ... }.
++      // custom/morph etiketi "launcher" + kip sınıfını alınca ada bu boyuta
++      // aynı yayla büyür (onMorphStyle).
++      morph_sizes = drawer_config["morph"];
++      revealer_box.set_orientation(box.get_orientation());  // satırlar alt alta
++      clip.set_policy(Gtk::POLICY_EXTERNAL, Gtk::POLICY_EXTERNAL);
++      clip.set_shadow_type(Gtk::SHADOW_NONE);
++      clip.add(revealer_box);  // gtkmm araya Gtk::Viewport koyar
++      if (auto* viewport = dynamic_cast<Gtk::Viewport*>(clip.get_child())) {
++        viewport->set_shadow_type(Gtk::SHADOW_NONE);
++      }
++      clip.get_style_context()->add_class("drawer");
++      clip.set_size_request(0, 0);
++      revealer_box.set_opacity(0);
++      // Modüllerin işlemediği tekerlek olayı içeriği kaydırmasın.
++      clip.signal_scroll_event().connect([](GdkEventScroll*) { return true; }, false);
++      // İçerik kap içinde hep yatay ortada: açılış merkezden iki yana.
++      auto hadj = clip.get_hadjustment();
++      hadj->signal_changed().connect([hadj] {
++        hadj->set_value(std::floor((hadj->get_upper() - hadj->get_page_size()) / 2));
++      });
++      // Dikeyde hep üste yaslı: kap sıfırdan büyürken kaydırma en sonda
++      // kalıyor, içerik alttan (kaydırıcılar önce) açılıyordu.
++      auto vadj = clip.get_vadjustment();
++      vadj->signal_changed().connect([vadj] { vadj->set_value(0); });
++      vadj->signal_value_changed().connect([vadj] {
++        if (vadj->get_value() != 0) vadj->set_value(0);
++      });
++      if (left_to_right) {
++        box.pack_end(clip, false, false);
++      } else {
++        box.pack_start(clip, false, false);
++      }
++      // Pencere sabit ve adadan büyük: ada üstte durur (dikeyde gerilmez) ve
++      // pencerenin geri kalanı fareyi geçirir.
++      event_box_.set_valign(Gtk::ALIGN_START);
++      event_box_.signal_size_allocate().connect([this](Gtk::Allocation&) { updateInputShape(); });
++      event_box_.signal_realize().connect([this] {
++        if (leader != nullptr) findMorphLabel(*leader);
++      });
++    } else {
++      auto transition_type = getPreferredTransitionType(vertical);
+ 
+-    revealer.set_transition_type(transition_type);
+-    revealer.set_transition_duration(transition_duration);
+-    revealer.set_reveal_child(false);
++      revealer.set_transition_type(transition_type);
++      revealer.set_transition_duration(transition_duration);
++      revealer.set_reveal_child(false);
+ 
+-    revealer.get_style_context()->add_class("drawer");
++      revealer.get_style_context()->add_class("drawer");
+ 
+-    revealer.add(revealer_box);
++      revealer.add(revealer_box);
+ 
+-    if (left_to_right) {
+-      box.pack_end(revealer);
+-    } else {
+-      box.pack_start(revealer);
++      if (left_to_right) {
++        box.pack_end(revealer);
++      } else {
++        box.pack_start(revealer);
++      }
+     }
+   }
+ 
+@@ -86,12 +154,179 @@
+ 
+ void Group::show_group() {
+   box.set_state_flags(Gtk::StateFlags::STATE_FLAG_PRELIGHT);
+-  revealer.set_reveal_child(true);
++  if (two_axis) {
++    hovered = true;
++    suppress_panel = false;
++    retarget();
++  } else {
++    revealer.set_reveal_child(true);
++  }
+ }
+ 
+ void Group::hide_group() {
+   box.unset_state_flags(Gtk::StateFlags::STATE_FLAG_PRELIGHT);
+-  revealer.set_reveal_child(false);
++  if (two_axis) {
++    hovered = false;
++    retarget();
++  } else {
++    revealer.set_reveal_child(false);
++  }
++}
++
++// Hedef: başlatıcı kipi > fare üstünde (panel) > kapalı. Animasyon sürerken
++// hedef değişirse yay o anki konum ve HIZDAN devam eder — hızlı gir-çık'ta ada
++// yön değiştirirken kesilip baştan başlamaz.
++void Group::retarget() {
++  int min_w = 0;
++  int nat_w = 0;
++  int min_h = 0;
++  int nat_h = 0;
++  revealer_box.get_preferred_width(min_w, nat_w);
++  revealer_box.get_preferred_height_for_width(nat_w, min_h, nat_h);
++
++  // Kapalı adanın genişliği = öndeki satırın doğal genişliği.
++  int lead_w = 0;
++  int lead_h = 0;
++  if (leader != nullptr) {
++    int lead_min = 0;
++    leader->get_preferred_width(lead_min, lead_w);
++    leader->get_preferred_height_for_width(lead_w, lead_min, lead_h);
++  }
++  const double rest_w = lead_w;
++
++  bool opening = false;
++  if (!morph_mode.empty() && morph_sizes[morph_mode].isArray()) {
++    const auto& m = morph_sizes[morph_mode];
++    to_w = m[0].asDouble();
++    to_h = std::max(0.0, m[1].asDouble() - lead_h);
++    to_o = 0;  // panel içeriği gizli; başlatıcı kendi içeriğini çizer
++    opening = true;
++  } else if (hovered) {
++    to_w = std::max<double>(nat_w, rest_w);
++    to_h = nat_h;
++    to_o = 1;
++    opening = true;
++  } else {
++    to_w = rest_w;
++    to_h = 0;
++    to_o = 0;
++  }
++  if (cur_h < 0.5 && cur_w < 0.5) {
++    cur_w = rest_w;  // kapalıyken kap kapalı adanın genişliğinden başlar
++  }
++  start_h = cur_h;
++  const double w = 2 * M_PI / (opening ? open_response : close_response);
++  k = w * w;
++  c = 2 * (opening ? open_damping : close_damping) * w;
++  if (tick_id == 0) {
++    last_time = -1;
++    tick_id = clip.add_tick_callback(sigc::mem_fun(*this, &Group::onTick));
++  }
++}
++
++// Genişlik HEP çift piksel: pencere sabit genişlikte (çift) ve ada ortalı;
++// tek/çift arasında gidip gelen genişlik ortalamayı yarım piksel kaydırıyor,
++// saat ve alan numaraları her karede 1 px sağa sola titriyordu (120 fps
++// kayıtla ölçüldü, 7 Eki 2026).
++void Group::applySize() {
++  const int w = 2 * static_cast<int>(std::ceil(std::max(0.0, cur_w) / 2.0));
++  const int h = static_cast<int>(std::lround(std::max(0.0, cur_h)));
++  clip.set_size_request(w, h);
++  revealer_box.set_opacity(cur_o);
++}
++
++bool Group::onTick(const Glib::RefPtr<Gdk::FrameClock>& clock) {
++  const gint64 now = clock->get_frame_time();
++  double dt = last_time < 0 ? 1.0 / 120 : (now - last_time) / 1e6;
++  last_time = now;
++  dt = std::min(dt, 0.05);  // takılan kareden sonra sıçrama yok
++
++  // Yarı örtük Euler, 1 ms adımlarla: sert yayda da kararlı.
++  for (double left = dt; left > 1e-9; left -= 0.001) {
++    const double h = std::min(0.001, left);
++    vel_w += (-k * (cur_w - to_w) - c * vel_w) * h;
++    vel_h += (-k * (cur_h - to_h) - c * vel_h) * h;
++    cur_w += vel_w * h;
++    cur_h += vel_h * h;
++  }
++
++  // Saydamlık zamana değil adanın O ANKİ boyutuna bağlı: içerik ada büyürken
++  // kırpılarak açılır, küçülürken birlikte toplanır, ada boş bir blok gibi
++  // görünmez. Başlatıcı açıkken (morph) panel içeriği hızla söner ve fare
++  // yeniden gelene kadar gizli kalır — başlatıcı kapanırken panel belirmesin.
++  int pmin = 0;
++  int pnat_w = 0;
++  int pnat_h = 0;
++  revealer_box.get_preferred_width(pmin, pnat_w);
++  revealer_box.get_preferred_height_for_width(pnat_w, pmin, pnat_h);
++  if (!morph_mode.empty() || suppress_panel) {
++    cur_o = std::max(0.0, cur_o - dt / 0.10);
++  } else {
++    const double frac = pnat_h > 1 ? cur_h / pnat_h : 0.0;
++    const double t = std::clamp((frac - 0.06) / 0.40, 0.0, 1.0);
++    cur_o = t * t * (3 - 2 * t);  // smoothstep
++  }
++  const double want_o = (!morph_mode.empty() || suppress_panel) ? 0.0 : (to_h > 0 ? 1.0 : 0.0);
++
++  const bool settled = std::abs(cur_w - to_w) < 0.3 && std::abs(cur_h - to_h) < 0.3 &&
++                       std::abs(vel_w) < 3 && std::abs(vel_h) < 3 &&
++                       std::abs(cur_o - want_o) < 0.01;
++  if (settled) {
++    cur_w = to_w;
++    cur_h = to_h;
++    cur_o = want_o;
++    vel_w = vel_h = 0;
++  }
++  applySize();
++  if (settled) {
++    tick_id = 0;
++    return false;
++  }
++  return true;
++}
++
++// custom/morph etiketi: başlatıcı açıkken metni kip adıdır ("apps"…), kapalıyken
++// boşluk. Sınıfa değil METNE bakılır: CSS'te karşılığı olmayan sınıf değişimi
++// GTK3'te style-updated yaymıyor.
++void Group::findMorphLabel(Gtk::Widget& w) {
++  if (morph_label != nullptr || !morph_sizes.isObject()) return;
++  auto* label = dynamic_cast<Gtk::Label*>(&w);
++  if (label != nullptr && w.get_name() == "custom-morph") {
++    morph_label = label;
++    label->property_label().signal_changed().connect(sigc::mem_fun(*this, &Group::onMorphStyle));
++    onMorphStyle();
++    return;
++  }
++  if (auto* container = dynamic_cast<Gtk::Container*>(&w)) {
++    for (auto* child : container->get_children()) {
++      findMorphLabel(*child);
++    }
++  }
++}
++
++void Group::onMorphStyle() {
++  std::string mode = morph_label->get_text();
++  mode.erase(0, mode.find_first_not_of(" \t\n"));
++  mode.erase(mode.find_last_not_of(" \t\n") + 1);
++  if (!morph_sizes.isMember(mode)) mode.clear();
++  if (mode != morph_mode) {
++    morph_mode = mode;
++    if (!mode.empty()) suppress_panel = true;
++    retarget();
++  }
++}
++
++// Fare olayları yalnız adanın kendi dikdörtgeninde; pencerenin saydam kalanı
++// alttaki pencerelere geçer (wl_surface giriş bölgesi).
++void Group::updateInputShape() {
++  auto* top = event_box_.get_toplevel();
++  if (top == nullptr || !top->get_realized()) return;
++  int x = 0;
++  int y = 0;
++  if (!event_box_.translate_coordinates(*top, 0, 0, x, y)) return;
++  const Cairo::RectangleInt rect{x, y, event_box_.get_allocated_width(),
++                                 event_box_.get_allocated_height()};
++  top->get_window()->input_shape_combine_region(Cairo::Region::create(rect), 0, 0);
+ }
+ 
+ bool Group::handleMouseEnter(GdkEventCrossing* const& e) {
+@@ -102,7 +337,8 @@
+ }
+ 
+ bool Group::handleMouseLeave(GdkEventCrossing* const& e) {
+-  if (!click_to_reveal && e->detail != GDK_NOTIFY_INFERIOR) {
++  // Tepsi menüsü açılınca gelen GRAB ayrılışı çekmeceyi kapatmasın.
++  if (!click_to_reveal && e->detail != GDK_NOTIFY_INFERIOR && e->mode != GDK_CROSSING_GRAB) {
+     hide_group();
+   }
+   return false;
+@@ -126,8 +362,14 @@
+ 
+ Gtk::Box& Group::getBox() { return is_drawer ? (is_first_widget ? box : revealer_box) : box; }
+ 
+-void Group::addWidget(Gtk::Widget& widget) {
+-  getBox().pack_start(widget, false, false);
++void Group::addWidget(Gtk::Widget& widget, bool expand) {
++  // Modülün "expand" ayarı grup içinde de geçerli (upstream yalnız barın
++  // sol/orta/sağ kutularında okuyor).
++  getBox().pack_start(widget, expand, expand);
++
++  if (is_first_widget) {
++    leader = &widget;
++  }
+ 
+   if (is_drawer && !is_first_widget) {
+     widget.get_style_context()->add_class(add_class_to_drawer_children);

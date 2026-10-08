@@ -2,16 +2,18 @@
 
 {
   imports = [
-    # shell/ — kabuk ve terminal ortamı
     ./home/shell/fish.nix
     ./home/shell/starship.nix
     ./home/shell/ghostty.nix
     ./home/shell/tmux.nix
+    ./home/shell/nix-index.nix
 
-    # apps/ — kullanıcı uygulamaları
+    ./home/desktop/hyprland
+
     ./home/apps/vesktop.nix
     ./home/apps/zen.nix
     ./home/apps/helium.nix
+    ./home/apps/brave.nix
     ./home/apps/media.nix
     ./home/apps/games.nix
     ./home/apps/minecraft.nix
@@ -20,6 +22,7 @@
     ./home/apps/downloads.nix
     ./home/apps/streamrip.nix
     ./home/apps/lollypop.nix
+    ./home/apps/syncthing.nix
   ];
 
   home.username      = "zixar";
@@ -27,18 +30,17 @@
   home.stateVersion  = "26.05";
   programs.home-manager.enable = true;
 
-  # Standalone HM switch kısayolu (-b: gömülü HM'nin backupFileExtension eşleniği)
+  # qtct: Stylix'in 'gnome' Qt platformu desteklenmiyor (eval uyarısı).
+  stylix.targets.qt.platform = "qtct";
+  # rofi yok; hedef açıkken eski seçenek adıyla uyarı basıyor.
+  stylix.targets.rofi.enable = false;
+
   home.shellAliases.hms = "nh home switch -b hm-backup";
 
   programs.bash.enable = true;
 
-  # HM'nin ürettiği .bash_profile, .bashrc'yi koşulsuz source eder; .bashrc'nin
-  # `[[ $- == *i* ]] || return` koruması etkileşimsiz kabukta 1 döndürür.
-  # hm-setup-env aktivasyonu `bash -el` (login + errexit) açtığından bu,
-  # home-manager-zixar.service'i çıktısız öldürüyordu (üstakım activation
-  # driver-v1 regresyonu). .bashrc'yi yalnız etkileşimli kabukta içer.
-  # NOT: modül .bash_profile'ı `source` ile tanımlar; `text` mkDefault'a
-  # çevrildiğinden text'i force'lamak YETMEZ — source force'lanmalı.
+  # .bashrc'nin etkileşimsiz `return`'ü hm-setup-env'i (bash -el) öldürüyordu → yalnız
+  # etkileşimli kabukta içer. text mkDefault olduğundan source force'lanmalı.
   home.file.".bash_profile".source = lib.mkForce (pkgs.writeText "bash_profile" ''
     # include .profile if it exists
     if [[ -f ~/.profile ]]; then . ~/.profile; fi

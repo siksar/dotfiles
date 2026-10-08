@@ -1,14 +1,9 @@
-# ACPI/DSDT override — fabrika SSDT9'unun NVIDIA dGPU güç tablosu hatası.
-# initrd'e yamalı tablo enjekte eder. Ölçüm: Documentation/aerox16/wmi-ec.md
+# Fabrika SSDT9 yaması: \_SB.PCI0.GPP9.PEGP.GPS LTGP'yi var olmayan \_SB.PC00.AMW0.LTGP'den
+# okuyor (Intel şablon artığı) → AE_NOT_FOUND spam, WMBD 0x4B işlevsiz. initrd ACPI upgrade ile
+# binary-patch'li SSDT9 yüklenir. BIOS güncellenince yamayı yeniden doğrula.
 { pkgs, ... }:
 
 let
-  # Fabrika SSDT9 dökümü (2026-07-11): \_SB.PCI0.GPP9.PEGP.GPS (NVIDIA legacy
-  # _DSM) LTGP'yi var olmayan \_SB.PC00.AMW0.LTGP'den okuyor (Intel şablon
-  # artığı) -> her dGPU uyanışında AE_NOT_FOUND + NVRM PSHAREPARAMS spam'i,
-  # WMBD 0x4B (TGP 75-87W) işlevsiz. Çözüm: kernel initrd ACPI table upgrade
-  # ile binary-patch'li SSDT9. Ayrıntı + BIOS güncelleme politikası:
-  # Documentation/aerox16/wmi-ec.md "SSDT9 PC00->PCI0" bölümü.
   pristine       = ./acpi/ssdt9-pristine.dat;
   pristineSha256 = "03b2207ec1db487d3b2235435c5a42778c841ff2286f035bae63b1b639cb01dd";
 
@@ -37,9 +32,6 @@ let
     '';
 in
 {
-  # amd-ucode mkOrder 1 ile İLK cpio (nixpkgs amd-microcode.nix); bu tanım
-  # default order (1000) ile ONDAN SONRA gelir. Kernel earlycpio ardışık
-  # sıkıştırmasız arşivleri tarar; asıl initrd (zstd) en sonda.
-  # Çalışma zamanı ayak izi SIFIR (yalnız initrd içeriği) -> 4.28W idle korunur.
+  # amd-ucode mkOrder 1 ile ilk cpio; bu varsayılan sırayla ondan sonra gelir.
   boot.initrd.prepend = [ "${acpiOverride}/acpi-override.img" ];
 }

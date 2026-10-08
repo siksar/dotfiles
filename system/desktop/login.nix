@@ -1,12 +1,6 @@
-# COSMIC greeter — giriş ekranı.
-#
-# COSMIC oturumu ile aynı görsel yığını kullanır ve SDDM/kwin greeter'ının
-# ayrı tema, PAM ve DRM ayarlarını gerektirmez. Varsayılan masaüstü oturumu
-# configuration.nix'te ayrıca seçilir; greeter yalnız oturum seçimini yapar.
-{ ... }:
+# GDM; gnome.nix'in mutter-device-ignore etiketi greeter'ı da kapsar.
+_:
 
 {
-  services.displayManager.cosmic-greeter = {
-    enable = true;
-  };
+  services.displayManager.gdm.enable = true;
 }

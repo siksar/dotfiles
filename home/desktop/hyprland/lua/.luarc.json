@@ -1,0 +1,4 @@
+{
+  "workspace.library": ["/run/current-system/sw/share/hypr/stubs"],
+  "diagnostics.globals": ["hl", "claude_voice_tween", "claude_voice_toggle", "claude_voice_chat", "claude_voice_width", "claude_voice_close"]
+}

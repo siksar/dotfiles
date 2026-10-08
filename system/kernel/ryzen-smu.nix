@@ -1,21 +1,5 @@
-# ryzen_smu — AMD SMU/SMN ham erişim kapısı (ağaç-dışı çekirdek modülü).
-#
-# NE YAPAR: kylon/ryzen_smu'yu bu çekirdeğe karşı derler ve yükler; sysfs'te
-# /sys/kernel/ryzen_smu_drv altında codename, smn, smu_args, rsmu_cmd,
-# mp1_smu_cmd, hsmp_smu_cmd, version dosyalarını açar.
-#
-# NEDEN VAR: tüketicisi bu ağaçta DEĞİL — ~/aero-eg61h kontrol yığını güç/termal
-# telemetrisini buradan okuyacak. Undervolt bu makinede platform-kilitli
-# (Documentation/aerox16/undervolt.md), yani bu modül bir ayar kolu değil, bir
-# okuma kapısı.
-#
-# postPatch iki cpuid çağrısını yeniden adlandırıyor: CachyOS çekirdeğinde aynı
-# adlar zaten tanımlı, çakışma derlemeyi kırıyordu.
-#
-# UYARI: ağaç-dışı modül — çekirdek sürümü değişince REBOOT ister. `modprobe -r`
-# + `modprobe` YETMEZ (modprobe /run/booted-system/kernel-modules'a bakar).
-# UYARI: aşağıdaki '' '' bloklarında yorum bile hash'e girer; bir yazım
-# düzeltmesi modülü baştan derletir.
+# ryzen_smu — SMU/SMN okuma kapısı; tüketicisi ~/aero-eg61h. postPatch CachyOS ad çakışmalarını ve
+# const imzalarını düzeltir. Çekirdek değişince REBOOT ister. '' '' içindeki her değişiklik modülü yeniden derletir.
 { config, ... }:
 
 let

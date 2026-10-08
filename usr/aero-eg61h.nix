@@ -1,10 +1,4 @@
-# AERO X16 kontrol uygulaması — yerel checkout'taki GUI için masaüstü başlatıcısı.
-#
-# Uygulamanın çalıştırılması `run.sh` üzerinden yapılır: libcosmic/winit'in
-# çalışma zamanında ihtiyaç duyduğu Wayland kütüphanelerini .gcroots/gui-env
-# üzerinden sağlar ve gerekirse bu ortamı kurar. GUI'nin Nix paketi ayrı bir
-# çalışma koludur; libcosmic git bağımlılığı için hash tamamlanana kadar burada
-# yerel, ölçülmüş çalışma yolu kullanılır.
+# AERO X16 kontrol uygulaması (yerel checkout) başlatıcısı; run.sh Wayland kütüphanelerini sağlar.
 { pkgs, ... }:
 
 let
@@ -39,7 +33,5 @@ in
     })
   ];
 
-  # COSMIC launcher system profilindeki XDG uygulama dizinini tarar; /etc/xdg
-  # yapılandırma dizini uygulama kataloğu değildir.
   environment.pathsToLink = [ "/share/applications" ];
 }

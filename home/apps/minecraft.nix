@@ -1,44 +1,19 @@
-# Minecraft — Prism Launcher + mc-run→gamerun zinciri + JVM optimizasyonu
-# Prism her instance'ı WrapperCommand=mc-run ile başlatır → MC'ye özel GL env +
-# gamerun (dGPU PRIME offload + CPU maskesi delme) + game-perf.service (scx_lavd,
-# AC'de 0xED + turbo fan) otomatik devrede.
-# 2 Eyl 2026: gamerun sıfırdan yazıldı — gamemode (renice) zincirden çıktı, DLSS/Reflex/
-# ntsync env'leri kaldırıldı (MC'de zaten etkisizlerdi). Buna karşılık artık
-# __GLX_VENDOR_LIBRARY_NAME=nvidia VARSAYILAN — MC gibi OpenGL oyunları için ŞART olan
-# ve eskiden opt-in'in (GR_NVONLY) arkasında saklı kalan parça. Gerekçe: lib/gamerun.nix.
-# Ayrıntı ve gerekçeler: Documentation/gaming.md "Minecraft (Prism Launcher)" bölümü.
+# MC OpenGL: dGPU için __GLX_VENDOR_LIBRARY_NAME=nvidia şart — gamerun verir.
 { lib, pkgs, ... }:
 
 let
-  # mc-run: MC'ye ÖZEL OpenGL env'i (yalnız Prism yolunda; Steam'e sızmaz), sonra
-  # gamerun'a devreder. Neden ayrı sarmalayıcı? __GL_THREADED_OPTIMIZATIONS=0
-  # Minecraft+Sodium+NVIDIA'da FPS düzeltmesi (sürücü Prism ile başlatılan MC'yi
-  # tanıyamıyor → threaded-GL opt yanlış devreye girip FPS düşürüyor; Sodium wiki
-  # Driver-Compatibility + issue #1830). Ama bu değişken bazı OpenGL oyunlarında
-  # TERS etki yapar → global veya gamerun'a KOYULMAZ, yalnız MC'ye scope'lanır.
-  # PRIME offload env'leri gamerun'dan miras kalır (mc-run onu exec ettiği için).
+  # mc-run: __GL_THREADED_OPTIMIZATIONS=0 Sodium+NVIDIA FPS düzeltmesi; başka GL
+  # oyunlarında ters etki → yalnız MC'ye scope'lu, gamerun'a koyma.
   mc-run = pkgs.writeShellScriptBin "mc-run" ''
     export __GL_THREADED_OPTIMIZATIONS="''${__GL_THREADED_OPTIMIZATIONS:-0}"
     exec gamerun "$@"
   '';
 in
 {
-  # Sarmalayıcı jdk8/17/21/25'i PRISMLAUNCHER_JAVA_PATHS'e ekler → ayrı Java
-  # paketi kurulmaz; AutomaticJavaSwitch instance'ın MC sürümüne göre seçer.
-  # mc-run: WrapperCommand hedefi (gamerun'ı PATH'ten çağırır).
   home.packages = [ pkgs.prismlauncher mc-run ];
 
-  # JVM bayrakları: Aikar flag seti (modlu-MC standardı; Java 8→25 hepsinde geçerli,
-  # ZGC gibi 21+ bayrağı YOK — JvmArgs global). Periyodik GC hitch'ini hedefler (hem
-  # VulkanMod hem Sodium modpack'lerinde görüldü → render'dan bağımsız, GC kaynaklı):
-  #   • sabit heap (Min=Max=8192) → JVM'in dinamik heap resize duraklaması biter;
-  #   • +AlwaysPreTouch → tüm heap başta commit (kısa açılış gecikmesi, oyun-içi
-  #     commit hitch'i yok);
-  #   • MaxGCPauseMillis=200 (50 DEĞİL) → 50 daha SIK, küçük GC yapıp overhead/hitch
-  #     ekliyordu; Aikar felsefesi az sayıda iyi-yönetilen GC.
-  # AutomaticJavaDownload=false: Prism'in indirdiği generic binary NixOS'ta çalışmaz
-  # (dinamik linker yok). MaxMemAlloc: çok ağır modpack instance ayarlarından
-  # yükseltilebilir (Settings → Java sekmesi; per-instance Min/Max'i ezer).
+  # Aikar seti; sabit heap + MaxGCPauseMillis=200 bilinçli (50 ve heap resize takılıyordu).
+  # AutomaticJavaDownload=false: indirilen generic JDK NixOS'ta çalışmaz.
   xdg.dataFile."PrismLauncher/prismlauncher.cfg".text = ''
     [General]
     AutomaticJavaSwitch=true
@@ -50,9 +25,7 @@ in
     WrapperCommand=mc-run
   '';
 
-  # Prism cfg'yi runtime'da kendisi de yazar (pencere geometrisi vb.) → HM
-  # symlink'i yerine mutable-copy (vesktop.nix'teki desen), bayat backup'lar
-  # checkLinkTargets'tan önce silinir.
+  # Prism cfg'yi runtime'da yazar → mutable-copy.
   home.activation.prismCleanBackups = lib.hm.dag.entryBefore [ "checkLinkTargets" ] ''
     run rm -f "$HOME/.local/share/PrismLauncher/prismlauncher.cfg.hm-backup"
   '';
